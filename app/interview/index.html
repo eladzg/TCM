@@ -129,6 +129,34 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 .mic-help { border-color: var(--cinnabar); margin-bottom: 12px; }
 .mic-help h3 { color: var(--cinnabar); }
 .mic-help a.btn { text-decoration: none; display: inline-block; }
+/* treatment plan */
+.txwrap { display: grid; gap: 14px; }
+.tx { display: grid; gap: 14px; }
+.hint { margin: 0; font-size: .88rem; color: var(--muted); }
+.field { display: grid; gap: 4px; font-size: .92rem; }
+.txlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.txrow { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; min-width: 0; }
+.txrow.on { border-color: var(--jade); background: color-mix(in srgb, var(--jade-soft) 45%, var(--surface)); }
+.txrow.risk-red { border-color: var(--cinnabar); box-shadow: inset 4px 0 0 var(--cinnabar); }
+.txrow.risk-amber { box-shadow: inset 4px 0 0 var(--amber); }
+.txname { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: baseline; cursor: pointer; }
+.txhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.txhead .row { gap: 8px; }
+.quote { direction: ltr; text-align: left; unicode-bidi: isolate; font-size: .8rem; color: var(--muted); }
+.why { font-size: .86rem; color: var(--ink); display: grid; gap: 2px; }
+.zh { color: var(--muted); }
+.mini.on { background: var(--jade); color: var(--surface); border-color: var(--jade); }
+.mini.on.no { background: var(--cinnabar); border-color: var(--cinnabar); }
+input[type="text"].note, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; min-width: 0; }
+input[type="text"].note { flex: 1; min-width: 12em; }
+.scroll { overflow-x: auto; }
+table.herbs { border-collapse: collapse; width: 100%; font-size: .92rem; }
+table.herbs th { text-align: start; color: var(--muted); font-weight: 600; font-size: .8rem; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+table.herbs td { border-bottom: 1px solid var(--line); padding: 5px 6px; vertical-align: middle; }
+table.herbs tr.risk-red td:first-child { box-shadow: inset -4px 0 0 var(--cinnabar); }
+table.herbs tr.risk-amber td:first-child { box-shadow: inset -4px 0 0 var(--amber); }
+input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+.flag .en { direction: ltr; unicode-bidi: isolate; }
 @media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
 </style>
 </head>
@@ -160,6 +188,8 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 </div>
 <script src="kb.js"></script>
 <script src="engine.js"></script>
+<script src="treatment_kb.js"></script>
+<script src="treatment.js"></script>
 <script src="app.js"></script>
 <script src="voice_config.js"></script>
 <script src="voice_flow.js"></script>

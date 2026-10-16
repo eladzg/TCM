@@ -49,6 +49,7 @@
 
   // ---- steps ----
   function start() {
+    if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
     chat.textContent = "";
     state = E.newState({});
     current = null;
@@ -373,8 +374,13 @@
     ];
     if (!dxs.length) children.push(el("p", { class: "empty", text: "עוד אין מספיק ממצאים. השלימו את הראיון בלשונית 'ראיון המטופל', או לחצו על 'מילוי מקרה לדוגמה'." }));
     children = children.concat(dxs);
+    if (window.TCMTreatmentUI) {
+      var txSection = el("section", { id: "tx", class: "txwrap" });
+      children.push(txSection);
+    }
     children.push(el("details", {}, [el("summary", { text: "DiagnosticReport (JSON)" }), el("div", { class: "row", style: "margin:8px 0" }, [copy]), pre]));
     children.forEach(function (c) { if (c) clin.appendChild(c); });
+    if (txSection) window.TCMTreatmentUI.render(txSection, { report: rep, state: state, featById: E.featById });
   }
 
   // ---- tabs and demo ----
@@ -421,6 +427,7 @@
     kb: kb,
     engine: E,
     beginVoice: function () {
+      if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
       chat.textContent = "";
       state = E.newState({});
       current = null;

@@ -70,6 +70,25 @@ python3 tools/interview/build_interview.py                        # after editin
 python3 tools/interview/build_interview.py --standalone out.html  # one self-contained file
 ```
 
+## Treatment plan step (`app/interview/treatment.js`)
+
+After the hypotheses, the clinician view shows a draft treatment plan for the leading pattern (or patterns the clinician ticks): treatment principle, acupuncture points, a herbal prescription and shiatsu points, a live safety check, and a follow-up recommendation. The clinician adds and removes points and herbs, sets technique, moxa and gram doses, approves or rejects each suggested link, and saves the plan (`treatment_plan.v1` JSON, kept in the browser and downloadable).
+
+`tools/treatment/build_treatment.py` derives the suggestions and writes `app/interview/treatment_kb.js`. Every link is a draft with its source:
+
+| Suggestion | Derived from |
+| --- | --- |
+| Treatment principle | WHO 2022 treatment methods (治法) whose definition says "indicated for" a pattern named with the same words |
+| Points | AcuAtlas actions that treat the same organ and disorder ("subdues Liver yang"), plus AcuAtlas and 針灸大成 indications that list the pattern's and the patient's findings |
+| Herbs | 本草備要 entries whose opening actions name the method ("平肝", "補脾") |
+| Base formula | 傷寒論 / 金匱要略 formulas carried by those herbs, plus clauses describing the findings. Only these 152 formulas are in the KB, so zang-fu patterns often get weak or no formula matches |
+
+The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pregnancy, 十八反/十九畏, toxic herbs, 禁針/禁灸 points), the AcuAtlas needling cautions, and the medication answers. Rules for anticoagulants, implanted devices, organ disease and allergy are draft heuristics without a source and say so. No gram dose is ever suggested; formulas show only their classical doses (三兩).
+
+```
+python3 tools/treatment/build_treatment.py   # after editing the KB or the lexicon, before build_interview.py --page
+```
+
 ## Run
 
 ```
