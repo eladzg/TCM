@@ -20,8 +20,10 @@ voice "Yael" (workspace voice `d4eLZ8u5dfBCsjp4YPyz`), TTS `eleven_v3_conversati
 `claude-haiku-4-5`, turn eagerness `patient`, built-in `end_call` enabled.
 
 The agent is public (no signed URL), so no API key is in this repo; the page only needs the agent
-id in `voice_config.js`. Anyone who has the id can use the clinic's credits, so add an origin
-allowlist in the agent's security settings before the page is hosted anywhere public.
+id in `voice_config.js`. Its origin allowlist admits only `eladzg.github.io`, where `docs/index.html`
+is served by GitHub Pages (https://eladzg.github.io/TCM/), so the page works only from there;
+add a host to the allowlist to run it elsewhere (a local file sends no usable origin). Rebuild the
+Pages copy with `python3 tools/interview/build_interview.py --page docs/index.html`.
 
 ## Running it
 
