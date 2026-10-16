@@ -110,3 +110,62 @@ def test_committed_kb_js_is_current(tmp_path):
     bi.write_js(bi.build_data(), tmp_path / "kb.js")
     assert (tmp_path / "kb.js").read_text(encoding="utf-8") == (ROOT / "app" / "interview" / "kb.js").read_text(encoding="utf-8"), \
         "run python3 tools/interview/build_interview.py"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_voice_flow(tmp_path):
+    bi.write_js(bi.build_data(), tmp_path / "kb.js")
+    script = tmp_path / "voice.js"
+    script.write_text(f"""
+global.window = {{}};
+require({json.dumps(str(tmp_path / "kb.js"))});
+const {{ createEngine }} = require({json.dumps(str(ROOT / "app" / "interview" / "engine.js"))});
+const {{ createVoiceFlow }} = require({json.dumps(str(ROOT / "app" / "interview" / "voice_flow.js"))});
+const e = createEngine(window.TCM_KB);
+function session(turns) {{
+  const s = e.newState({{}});
+  const f = createVoiceFlow(e, window.TCM_KB, s);
+  const said = turns.map(t => f.step(t));
+  return {{ said, state: s, report: e.report(s, {{ report_id: "t", created_at: "t" }}) }};
+}}
+const out = {{}};
+// A woman of 41: age, then sex, then pregnancy, red flags, meds, complaint, then yes/no answers.
+const turns = [
+  {{ patient_said: "ארבעים ואחת", answer: "other", age: 41 }},
+  {{ patient_said: "אישה", answer: "other", sex: "F" }},
+  {{ patient_said: "לא", answer: "no", pregnancy: "no" }},
+  {{ patient_said: "לא, אף אחד", answer: "no" }},
+  {{ patient_said: "אני לוקחת קומדין", answer: "other" }},
+  {{ patient_said: "יש לי כאבי ראש פועמים ברקות ואני עצבנית מאוד", answer: "other" }},
+];
+for (let i = 0; i < 40; i++) turns.push({{ patient_said: "לא", answer: "no" }});
+out.full = session(turns);
+out.halt = session([
+  {{ patient_said: "שלושים", answer: "other", age: 30, sex: "M" }},
+  {{ patient_said: "כן, יש לי לחץ בחזה", answer: "yes", red_flags: "RF.CHEST_PAIN" }},
+  {{ patient_said: "מה עכשיו?", answer: "other" }},
+]);
+out.freeHalt = session([
+  {{ patient_said: "שלושים", answer: "other", age: 30, sex: "M" }},
+  {{ patient_said: "לא", answer: "no" }},
+  {{ patient_said: "אין", answer: "no" }},
+  {{ patient_said: "אני כבר כמה ימים לא יכול לנשום", answer: "other" }},
+]);
+console.log(JSON.stringify(out));
+""", encoding="utf-8")
+    out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
+
+    said = out["full"]["said"]
+    assert [s["status"] for s in said[:6]] == ["ask"] * 6
+    assert "היריון" in said[1]["say"]               # pregnancy asked for a woman of 41
+    assert "בטיחות" in said[2]["say"]               # then the red-flag screen
+    assert said[5]["phase"] == "screening"          # then the engine's own questions
+    assert said[-1]["status"] == "done"
+    rep = out["full"]["report"]
+    assert rep["patient"]["pregnancy"] == "no"
+    assert [f["type"] for f in out["full"]["state"]["flags"]] == ["anticoagulant"]
+    assert any(f["feature_id"] == "FT.IRRITABLE" and f["value"] == "present" for f in rep["findings"])
+
+    assert [s["status"] for s in out["halt"]["said"]] == ["ask", "halt", "halt"]
+    assert out["halt"]["state"]["halted"] is True
+    assert out["freeHalt"]["said"][-1]["status"] == "halt"

@@ -140,14 +140,16 @@ def write_js(data, path):
 
 
 def write_standalone(path):
-    """Inline kb.js, engine.js and app.js into index.html so the file opens anywhere."""
+    """Inline the page's local scripts into index.html so the file opens anywhere."""
     html = (APP / "index.html").read_text(encoding="utf-8")
-    for name in ("kb.js", "engine.js", "app.js"):
-        tag = f'<script src="{name}"></script>'
+    scripts = [("kb.js", ""), ("engine.js", ""), ("app.js", ""), ("voice_config.js", ""),
+               ("voice_flow.js", ""), ("voice_ui.js", ' type="module"')]
+    for name, attrs in scripts:
+        tag = f'<script{attrs} src="{name}"></script>'
         if tag not in html:
             raise SystemExit(f"index.html has no {tag}")
         code = (APP / name).read_text(encoding="utf-8").replace("</script", "<\\/script")
-        html = html.replace(tag, f"<script>\n{code}\n</script>")
+        html = html.replace(tag, f"<script{attrs}>\n{code}\n</script>")
     # The artifact host wraps the page in its own document skeleton, so drop ours.
     html = re.sub(r"<!doctype html>\s*|</?html[^>]*>\s*|</?head>\s*|</?body>\s*|<meta charset[^>]*>\s*|<meta name=\"viewport\"[^>]*>\s*",
                   "", html, flags=re.I)

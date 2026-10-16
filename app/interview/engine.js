@@ -365,6 +365,7 @@
     return {
       newState: newState,
       extract: extract,
+      screenText: screenText,
       ingestText: ingestText,
       ingestMedications: ingestMedications,
       redFlagAnswer: redFlagAnswer,

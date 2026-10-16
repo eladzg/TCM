@@ -246,6 +246,7 @@
   var FLAG_HE = {
     SAFETY_CATEGORY_A: "סימן אזהרה דחוף: ",
     SAFETY_CATEGORY_C: "שיקול בטיחות לטיפול: ",
+    SAFETY_CATEGORY_D: "מידע בטיחותי לא ודאי: ",
     PREGNANCY_STATUS_UNKNOWN: "סטטוס היריון לא אושר (אישה בגיל הפוריות).",
     PREGNANCY: "המטופלת מדווחת על היריון אפשרי.",
     OBJECTIVE_FINDINGS_MISSING: "לשון או דופק לא הוזנו, ולכן רמת הביטחון מוגבלת.",
@@ -377,6 +378,29 @@
     step = "done";
     showTab("clin");
   });
+
+  // Hooks for the voice interview (voice_ui.js): it drives the same state and views, with the
+  // ElevenLabs agent in place of the typed composer.
+  window.TCMInterviewUI = {
+    kb: kb,
+    engine: E,
+    beginVoice: function () {
+      chat.textContent = "";
+      state = E.newState({});
+      current = null;
+      objective = { tongue: null, pulse: null };
+      step = "voice";
+      showTab("patient");
+      renderClinician();
+      return state;
+    },
+    say: say,
+    showUnderstood: showUnderstood,
+    halt: halt,
+    renderClinician: renderClinician,
+    showTab: showTab,
+    restart: start
+  };
 
   start();
   renderClinician();
