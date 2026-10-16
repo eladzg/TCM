@@ -2,7 +2,9 @@
 
 Reads the WHO 2022 patterns (kb/curation/syndromes.yaml) and the interview lexicon
 (kb/lexicon/interview_features.yaml, interview_safety.yaml), derives pattern-feature links by
-matching each feature's English phrases against the pattern text, and writes app/interview/kb.js.
+matching each feature's English phrases against the WHO pattern text and its Chinese phrases
+against the findings GB/T 16751.2 lists for the same pattern (kb/staging/GBT-16751-2, matched by
+Chinese name), and writes app/interview/kb.js. Each link names the sources that support it.
 
 Every derived link is a DRAFT with the placeholder weight from the lexicon `defaults`; the
 clinician replaces these with real weights and essential flags later.
@@ -88,6 +90,97 @@ def derive_links(syndromes, features):
     return links
 
 
+GB_STAGING = KB / "staging" / "GBT-16751-2" / "syndromes.jsonl"
+GB_SEGMENT = re.compile(r"[，、；;,]")
+ZH_NEGATION = "不无未没"
+PULSE_ONLY = re.compile(r"^(或|且|而)?[浮沉伏数疾促迟缓弱无力虚微有实洪大细滑弦涩紧濡软长短结代动芤革牢散]+$")
+
+
+def load_gb():
+    """GB/T 16751.2 entries by Chinese name and synonym, or {} when the source was not ingested."""
+    if not GB_STAGING.exists():
+        return {}
+    index = {}
+    with open(GB_STAGING, encoding="utf-8") as f:
+        for line in f:
+            rec = json.loads(line)
+            for name in [rec["name_zh"]] + rec["synonyms_zh"]:
+                index.setdefault(name, rec)
+    return index
+
+
+def gb_segments(rec):
+    """The GB findings of one pattern as (kind, phrase, secondary) triples.
+
+    Tongue phrases mention 舌 or 苔 and pulse phrases 脉; a phrase right after one of them that
+    only continues it ("脉沉弦，或浮大无力", "舌质淡，边有齿痕") keeps its kind.
+    """
+    out = []
+    for secondary, text in ((False, rec.get("findings_main")), (True, rec.get("findings_secondary"))):
+        kind = "symptom"
+        for phrase in GB_SEGMENT.split(text or ""):
+            phrase = phrase.strip()
+            if not phrase:
+                continue
+            if "脉" in phrase:
+                kind = "pulse"
+            elif "舌" in phrase or "苔" in phrase:
+                kind = "tongue"
+            elif kind == "pulse" and PULSE_ONLY.match(phrase):
+                pass
+            elif kind == "tongue" and re.match(r"^(或)?(边|尖|有|少津|胖|嫩|裂)", phrase):
+                pass
+            else:
+                kind = "symptom"
+            out.append((kind, phrase, secondary))
+    return out
+
+
+def find_zh(patterns, phrase):
+    for pattern in patterns:
+        for m in re.finditer(pattern, phrase):
+            if m.start() > 0 and phrase[m.start() - 1] in ZH_NEGATION and not re.search(f"[{ZH_NEGATION}]", pattern):
+                continue
+            return True
+    return False
+
+
+def derive_gb_links(syndromes, features, gb):
+    """{syndrome_id: [{f, ev, secondary}]} from the GB findings of the pattern with the same name."""
+    links = {}
+    for syn in syndromes:
+        rec = gb.get(syn.get("name_zh", ""))
+        if not rec or not rec.get("findings_main"):
+            continue
+        found = {}
+        for kind, phrase, secondary in gb_segments(rec):
+            for feat in features:
+                if feat.get("kind", "symptom") != kind or feat["id"] in found or not feat.get("zh"):
+                    continue
+                if find_zh(feat["zh"], phrase):
+                    found[feat["id"]] = {"f": feat["id"], "ev": phrase, "secondary": secondary}
+        text = rec["findings_main"] + ("；伴见" + rec["findings_secondary"] if rec.get("findings_secondary") else "")
+        links[syn["syndrome_id"]] = {"code": rec["code"], "text": text, "links": list(found.values())}
+    return links
+
+
+def merge_links(who_links, gb_links):
+    """One link per feature, listing every source that supports it with its evidence."""
+    merged = {}
+    for sid, found in who_links.items():
+        out = {l["f"]: {"f": l["f"], "ev": l["ev"], "src": ["WHO"]} for l in found}
+        for l in gb_links.get(sid, {}).get("links", []):
+            if l["f"] in out:
+                out[l["f"]]["src"].append("GB")
+                out[l["f"]]["ev_zh"] = l["ev"]
+            else:
+                out[l["f"]] = {"f": l["f"], "ev": l["ev"], "src": ["GB"]}
+            if l["secondary"]:
+                out[l["f"]]["gb_secondary"] = True
+        merged[sid] = list(out.values())
+    return merged
+
+
 def locator(syn):
     for src in syn.get("sources", []):
         if src.get("field") == "presentation":
@@ -106,12 +199,14 @@ def build_data():
     if dupes:
         raise SystemExit(f"duplicate feature ids: {sorted(dupes)}")
     for f in features:
-        for p in f["en"]:
+        for p in f["en"] + f.get("zh", []):
             re.compile(p)
         if f.get("kind", "symptom") == "symptom" and not f.get("q_he"):
             raise SystemExit(f"{f['id']}: symptom feature needs q_he")
 
-    links = derive_links(syndromes, features)
+    who_links = derive_links(syndromes, features)
+    gb_links = derive_gb_links(syndromes, features, load_gb())
+    links = merge_links(who_links, gb_links)
     out_syndromes = []
     for syn in syndromes:
         out_syndromes.append({
@@ -126,6 +221,8 @@ def build_data():
             "pulse": syn.get("pulse", ""),
             "tp": syn.get("treatment_principle"),
             "src": locator(syn),
+            "gb": gb_links.get(syn["syndrome_id"], {}).get("code"),
+            "gbtext": gb_links.get(syn["syndrome_id"], {}).get("text"),
             "status": syn.get("status", "draft"),
             "links": links[syn["syndrome_id"]],
         })
@@ -134,7 +231,7 @@ def build_data():
         "kb_version": config.get("kb_version", ""),
         "defaults": lex["defaults"],
         "groups": lex["groups"],
-        "features": [{k: v for k, v in f.items() if k != "en"} for f in features],
+        "features": [{k: v for k, v in f.items() if k not in ("en", "zh")} for f in features],
         "safety": safety,
         "syndromes": out_syndromes,
     }

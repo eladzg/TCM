@@ -45,6 +45,37 @@ def test_tidal_fever_is_not_acute_fever():
     assert {"FT.FIVE_PALM_HEAT", "FT.HOT_FLUSHES"} <= found
 
 
+def gb_links_for(main, secondary=None):
+    syn = {"syndrome_id": "SYN.T.X", "name_zh": "测试证"}
+    gb = {"测试证": {"code": "9.9", "findings_main": main, "findings_secondary": secondary}}
+    return {l["f"]: l for l in bi.derive_gb_links([syn], FEATURES, gb)["SYN.T.X"]["links"]}
+
+
+def test_gb_findings_link_by_kind():
+    found = gb_links_for("情志抑郁，喜太息，胸胁胀痛，或腹胀，纳呆，便溏不爽，舌苔白，脉弦或缓弱", "口苦")
+    assert {"FT.LOW_MOOD", "FT.FLANK_PAIN", "FT.ABD_DIST", "FT.POOR_APPETITE", "FT.LOOSE_STOOL",
+            "TG.COAT_WHITE", "PL.WIRY", "PL.SLACK", "PL.WEAK"} <= set(found)
+    assert found["FT.BITTER_MOUTH"]["secondary"] and not found["FT.LOW_MOOD"]["secondary"]
+    # 白 in the tongue coating is not a pale face, 弦 in the pulse is nothing on the tongue
+    assert "FT.PALE_FACE" not in found and "TG.PALE" not in found
+
+
+def test_gb_negated_findings():
+    found = gb_links_for("恶寒，无汗，口不渴，舌质淡红，脉浮紧")
+    assert "FT.THIRST" not in found and "FT.PROFUSE_SWEAT" not in found
+    assert {"FT.NO_THIRST", "FT.NO_SWEAT", "FT.AVERSION_COLD", "PL.SUPERFICIAL", "PL.TIGHT"} <= set(found)
+    assert "TG.PALE" not in found  # 淡红 is the normal tongue colour
+
+
+def test_links_name_their_sources():
+    data = bi.build_data()
+    syn = next(s for s in data["syndromes"] if s["zh"] == "肝郁气滞证")
+    src = {l["f"]: l["src"] for l in syn["links"]}
+    assert src["PL.WIRY"] == ["WHO", "GB"]
+    assert src["FT.POOR_APPETITE"] == ["GB"]
+    assert syn["gb"] and syn["gbtext"]
+
+
 def test_build_data_covers_most_patterns():
     data = bi.build_data()
     linked = [s for s in data["syndromes"] if len(s["links"]) >= 3]

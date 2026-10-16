@@ -279,7 +279,8 @@
       ]);
       card.appendChild(el("h3", { text: "תומך (" + d.supporting.length + ")" }));
       card.appendChild(evList(d.supporting, function (x) {
-        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en })]);
+        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en }),
+          " ", el("span", { class: "id", text: x.sources.join("+") })]);
       }));
       if (d.contradicting.length) {
         card.appendChild(el("h3", { text: "סותר (" + d.contradicting.length + ")" }));
@@ -296,6 +297,9 @@
       }
       var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + d.supporting[0].evidence_ref + ")" }),
         el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : ""])]);
+      if (d.source_text.gb_zh) {
+        src.appendChild(el("div", { class: "src zh" }, ["GB/T 16751.2 " + d.source_text.gb_code + ": " + d.source_text.gb_zh]));
+      }
       card.appendChild(src);
       return card;
     });

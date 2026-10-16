@@ -177,15 +177,16 @@
 
     function score(state) {
       var yes = Object.keys(state.answers).filter(function (k) { return state.answers[k].value === true; });
-      var yesWeight = yes.length * weight;
+      var yesWeight = yes.length;
       var ranked = syndromes.map(function (s) {
         var P = 0, D = 0, L = 0, supporting = [], contradicting = [], missing = [];
         s.links.forEach(function (l) {
           if (!sexAllows(featById[l.f], state)) return;
-          L += weight;
+          var w = l.w === undefined ? weight : l.w;
+          L += w * w;
           var a = state.answers[l.f];
-          if (a && a.value === true) { P += weight; supporting.push(l); }
-          else if (a && a.value === false) { D += weight; contradicting.push(l); }
+          if (a && a.value === true) { P += w; supporting.push(l); }
+          else if (a && a.value === false) { D += w; contradicting.push(l); }
           else missing.push(l);
         });
         var value = yesWeight && L ? Math.max(0, P - penalty * D) / Math.sqrt(L * yesWeight) : 0;
@@ -290,7 +291,7 @@
                      message_en: "Tongue or pulse not entered; confidence is capped at moderate.", related_ids: [] });
       }
       flags.push({ code: "PLACEHOLDER_WEIGHTS", severity: "info",
-                   message_en: "Pattern-feature links were derived automatically from WHO 2022 text and all carry the same placeholder weight. Ranking is a proposal only.", related_ids: [] });
+                   message_en: "Pattern-feature links were derived automatically from WHO 2022 and GB/T 16751.2 text and all carry the same placeholder weight. Ranking is a proposal only.", related_ids: [] });
       var differential = ranked.slice(0, 5).map(function (r, i) {
         var s = r.syndrome;
         var objective = state.tongueObserved && state.pulseObserved;
@@ -305,7 +306,7 @@
           graph_score: Math.round(r.score * 1000) / 1000,
           confidence: confidence,
           supporting: r.supporting.map(function (l) {
-            return { finding_id: findingIds[l.f], feature_id: l.f, matched_manifestation_en: l.ev, evidence_ref: s.src };
+            return { finding_id: findingIds[l.f], feature_id: l.f, matched_manifestation_en: l.ev, sources: l.src || ["WHO"], evidence_ref: s.src };
           }),
           contradicting: r.contradicting.map(function (l) {
             return { finding_id: findingIds[l.f], feature_id: l.f, conflict_en: "Reported absent: " + l.ev, evidence_ref: s.src };
@@ -314,7 +315,7 @@
             var f = featById[l.f];
             return { feature_id: l.f, manifestation_en: l.ev, evidence_ref: s.src, suggested_question_he: f.q_he || null };
           }),
-          source_text: { presentation: s.text, tongue: s.tongue, pulse: s.pulse },
+          source_text: { presentation: s.text, tongue: s.tongue, pulse: s.pulse, gb_code: s.gb || null, gb_zh: s.gbtext || null },
           treatment_principle: s.tp ? { text_en: s.tp, evidence_ref: s.src } : null
         };
       });
