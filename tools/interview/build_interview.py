@@ -37,19 +37,27 @@ def load(path):
 def split_texts(syn):
     """Return (symptom text, tongue text, pulse text) for one pattern.
 
-    Sentences of the presentation that describe the tongue or pulse are moved to those texts,
-    so 'pale' in 'the tongue is pale' never counts as a pale face.
+    The WHO parser sometimes files a whole presentation under `tongue` or `pulse`, so the three
+    fields are pooled and re-split by sentence. Sentences about the tongue or pulse go to those
+    texts and stay out of the symptom text, so 'pale' in 'the tongue is pale' never counts as a
+    pale face, unless the sentence also lists other findings ("Characterized by fever, ... and
+    mouth/tongue ulcerations").
     """
-    symptom, tongue, pulse = [], [syn.get("tongue", "")], [syn.get("pulse", "")]
-    for sentence in SENTENCE.split(syn.get("presentation", "") or ""):
+    sentences = []
+    for field in ("presentation", "tongue", "pulse"):
+        for sentence in SENTENCE.split(syn.get(field, "") or ""):
+            if sentence.strip() and sentence not in sentences:
+                sentences.append(sentence)
+    symptom, tongue, pulse = [], [], []
+    for sentence in sentences:
         low = sentence.lower()
         if "tongue" in low:
             tongue.append(sentence)
         if "pulse" in low:
             pulse.append(sentence)
-        if "tongue" not in low and "pulse" not in low:
+        if ("tongue" not in low and "pulse" not in low) or low.startswith("characterized by"):
             symptom.append(sentence)
-    return " ".join(symptom), " ".join(t for t in tongue if t), " ".join(p for p in pulse if p)
+    return " ".join(symptom), " ".join(tongue), " ".join(pulse)
 
 
 def find(patterns, text):
