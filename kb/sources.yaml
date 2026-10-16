@@ -1,0 +1,94 @@
+# Registry of every source the knowledge base may cite.
+# license_class decides whether build.py lets a source's content into the KB (see kb/config.yaml).
+# Verdicts and evidence: plan doc "תכנית מאגר נתוני TCM" (2026-10-16).
+
+- source_id: WHO-SAPL-2008
+  title: WHO Standard Acupuncture Point Locations in the Western Pacific Region
+  edition: "2008"
+  license: "(c) WHO"
+  license_class: internal_only     # codes and names as identifiers; location text not copied
+  url: https://medbox.org/document/who-standard-acupuncture-point-locations-in-the-western-pacific-region
+
+- source_id: WHO-ISTTCM-2022
+  title: WHO International Standard Terminologies on Traditional Chinese Medicine
+  edition: "2022"
+  license: CC BY-NC-SA 3.0 IGO
+  license_class: non_commercial
+  url: https://www.who.int/publications/i/item/9789240042322
+
+- source_id: ICD11-CH26
+  title: ICD-11 Chapter 26, Traditional Medicine Conditions Module 1
+  license: CC BY-ND 3.0 IGO
+  license_class: attribution        # reference codes; do not modify WHO text
+  url: https://icd.who.int/docs/icd-api/license
+
+- source_id: ACUATLAS
+  title: AcuAtlas reference dataset (361 points)
+  license: CC BY 4.0
+  license_class: attribution
+  url: https://acupointatlas.com/it/dataset/
+
+- source_id: ACUKG
+  title: "AcuKG: a comprehensive knowledge graph for medical acupuncture (JAMIA 2025)"
+  license: none stated
+  license_class: internal_only      # cross-check only until the authors grant permission
+  url: https://github.com/yimingli99/AcuKG-Knowledge-graph-for-medical-acupuncture
+
+- source_id: SYMMAP
+  title: "SymMap: an integrative database of traditional Chinese medicine (NAR 2019)"
+  license: article CC BY-NC 4.0; database terms not stated
+  license_class: non_commercial
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC6323958
+
+- source_id: WIKIPEDIA-ACUPOINTS
+  title: "Wikipedia: List of acupuncture points"
+  license: CC BY-SA 4.0
+  license_class: attribution
+  url: https://en.wikipedia.org/wiki/List_of_acupuncture_points
+
+- source_id: GUT-SHANGHAN
+  title: 傷寒論 Shanghan Lun (Zhang Zhongjing)
+  license: public domain
+  license_class: public_domain
+  url: https://www.gutenberg.org/ebooks/24272
+
+- source_id: GUT-BENCAO-BEIYAO
+  title: 本草備要 Bencao Beiyao (Wang Ang, 1694)
+  license: public domain
+  license_class: public_domain
+  url: https://www.gutenberg.org/ebooks/26888
+
+- source_id: STUART-1911
+  title: "Chinese Materia Medica: Vegetable Kingdom (G. A. Stuart, 1911)"
+  license: "public domain (Internet Archive: NOT_IN_COPYRIGHT)"
+  license_class: public_domain
+  url: https://archive.org/details/chinesemateriame00stuauoft
+
+- source_id: ZJDC-1601
+  title: 針灸大成 Zhenjiu Dacheng (Yang Jizhou, 1601)
+  license: public domain (original text only; Source Library AI translations reserve AI use)
+  license_class: public_domain
+  url: https://sourcelibrary.org/book/6992ca98d4d545ae73fee720
+
+- source_id: NCCIH-HAAG
+  title: NCCIH Herbs at a Glance
+  license: US government work, verify per page
+  license_class: public_domain
+  url: https://www.nccih.nih.gov/health/herbsataglance
+
+- source_id: CLINICIAN
+  title: Clinician decision (doses, syndrome weights, Hebrew lexicon)
+  license: clinic-owned
+  license_class: open
+
+- source_id: SACRED-LOTUS
+  title: Sacred Lotus
+  license: personal noncommercial use only, no copying to network computers
+  license_class: prohibited
+  url: https://sacredlotus.com/go/about-us/get/copyright-notice
+
+- source_id: AMERICAN-DRAGON
+  title: American Dragon
+  license: all rights reserved (no terms published)
+  license_class: prohibited
+  url: https://www.americandragon.com/

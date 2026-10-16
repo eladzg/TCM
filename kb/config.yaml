@@ -1,0 +1,10 @@
+# Decided 2026-10-16: the system is for internal clinic use only, so non_commercial sources are allowed.
+# Remove non_commercial (and internal_only) here if that ever changes; build.py will then name every row to replace.
+allowed_license_classes:
+  - public_domain
+  - open
+  - attribution
+  - non_commercial
+  - internal_only
+
+kb_version: kb_v0
