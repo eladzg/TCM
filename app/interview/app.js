@@ -237,6 +237,36 @@
     return el("div", { class: "panel" }, [el("div", { class: "row" }, [el("h3", { text: title }), observed]), checks]);
   }
 
+  // Clinician answers inside a hypothesis: a symptom becomes a "clinician" answer; a tongue or pulse
+  // item goes through the tongue/pulse panel's state, so both places stay in step.
+  function setFromCard(fid, value) {
+    var f = E.featById[fid];
+    if (f.kind === "tongue" || f.kind === "pulse") {
+      var list = (objective[f.kind] || []).filter(function (x) { return x !== fid; });
+      if (value === true) list.push(fid);
+      objective[f.kind] = value === null && !list.length ? null : list;
+    } else if (value === null) {
+      delete state.answers[fid];
+    } else {
+      E.setAnswer(state, fid, value, "clinician");
+    }
+    renderClinician();
+  }
+
+  function answerButtons(fid, current) {
+    var f = E.featById[fid];
+    var objectiveKind = f.kind === "tongue" || f.kind === "pulse";
+    var a = state.answers[fid];
+    var buttons = [];
+    if (current !== true) buttons.push(el("button", { class: "mini", type: "button", text: "כן", onclick: function () { setFromCard(fid, true); } }));
+    if (current !== false) buttons.push(el("button", { class: "mini", type: "button", text: "לא", onclick: function () { setFromCard(fid, false); } }));
+    if (current !== undefined && (objectiveKind || (a && a.source === "clinician"))) {
+      buttons.push(el("button", { class: "mini ghost", type: "button", text: "ביטול", title: "החזרה ללא נבדק",
+                                  onclick: function () { setFromCard(fid, null); } }));
+    }
+    return el("span", { class: "mini-row" }, buttons);
+  }
+
   function evList(items, render, cls) {
     var ul = el("ul", { class: "ev" + (cls ? " " + cls : "") });
     items.forEach(function (x) { ul.appendChild(render(x)); });
@@ -246,10 +276,11 @@
   var FLAG_HE = {
     SAFETY_CATEGORY_A: "סימן אזהרה דחוף: ",
     SAFETY_CATEGORY_C: "שיקול בטיחות לטיפול: ",
+    SAFETY_CATEGORY_D: "מידע בטיחותי לא ודאי: ",
     PREGNANCY_STATUS_UNKNOWN: "סטטוס היריון לא אושר (אישה בגיל הפוריות).",
     PREGNANCY: "המטופלת מדווחת על היריון אפשרי.",
     OBJECTIVE_FINDINGS_MISSING: "לשון או דופק לא הוזנו, ולכן רמת הביטחון מוגבלת.",
-    PLACEHOLDER_WEIGHTS: "הקישורים בין תסמינים לתבניות נגזרו אוטומטית מטקסט WHO 2022, וכולם במשקל ברירת מחדל זהה. הדירוג הוא הצעה בלבד."
+    PLACEHOLDER_WEIGHTS: "הקישורים בין תסמינים לתבניות נגזרו אוטומטית מ-WHO 2022 ומהתקן GB/T 16751.2. למשקלות יש טיוטה מרשומות TCM-SD רק בתבניות שיש להן מספיק נתונים. הדירוג הוא הצעה בלבד."
   };
 
   function renderClinician() {
@@ -278,23 +309,29 @@
       ]);
       card.appendChild(el("h3", { text: "תומך (" + d.supporting.length + ")" }));
       card.appendChild(evList(d.supporting, function (x) {
-        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en })]);
+        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en }),
+          " ", el("span", { class: "id", text: x.sources.join("+") + (x.records ? " · " + x.records + " · משקל " + x.weight : "") }),
+          " ", answerButtons(x.feature_id, true)]);
       }));
       if (d.contradicting.length) {
         card.appendChild(el("h3", { text: "סותר (" + d.contradicting.length + ")" }));
         card.appendChild(evList(d.contradicting, function (x) {
-          return el("li", {}, ["נשלל: " + s[x.feature_id].label_he]);
+          return el("li", {}, ["נשלל: " + s[x.feature_id].label_he + " ", answerButtons(x.feature_id, false)]);
         }, "contra"));
       }
       if (d.missing_key_manifestations.length) {
-        var det = el("details", {}, [el("summary", { text: "לא נשאל / לא נבדק (" + d.missing_key_manifestations.length + ")" })]);
+        var det = el("details", { open: "" }, [el("summary", { text: "לא נשאל / לא נבדק (" + d.missing_key_manifestations.length + "): סמנו כן/לא כדי לדייק" })]);
         det.appendChild(evList(d.missing_key_manifestations, function (x) {
-          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.manifestation_en })]);
+          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.manifestation_en }), " ",
+            answerButtons(x.feature_id, undefined)]);
         }));
         card.appendChild(det);
       }
       var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + d.supporting[0].evidence_ref + ")" }),
         el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : ""])]);
+      if (d.source_text.gb_zh) {
+        src.appendChild(el("div", { class: "src zh" }, ["GB/T 16751.2 " + d.source_text.gb_code + ": " + d.source_text.gb_zh]));
+      }
       card.appendChild(src);
       return card;
     });
@@ -377,6 +414,29 @@
     step = "done";
     showTab("clin");
   });
+
+  // Hooks for the voice interview (voice_ui.js): it drives the same state and views, with the
+  // ElevenLabs agent in place of the typed composer.
+  window.TCMInterviewUI = {
+    kb: kb,
+    engine: E,
+    beginVoice: function () {
+      chat.textContent = "";
+      state = E.newState({});
+      current = null;
+      objective = { tongue: null, pulse: null };
+      step = "voice";
+      showTab("patient");
+      renderClinician();
+      return state;
+    },
+    say: say,
+    showUnderstood: showUnderstood,
+    halt: halt,
+    renderClinician: renderClinician,
+    showTab: showTab,
+    restart: start
+  };
 
   start();
   renderClinician();

@@ -105,6 +105,11 @@ h3 { font-size: 1rem; margin: 0; }
 .bar i { display: block; height: 100%; background: var(--jade); }
 .ev { margin: 0; padding-inline-start: 18px; font-size: .9rem; }
 .ev li { margin: 2px 0; }
+.mini-row { display: inline-flex; gap: 4px; vertical-align: middle; }
+.mini { font: inherit; font-size: .78rem; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line);
+        background: var(--surface); color: var(--jade); cursor: pointer; }
+.mini:hover { border-color: currentColor; }
+.mini.ghost { opacity: .7; }
 .ev .en { color: var(--muted); direction: ltr; unicode-bidi: isolate; font-size: .84rem; }
 .ev.contra li { color: var(--cinnabar); }
 details summary { cursor: pointer; color: var(--jade); font-size: .9rem; }
@@ -112,6 +117,18 @@ details summary { cursor: pointer; color: var(--jade); font-size: .9rem; }
 .id { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); direction: ltr; unicode-bidi: isolate; }
 pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-family: var(--font-mono); font-size: .75rem; }
 .empty { color: var(--muted); }
+
+/* voice */
+.voicebar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--jade); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.voicebar[hidden] { display: none; }
+.voice-status { flex: 1; min-width: 10em; font-weight: 600; }
+.orb { width: 18px; height: 18px; border-radius: 50%; background: var(--muted); flex: none; transition: transform .12s linear, background-color .2s; }
+.orb.listening { background: var(--jade); }
+.orb.speaking { background: var(--amber); }
+.voice-note { font-size: .85rem; color: var(--muted); margin: 0; }
+.mic-help { border-color: var(--cinnabar); margin-bottom: 12px; }
+.mic-help h3 { color: var(--cinnabar); }
+.mic-help a.btn { text-decoration: none; display: inline-block; }
 @media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
 </style>
 </head>
@@ -120,15 +137,23 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
   <header class="top">
     <div>
       <h1>ראיון אינטייק TCM</h1>
-      <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות מתוך מאגר WHO 2022. <span class="draft">טיוטה · משקלות זמניים</span></p>
+      <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
     </div>
-    <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
+    <div class="row">
+      <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
+      <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
+    </div>
   </header>
   <nav class="tabs" role="tablist">
     <button role="tab" id="tab-patient" aria-selected="true" type="button">ראיון המטופל</button>
     <button role="tab" id="tab-clin" aria-selected="false" type="button">סיכום למטפל</button>
   </nav>
   <section id="view-patient">
+    <div class="voicebar" id="voicebar" hidden>
+      <span class="orb" id="voice-orb" aria-hidden="true"></span>
+      <span class="voice-status" id="voice-status" role="status">מתחבר…</span>
+      <button class="btn no" id="voice-end" type="button">סיום השיחה</button>
+    </div>
     <div class="chat" id="chat" aria-live="polite"></div>
   </section>
   <section id="view-clin" hidden></section>
@@ -136,5 +161,8 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 <script src="kb.js"></script>
 <script src="engine.js"></script>
 <script src="app.js"></script>
+<script src="voice_config.js"></script>
+<script src="voice_flow.js"></script>
+<script type="module" src="voice_ui.js"></script>
 </body>
 </html>

@@ -45,6 +45,37 @@ def test_tidal_fever_is_not_acute_fever():
     assert {"FT.FIVE_PALM_HEAT", "FT.HOT_FLUSHES"} <= found
 
 
+def gb_links_for(main, secondary=None):
+    syn = {"syndrome_id": "SYN.T.X", "name_zh": "测试证"}
+    gb = {"测试证": {"code": "9.9", "findings_main": main, "findings_secondary": secondary}}
+    return {l["f"]: l for l in bi.derive_gb_links([syn], FEATURES, gb)["SYN.T.X"]["links"]}
+
+
+def test_gb_findings_link_by_kind():
+    found = gb_links_for("情志抑郁，喜太息，胸胁胀痛，或腹胀，纳呆，便溏不爽，舌苔白，脉弦或缓弱", "口苦")
+    assert {"FT.LOW_MOOD", "FT.FLANK_PAIN", "FT.ABD_DIST", "FT.POOR_APPETITE", "FT.LOOSE_STOOL",
+            "TG.COAT_WHITE", "PL.WIRY", "PL.SLACK", "PL.WEAK"} <= set(found)
+    assert found["FT.BITTER_MOUTH"]["secondary"] and not found["FT.LOW_MOOD"]["secondary"]
+    # 白 in the tongue coating is not a pale face, 弦 in the pulse is nothing on the tongue
+    assert "FT.PALE_FACE" not in found and "TG.PALE" not in found
+
+
+def test_gb_negated_findings():
+    found = gb_links_for("恶寒，无汗，口不渴，舌质淡红，脉浮紧")
+    assert "FT.THIRST" not in found and "FT.PROFUSE_SWEAT" not in found
+    assert {"FT.NO_THIRST", "FT.NO_SWEAT", "FT.AVERSION_COLD", "PL.SUPERFICIAL", "PL.TIGHT"} <= set(found)
+    assert "TG.PALE" not in found  # 淡红 is the normal tongue colour
+
+
+def test_links_name_their_sources():
+    data = bi.build_data()
+    syn = next(s for s in data["syndromes"] if s["zh"] == "肝郁气滞证")
+    src = {l["f"]: l["src"] for l in syn["links"]}
+    assert src["PL.WIRY"] == ["WHO", "GB"]
+    assert src["FT.POOR_APPETITE"] == ["GB"]
+    assert syn["gb"] and syn["gbtext"]
+
+
 def test_build_data_covers_most_patterns():
     data = bi.build_data()
     linked = [s for s in data["syndromes"] if len(s["links"]) >= 3]
@@ -110,3 +141,93 @@ def test_committed_kb_js_is_current(tmp_path):
     bi.write_js(bi.build_data(), tmp_path / "kb.js")
     assert (tmp_path / "kb.js").read_text(encoding="utf-8") == (ROOT / "app" / "interview" / "kb.js").read_text(encoding="utf-8"), \
         "run python3 tools/interview/build_interview.py"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_voice_flow(tmp_path):
+    bi.write_js(bi.build_data(), tmp_path / "kb.js")
+    script = tmp_path / "voice.js"
+    script.write_text(f"""
+global.window = {{}};
+require({json.dumps(str(tmp_path / "kb.js"))});
+const {{ createEngine }} = require({json.dumps(str(ROOT / "app" / "interview" / "engine.js"))});
+const {{ createVoiceFlow }} = require({json.dumps(str(ROOT / "app" / "interview" / "voice_flow.js"))});
+const e = createEngine(window.TCM_KB);
+function session(turns) {{
+  const s = e.newState({{}});
+  const f = createVoiceFlow(e, window.TCM_KB, s);
+  const said = turns.map(t => f.step(t));
+  return {{ said, state: s, report: e.report(s, {{ report_id: "t", created_at: "t" }}) }};
+}}
+const out = {{}};
+// A woman of 41: age, then sex, then pregnancy, red flags, meds, complaint, then yes/no answers.
+const turns = [
+  {{ patient_said: "ארבעים ואחת", answer: "other", age: 41 }},
+  {{ patient_said: "אישה", answer: "other", sex: "F" }},
+  {{ patient_said: "לא", answer: "no", pregnancy: "no" }},
+  {{ patient_said: "לא, אף אחד", answer: "no" }},
+  {{ patient_said: "אני לוקחת קומדין", answer: "other" }},
+  {{ patient_said: "יש לי כאבי ראש פועמים ברקות ואני עצבנית מאוד", answer: "other" }},
+];
+for (let i = 0; i < 40; i++) turns.push({{ patient_said: "לא", answer: "no" }});
+out.full = session(turns);
+out.halt = session([
+  {{ patient_said: "שלושים", answer: "other", age: 30, sex: "M" }},
+  {{ patient_said: "כן, יש לי לחץ בחזה", answer: "yes", red_flags: "RF.CHEST_PAIN" }},
+  {{ patient_said: "מה עכשיו?", answer: "other" }},
+]);
+out.freeHalt = session([
+  {{ patient_said: "שלושים", answer: "other", age: 30, sex: "M" }},
+  {{ patient_said: "לא", answer: "no" }},
+  {{ patient_said: "אין", answer: "no" }},
+  {{ patient_said: "אני כבר כמה ימים לא יכול לנשום", answer: "other" }},
+]);
+console.log(JSON.stringify(out));
+""", encoding="utf-8")
+    out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
+
+    said = out["full"]["said"]
+    assert [s["status"] for s in said[:6]] == ["ask"] * 6
+    assert "היריון" in said[1]["say"]               # pregnancy asked for a woman of 41
+    assert "בטיחות" in said[2]["say"]               # then the red-flag screen
+    assert said[5]["phase"] == "screening"          # then the engine's own questions
+    assert said[-1]["status"] == "done"
+    rep = out["full"]["report"]
+    assert rep["patient"]["pregnancy"] == "no"
+    assert [f["type"] for f in out["full"]["state"]["flags"]] == ["anticoagulant"]
+    assert any(f["feature_id"] == "FT.IRRITABLE" and f["value"] == "present" for f in rep["findings"])
+
+    assert [s["status"] for s in out["halt"]["said"]] == ["ask", "halt", "halt"]
+    assert out["halt"]["state"]["halted"] is True
+    assert out["freeHalt"]["said"][-1]["status"] == "halt"
+
+
+def test_committed_pages_copy_is_current(tmp_path):
+    bi.write_standalone(tmp_path / "index.html", keep_document=True)
+    assert (tmp_path / "index.html").read_text(encoding="utf-8") == (ROOT / "docs" / "index.html").read_text(encoding="utf-8"), \
+        "run python3 tools/interview/build_interview.py --page docs/index.html"
+
+
+def test_record_extraction_negation():
+    import tcmsd
+    found = tcmsd.extract("头晕、乏力、心慌，无发热、黄疸，近期无明显消瘦，纳可。舌红苔薄白，脉细弦。", FEATURES)
+    assert {f for f, v in found.items() if v} == {"FT.DIZZY", "FT.FATIGUE", "FT.PALPITATIONS",
+                                                    "TG.RED", "TG.COAT_WHITE", "TG.COAT_THIN", "PL.THREADY", "PL.WIRY"}
+    assert found["FT.FEVER"] is False and found["FT.JAUNDICE"] is False and found["FT.WEIGHT_LOSS"] is False
+    assert found["FT.POOR_APPETITE"] is False
+    assert found["TG.PALE"] is False and found["PL.RAPID"] is False  # tongue and pulse were described
+
+
+def test_record_stats_set_weights_and_add_links(tmp_path, monkeypatch):
+    stats = {"records": 1000, "patterns": {"SYN.A": 100, "SYN.B": 900},
+             "yes": {"SYN.A": {"FT.COUGH": 60, "FT.FEVER": 10, "FT.THIRST": 50}, "SYN.B": {"FT.FEVER": 90, "FT.COUGH": 90}}}
+    path = tmp_path / "stats.json"
+    path.write_text(json.dumps(stats))
+    monkeypatch.setattr(bi, "SD_STATS", path)
+    links = {"SYN.A": [{"f": "FT.COUGH", "src": ["WHO"]}, {"f": "FT.FEVER", "src": ["WHO"]}],
+             "SYN.C": [{"f": "FT.COUGH", "src": ["WHO"]}]}
+    bi.apply_record_stats(links, FEATURES)
+    w = {l["f"]: l for l in links["SYN.A"]}
+    assert w["FT.COUGH"]["w"] > 2 and w["FT.FEVER"]["w"] == 0.1  # 60% vs 10% elsewhere; 10% vs 10%
+    assert w["FT.THIRST"]["src"] == ["TCM-SD"]  # 50% here, never elsewhere
+    assert "w" not in links["SYN.C"][0]  # no records: placeholder weight

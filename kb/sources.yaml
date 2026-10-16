@@ -104,3 +104,27 @@
   license: public domain text; Wikisource page CC BY-SA 4.0
   license_class: public_domain
   url: https://zh.wikisource.org/wiki/針灸大成
+
+- source_id: GBT-16751-2
+  title: "GB/T 16751.2 中医临床诊疗术语 第2部分：证候 (revision draft, 国家卫生健康委员会 / 国家中医药管理局, 2020)"
+  license: Chinese government publication (draft standard released for public use on gov.cn); final 2021 edition is sold
+  license_class: internal_only     # definitions used to link findings to patterns for the clinic only
+  url: https://www.gov.cn/zhengce/zhengceku/2020-11/24/5563703/files/88c97a96b5ea4ae999f3a8e5f09d35d9.docx
+
+- source_id: MENDELEY-LIVER-11250
+  title: "TCM symptom and syndrome data of liver diseases (Hangzhou Normal University, 2025), 11,250 graded records"
+  license: CC BY 4.0
+  license_class: attribution
+  url: https://data.mendeley.com/datasets/pxz9nmhhy9
+
+- source_id: TCM-BEST4SDT
+  title: "TCM-BEST4SDT: 300 expert-annotated syndrome differentiation cases (2025)"
+  license: CC BY 4.0
+  license_class: attribution        # evaluation only, never KB content
+  url: https://doi.org/10.6084/m9.figshare.30615956
+
+- source_id: TCM-SD
+  title: "TCM-SD: syndrome differentiation benchmark (Ren et al., CCL 2022), 54,152 de-identified clinical records, 148 syndromes"
+  license: CC BY-NC-SA 4.0
+  license_class: non_commercial     # used to estimate draft link weights and to evaluate; records are never copied into the KB
+  url: https://github.com/Borororo/ZY-BERT
