@@ -206,3 +206,28 @@ def test_committed_pages_copy_is_current(tmp_path):
     bi.write_standalone(tmp_path / "index.html", keep_document=True)
     assert (tmp_path / "index.html").read_text(encoding="utf-8") == (ROOT / "docs" / "index.html").read_text(encoding="utf-8"), \
         "run python3 tools/interview/build_interview.py --page docs/index.html"
+
+
+def test_record_extraction_negation():
+    import tcmsd
+    found = tcmsd.extract("头晕、乏力、心慌，无发热、黄疸，近期无明显消瘦，纳可。舌红苔薄白，脉细弦。", FEATURES)
+    assert {f for f, v in found.items() if v} == {"FT.DIZZY", "FT.FATIGUE", "FT.PALPITATIONS",
+                                                    "TG.RED", "TG.COAT_WHITE", "TG.COAT_THIN", "PL.THREADY", "PL.WIRY"}
+    assert found["FT.FEVER"] is False and found["FT.JAUNDICE"] is False and found["FT.WEIGHT_LOSS"] is False
+    assert found["FT.POOR_APPETITE"] is False
+    assert found["TG.PALE"] is False and found["PL.RAPID"] is False  # tongue and pulse were described
+
+
+def test_record_stats_set_weights_and_add_links(tmp_path, monkeypatch):
+    stats = {"records": 1000, "patterns": {"SYN.A": 100, "SYN.B": 900},
+             "yes": {"SYN.A": {"FT.COUGH": 60, "FT.FEVER": 10, "FT.THIRST": 50}, "SYN.B": {"FT.FEVER": 90, "FT.COUGH": 90}}}
+    path = tmp_path / "stats.json"
+    path.write_text(json.dumps(stats))
+    monkeypatch.setattr(bi, "SD_STATS", path)
+    links = {"SYN.A": [{"f": "FT.COUGH", "src": ["WHO"]}, {"f": "FT.FEVER", "src": ["WHO"]}],
+             "SYN.C": [{"f": "FT.COUGH", "src": ["WHO"]}]}
+    bi.apply_record_stats(links, FEATURES)
+    w = {l["f"]: l for l in links["SYN.A"]}
+    assert w["FT.COUGH"]["w"] > 2 and w["FT.FEVER"]["w"] == 0.1  # 60% vs 10% elsewhere; 10% vs 10%
+    assert w["FT.THIRST"]["src"] == ["TCM-SD"]  # 50% here, never elsewhere
+    assert "w" not in links["SYN.C"][0]  # no records: placeholder weight

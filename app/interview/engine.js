@@ -2,10 +2,11 @@
 // pattern scoring, next-question choice and the draft DiagnosticReport.
 // Runs in the browser (window.TCMEngine) and in Node (module.exports) so tests can drive it.
 //
-// Scoring is a placeholder until the clinician sets real weights: every derived pattern-feature
-// link carries kb.defaults.weight, and a pattern's score is a cosine similarity between the
-// findings the patient confirmed and the pattern's linked features, minus a penalty for linked
-// features the patient denied.
+// Scoring is a placeholder until the clinician sets real weights: each derived pattern-feature
+// link carries a draft weight `w` (from TCM-SD record counts where there are enough, otherwise
+// kb.defaults.weight), and a pattern's score is a weighted cosine similarity between the findings
+// the patient confirmed and the pattern's linked features, minus a penalty for linked features
+// the patient denied.
 (function (root) {
   "use strict";
 
@@ -291,7 +292,7 @@
                      message_en: "Tongue or pulse not entered; confidence is capped at moderate.", related_ids: [] });
       }
       flags.push({ code: "PLACEHOLDER_WEIGHTS", severity: "info",
-                   message_en: "Pattern-feature links were derived automatically from WHO 2022 and GB/T 16751.2 text and all carry the same placeholder weight. Ranking is a proposal only.", related_ids: [] });
+                   message_en: "Pattern-feature links were derived automatically from WHO 2022 and GB/T 16751.2 text. Patterns with enough TCM-SD hospital records carry draft weights computed from those records; all others carry the same placeholder weight. Ranking is a proposal only.", related_ids: [] });
       var differential = ranked.slice(0, 5).map(function (r, i) {
         var s = r.syndrome;
         var objective = state.tongueObserved && state.pulseObserved;
@@ -306,7 +307,8 @@
           graph_score: Math.round(r.score * 1000) / 1000,
           confidence: confidence,
           supporting: r.supporting.map(function (l) {
-            return { finding_id: findingIds[l.f], feature_id: l.f, matched_manifestation_en: l.ev, sources: l.src || ["WHO"], evidence_ref: s.src };
+            return { finding_id: findingIds[l.f], feature_id: l.f, matched_manifestation_en: l.ev, sources: l.src || ["WHO"],
+                     weight: l.w === undefined ? weight : l.w, records: l.sd || null, evidence_ref: s.src };
           }),
           contradicting: r.contradicting.map(function (l) {
             return { finding_id: findingIds[l.f], feature_id: l.f, conflict_en: "Reported absent: " + l.ev, evidence_ref: s.src };
@@ -323,7 +325,7 @@
       var summary = clinicianSummary(differential, state, flags);
       return {
         schema_version: "diagnostic_report.v1",
-        generator: "interview_prototype.v0 (rule-based, placeholder weights)",
+        generator: "interview_prototype.v0 (rule-based, draft weights)",
         report_id: meta.report_id || "dx_proto_" + Date.now(),
         session_id: meta.session_id || null,
         kb_version: kb.kb_version,
@@ -360,7 +362,7 @@
       if (missing.length) text += " חסר: " + missing.map(function (f) {
         return f.code === "PREGNANCY_STATUS_UNKNOWN" ? "סטטוס היריון" : "לשון/דופק";
       }).join(", ") + ".";
-      return text + " זו הצעה לשיקול המטפל/ת, על בסיס משקלות ברירת מחדל שטרם כוילו.";
+      return text + " זו הצעה לשיקול המטפל/ת, על בסיס משקלות טיוטה שטרם אושרו.";
     }
 
     return {

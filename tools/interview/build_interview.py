@@ -5,6 +5,9 @@ Reads the WHO 2022 patterns (kb/curation/syndromes.yaml) and the interview lexic
 matching each feature's English phrases against the WHO pattern text and its Chinese phrases
 against the findings GB/T 16751.2 lists for the same pattern (kb/staging/GBT-16751-2, matched by
 Chinese name), and writes app/interview/kb.js. Each link names the sources that support it.
+Where TCM-SD clinical records give enough data (kb/staging/TCM-SD/link_stats.json, written by
+learn_weights.py), links get a draft weight from how much more often the pattern's records report
+the finding, and findings the records clearly tie to the pattern are added as TCM-SD links.
 
 Every derived link is a DRAFT with the placeholder weight from the lexicon `defaults`; the
 clinician replaces these with real weights and essential flags later.
@@ -16,6 +19,7 @@ Usage:
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -181,6 +185,45 @@ def merge_links(who_links, gb_links):
     return merged
 
 
+SD_STATS = KB / "staging" / "TCM-SD" / "link_stats.json"
+SD_MIN_RECORDS = 30        # patterns with fewer training records keep the placeholder weight
+SD_ADD_LR, SD_ADD_SHARE, SD_ADD_COUNT = 2.0, 0.10, 20
+
+
+def apply_record_stats(links, features):
+    """Draft weights and extra links from TCM-SD counts; a no-op when the counts are missing."""
+    if not SD_STATS.exists():
+        return
+    stats = json.loads(SD_STATS.read_text("utf-8"))
+    total = stats["records"]
+    all_yes = {}
+    for counts in stats["yes"].values():
+        for f, c in counts.items():
+            all_yes[f] = all_yes.get(f, 0) + c
+
+    def ratio(sid, f):
+        n, k = stats["patterns"][sid], stats["yes"].get(sid, {}).get(f, 0)
+        p_in = (k + 1) / (n + 2)
+        p_out = (all_yes.get(f, 0) - k + 1) / (total - n + 2)
+        return p_in / p_out, k, n
+
+    for sid, found in links.items():
+        if stats["patterns"].get(sid, 0) < SD_MIN_RECORDS:
+            continue
+        have = {l["f"] for l in found}
+        for l in found:
+            lr, k, n = ratio(sid, l["f"])
+            l["w"] = round(min(3.0, max(0.1, math.log2(lr))), 2)
+            l["sd"] = f"{k}/{n}"
+        for feat in features:
+            if feat["id"] in have:
+                continue
+            lr, k, n = ratio(sid, feat["id"])
+            if lr >= SD_ADD_LR and k >= SD_ADD_COUNT and k / n >= SD_ADD_SHARE:
+                found.append({"f": feat["id"], "ev": f"reported in {k} of {n} TCM-SD records of this pattern",
+                              "src": ["TCM-SD"], "w": round(min(3.0, math.log2(lr)), 2), "sd": f"{k}/{n}"})
+
+
 def locator(syn):
     for src in syn.get("sources", []):
         if src.get("field") == "presentation":
@@ -207,6 +250,7 @@ def build_data():
     who_links = derive_links(syndromes, features)
     gb_links = derive_gb_links(syndromes, features, load_gb())
     links = merge_links(who_links, gb_links)
+    apply_record_stats(links, features)
     out_syndromes = []
     for syn in syndromes:
         out_syndromes.append({

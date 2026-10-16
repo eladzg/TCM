@@ -122,3 +122,9 @@
   license: CC BY 4.0
   license_class: attribution        # evaluation only, never KB content
   url: https://doi.org/10.6084/m9.figshare.30615956
+
+- source_id: TCM-SD
+  title: "TCM-SD: syndrome differentiation benchmark (Ren et al., CCL 2022), 54,152 de-identified clinical records, 148 syndromes"
+  license: CC BY-NC-SA 4.0
+  license_class: non_commercial     # used to estimate draft link weights and to evaluate; records are never copied into the KB
+  url: https://github.com/Borororo/ZY-BERT

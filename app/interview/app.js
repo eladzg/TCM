@@ -280,7 +280,7 @@
       card.appendChild(el("h3", { text: "תומך (" + d.supporting.length + ")" }));
       card.appendChild(evList(d.supporting, function (x) {
         return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en }),
-          " ", el("span", { class: "id", text: x.sources.join("+") })]);
+          " ", el("span", { class: "id", text: x.sources.join("+") + (x.records ? " · " + x.records + " · משקל " + x.weight : "") })]);
       }));
       if (d.contradicting.length) {
         card.appendChild(el("h3", { text: "סותר (" + d.contradicting.length + ")" }));
