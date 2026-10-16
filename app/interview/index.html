@@ -105,6 +105,11 @@ h3 { font-size: 1rem; margin: 0; }
 .bar i { display: block; height: 100%; background: var(--jade); }
 .ev { margin: 0; padding-inline-start: 18px; font-size: .9rem; }
 .ev li { margin: 2px 0; }
+.mini-row { display: inline-flex; gap: 4px; vertical-align: middle; }
+.mini { font: inherit; font-size: .78rem; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line);
+        background: var(--surface); color: var(--jade); cursor: pointer; }
+.mini:hover { border-color: currentColor; }
+.mini.ghost { opacity: .7; }
 .ev .en { color: var(--muted); direction: ltr; unicode-bidi: isolate; font-size: .84rem; }
 .ev.contra li { color: var(--cinnabar); }
 details summary { cursor: pointer; color: var(--jade); font-size: .9rem; }
