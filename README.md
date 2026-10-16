@@ -31,8 +31,9 @@ The verified TCM knowledge base (points, channels, herbs, formulas, syndromes, s
 | 本草備要 Bencao Beiyao (Gutenberg #26888) | 465 entries: nature, flavour, channels entered, toxicity, pregnancy warnings, 惡/畏/反/忌 relations, full text |
 | 針灸大成 Zhenjiu Dacheng (Wikisource vols. 8-9) | 356 point entries (考正穴法) mapped to WHO codes: location, needle and moxa counts, indications |
 | AcuAtlas (CC BY 4.0) | English location, actions, indications, depth and cautions for the 361 WHO points |
+| WHO International Standard Terminologies on TCM 2022 (CC BY-NC-SA 3.0 IGO) | 3,357 terms; 423 patterns become `syndromes` (presentation, cause, tongue, pulse); 345 symptoms, signs, tongue and pulse findings become `manifestations` |
 
-Everything generated is `draft`. Not extracted, by design: gram doses (`dose_min_g`/`dose_max_g`) and syndrome-manifestation weights, which are clinician decisions. Known gaps: the Gutenberg Bencao Beiyao has no entries for 大黃, 黃芩 and 黃連, and the Wikisource Jingui omits most formula listings ("方見上").
+Everything generated is `draft`. Not extracted, by design: gram doses (`dose_min_g`/`dose_max_g`), syndrome-manifestation weights and the links between syndromes and points or formulas, which are clinician decisions. Known gaps: the Gutenberg Bencao Beiyao has no entries for 大黃, 黃芩 and 黃連, and the Wikisource Jingui omits most formula listings ("方見上").
 
 Rebuild from the sources:
 
@@ -43,6 +44,8 @@ python3 tools/ingest/fetch_raw.py WS-JINGUI "https://zh.wikisource.org/w/index.p
 python3 tools/ingest/fetch_raw.py WS-ZJDC "https://zh.wikisource.org/w/index.php?title=針灸大成/卷八&action=raw" --name 卷八.wiki
 python3 tools/ingest/fetch_raw.py WS-ZJDC "https://zh.wikisource.org/w/index.php?title=針灸大成/卷九&action=raw" --name 卷九.wiki
 python3 tools/ingest/fetch_raw.py ACUATLAS https://acupointatlas.com/data/acupoints.json
+python3 tools/ingest/fetch_raw.py WHO-ISTTCM-2022 "https://iris.who.int/server/api/core/bitstreams/02be07cf-ef55-4ae2-9184-ded49210aa05/content" --name who_isttcm_2022.pdf
+python3 tools/ingest/who2022.py     # needs pdftotext (poppler-utils)
 cd tools/ingest/classics
 python3 shanghan.py && python3 jingui.py && python3 bencao_beiyao.py && python3 zjdc.py && python3 curate.py
 ```

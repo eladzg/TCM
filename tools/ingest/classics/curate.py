@@ -1,8 +1,10 @@
-"""Turn the staging records of the classics into draft rows in kb/curation/*.yaml.
+"""Turn the staging records of the classics and WHO 2022 into draft rows in kb/curation/*.yaml.
 
 Writes points.yaml (AcuAtlas + Zhenjiu Dacheng), herbs.yaml (Bencao Beiyao + every herb the
 formulas name), formulas.yaml (Shanghan Lun + Jingui Yaolue) and safety_rules.yaml (pregnancy,
-toxicity, 十八反 pairs, classical needling/moxibustion bans). Every generated row is `draft`.
+toxicity, 十八反 pairs, classical needling/moxibustion bans), and, from the WHO 2022 terminology,
+syndromes.yaml (425 patterns), and manifestations.yaml (symptoms, signs, tongue and
+pulse findings). WHO lists formula categories only, so formulas keep their classical names. Every generated row is `draft`.
 A row already in the file with status `reviewed` or `approved` is kept exactly as it is, so the
 clinician's work survives a rerun. Gram doses and syndrome weights are never generated.
 
@@ -234,18 +236,93 @@ def build_safety(index, classical_points):
     return rules
 
 
+# ---------- WHO 2022 patterns and manifestations ----------
+
+# Pattern group heading (Chinese) -> the 2-3 letter middle part of the syndrome id.
+PATTERN_GROUPS = {"八纲证类": "EP", "病因证类": "ETI", "阴阳气血津液精髓证类": "QB", "心系证类": "HT", "肺系证类": "LU",
+                  "脾系证类": "SP", "肝系证类": "LR", "肾系证类": "KI", "脏腑兼证类": "ZF", "精室证类": "ESS",
+                  "胞宫证类": "UT", "经络证类": "MER", "十二正经证类": "MER", "奇经八脉证类": "EXM", "三焦证类": "SJ",
+                  "肌肤筋骨证类": "SKB", "六经证类": "SIX", "卫气营血证类": "WQY", "其他证类": "OTH"}
+# Rows in the four-examinations section that name a method or concept rather than a finding.
+NOT_FINDING_RE = re.compile(r"^(A (diagnostic )?method|A pulse-taking terminology|The (tongue|pulse|normal)|This refers to)")
+
+
+def who_terms():
+    path = STAGING / "WHO-ISTTCM-2022" / "terms.jsonl"
+    return read_jsonl(path) if path.exists() else []
+
+
+def who_ref(field, t, quote=None):
+    return ref("WHO-ISTTCM-2022", field, f"WGM2 {t['number']} ({t['term_zh']}), p. {t['page']}", quote)
+
+
+def build_syndromes(terms):
+    rows, ids = [], set()
+    for t in terms:
+        if t["part"] != "patterns" or not t["term_zh"]:
+            continue
+        group = next((code for zh, code in PATTERN_GROUPS.items() if (t["category_zh"] or "").startswith(zh[:4])), "OTH")
+        sid = to_id(f"SYN.{group}", t["term_zh"].removesuffix("证"))
+        if sid in ids:
+            continue
+        ids.add(sid)
+        presentation, aetiology = t["manifestations"], None
+        if presentation and (m := re.search(r"\s*(This pattern (?:often )?occurs .*)$", presentation)):
+            presentation, aetiology = presentation[:m.start()].strip() or None, m.group(1)
+        row = {"syndrome_id": sid, "name_en": t["term_en"], "name_pinyin": t["pinyin"], "name_zh": t["term_zh"],
+               "category": t["category_en"], "presentation": presentation, "aetiology": aetiology,
+               "tongue": t["tongue"], "pulse": t["pulse"]}
+        row = {k: v for k, v in row.items() if v}
+        row["status"] = "draft"
+        row["sources"] = [who_ref(f, t) for f in ("presentation", "aetiology", "tongue", "pulse") if f in row]
+        rows.append(row)
+    return rows
+
+
+def manifestation_kind(t):
+    n = t["number"]
+    if 634 <= n < 700:
+        return "tongue"
+    if 849 <= n < 930:
+        return "pulse" if "pulse" in t["term_en"].lower() else "sign"
+    return "symptom" if 724 <= n < 849 else "sign"
+
+
+def build_manifestations(terms):
+    rows, ids = [], set()
+    for t in terms:
+        if t["part"] != "diagnosis" or not 557 <= t["number"] < 930 or not t["term_zh"]:
+            continue
+        if NOT_FINDING_RE.match(t["definition"] or ""):
+            continue
+        mid = to_id("MAN", t["term_zh"])
+        if mid in ids:
+            continue
+        ids.add(mid)
+        rows.append({"manifestation_id": mid, "term_en": t["term_en"], "term_zh": t["term_zh"],
+                     "kind": manifestation_kind(t), "definition": t["definition"], "status": "draft",
+                     "sources": [who_ref("definition", t)]})
+    return rows
+
+
 def main():
     points, classical_points = build_points()
     index = HerbIndex()
     build_herbs(index)
     formulas = build_formulas(index)
     safety = build_safety(index, classical_points)
+    terms = who_terms()
+    syndromes, manifestations = build_syndromes(terms), build_manifestations(terms)
     herbs = []
     for row in index.rows:
         row.pop("_bencao", None)
         sources = row.pop("sources", [])
         herbs.append({**row, "status": "draft", "sources": sources})
-    for name, rows in (("points", points), ("herbs", herbs), ("formulas", formulas), ("safety_rules", safety)):
+    tables = [("points", points), ("herbs", herbs), ("formulas", formulas), ("safety_rules", safety),
+              ("syndromes", syndromes), ("manifestations", manifestations)]
+    for name, rows in tables:
+        if not rows:
+            continue
         total, kept = dump(name, rows)
         print(f"kb/curation/{name}.yaml: {total} rows ({kept} reviewed/approved kept as they were)")
     return 0

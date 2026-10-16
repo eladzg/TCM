@@ -73,3 +73,27 @@ def test_zjdc_maps_short_and_garbled_names_by_channel():
     assert zjdc.match_code("三里", "ST", table, seen) == "ST36"
     assert zjdc.match_code("上廉", "ST", table, seen) == "ST37"
     assert zjdc.match_code("{{PUA|}}門", "GV", table, seen) == "GV15"
+
+
+def test_who_pattern_description_is_split_into_tongue_pulse_and_cause():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools" / "ingest"))
+    import who2022
+    rest, tongue, pulse = who2022.split_pattern(
+        "Characterized by dizziness and tinnitus. The tongue is red with a scanty coating. "
+        "The pulse is thready and rapid. This pattern often occurs when liver yin fails to control liver yang.")
+    assert tongue == "The tongue is red with a scanty coating."
+    assert pulse == "The pulse is thready and rapid."
+    assert rest.startswith("Characterized by dizziness") and rest.endswith("liver yang.")
+
+
+def test_who_table_cells_go_to_their_columns():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools" / "ingest"))
+    import who2022
+    header = ("WGM2#   English term             Synonyms              English definition/description"
+              "                         Chinese term    Pinyin term           synonyms")
+    row = ("        Hyperactivity of liver   Liver yang            Characterized by dizziness, blurred"
+           "                    肝阳上亢证           gān yáng shàng")
+    got = who2022.cells(row, who2022.header_positions(header))
+    assert got["term_en"] == ["Hyperactivity of liver"] and got["synonyms_en"] == ["Liver yang"]
+    assert got["term_zh"] == ["肝阳上亢证"] and got["pinyin"] == ["gān yáng shàng"]
+    assert got["definition"] == ["Characterized by dizziness, blurred"]

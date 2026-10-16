@@ -63,6 +63,8 @@ CREATE TABLE points (
 CREATE TABLE manifestations (
     manifestation_id text PRIMARY KEY,            -- e.g. MAN.HEADACHE
     term_en        text NOT NULL,
+    term_zh        text,
+    definition     text,
     kind           text NOT NULL CHECK (kind IN ('symptom', 'sign', 'tongue', 'pulse')),
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
@@ -74,6 +76,8 @@ CREATE TABLE syndromes (
     name_pinyin    text,
     name_zh        text,
     name_he        text,
+    category       text,                          -- WHO 2022 pattern group, e.g. Patterns of the liver system
+    presentation   text,                          -- "Characterized by ..." clinical picture
     aetiology      text,
     tongue         text,
     pulse          text,
