@@ -55,6 +55,7 @@ CREATE TABLE points (
     indications    text,
     needling_notes text,
     cautions       text,
+    classical      text,                          -- original-language passage (e.g. Zhenjiu Dacheng)
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
 );
@@ -62,6 +63,8 @@ CREATE TABLE points (
 CREATE TABLE manifestations (
     manifestation_id text PRIMARY KEY,            -- e.g. MAN.HEADACHE
     term_en        text NOT NULL,
+    term_zh        text,
+    definition     text,
     kind           text NOT NULL CHECK (kind IN ('symptom', 'sign', 'tongue', 'pulse')),
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
@@ -73,6 +76,8 @@ CREATE TABLE syndromes (
     name_pinyin    text,
     name_zh        text,
     name_he        text,
+    category       text,                          -- WHO 2022 pattern group, e.g. Patterns of the liver system
+    presentation   text,                          -- "Characterized by ..." clinical picture
     aetiology      text,
     tongue         text,
     pulse          text,
@@ -102,6 +107,7 @@ CREATE TABLE herbs (
     dose_min_g     numeric,
     dose_max_g     numeric,
     pregnancy_caution text,
+    classical      text,                          -- original-language entry (e.g. Bencao Beiyao)
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL,
     CHECK (dose_min_g IS NULL OR dose_max_g IS NULL OR dose_min_g <= dose_max_g)
@@ -114,6 +120,7 @@ CREATE TABLE formulas (
     name_en        text,
     indications    text,
     modifications  text,
+    classical      text,                          -- preparation and administration as written
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
 );
