@@ -95,6 +95,10 @@ function inFrame() {
 
 // Resolves to null when the microphone works, else {kind, detail}.
 async function checkMicrophone() {
+  // Chrome on Android opens downloaded files from content:// and never grants the microphone there.
+  if (location.protocol === "content:" || (/Android/i.test(navigator.userAgent) && location.protocol === "file:")) {
+    return { kind: "phonefile", detail: location.protocol };
+  }
   if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     return { kind: "insecure", detail: location.protocol };
   }
@@ -188,6 +192,10 @@ function showMicHelp(problem) {
     steps.push("לחבר מיקרופון או אוזניות עם מיקרופון, ולבדוק שהוא מוגדר כהתקן ברירת המחדל במערכת.");
     const os = osSettingsButton();
     if (os) buttons.push(os);
+  } else if (problem.kind === "phonefile") {
+    title = "בטלפון אי אפשר להשתמש במיקרופון בקובץ שהורד.";
+    steps.push("Chrome באנדרואיד חוסם מיקרופון בקבצים שנפתחים מהזיכרון של הטלפון, גם כשההרשאה מאושרת.");
+    steps.push("אפשר לפתוח את אותו הקובץ ב-Chrome או Edge במחשב, או להשתמש בדף בכתובת https.");
   } else if (problem.kind === "insecure") {
     title = "הדפדפן לא מאפשר מיקרופון בכתובת הזו.";
     steps.push("יש לפתוח את הקובץ ישירות מהמחשב (כתובת שמתחילה ב-file://) או מכתובת https, ב-Chrome או Edge.");
