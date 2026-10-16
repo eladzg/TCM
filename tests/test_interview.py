@@ -169,3 +169,9 @@ console.log(JSON.stringify(out));
     assert [s["status"] for s in out["halt"]["said"]] == ["ask", "halt", "halt"]
     assert out["halt"]["state"]["halted"] is True
     assert out["freeHalt"]["said"][-1]["status"] == "halt"
+
+
+def test_committed_pages_copy_is_current(tmp_path):
+    bi.write_standalone(tmp_path / "index.html", keep_document=True)
+    assert (tmp_path / "index.html").read_text(encoding="utf-8") == (ROOT / "docs" / "index.html").read_text(encoding="utf-8"), \
+        "run python3 tools/interview/build_interview.py --page docs/index.html"

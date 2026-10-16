@@ -139,8 +139,11 @@ def write_js(data, path):
                     f"window.TCM_KB = {body};\n", encoding="utf-8")
 
 
-def write_standalone(path):
-    """Inline the page's local scripts into index.html so the file opens anywhere."""
+def write_standalone(path, keep_document=False):
+    """Inline the page's local scripts into index.html so the file opens anywhere.
+
+    By default the document skeleton is dropped for the artifact host; keep_document keeps it, for
+    a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
     scripts = [("kb.js", ""), ("engine.js", ""), ("app.js", ""), ("voice_config.js", ""),
                ("voice_flow.js", ""), ("voice_ui.js", ' type="module"')]
@@ -151,8 +154,9 @@ def write_standalone(path):
         code = (APP / name).read_text(encoding="utf-8").replace("</script", "<\\/script")
         html = html.replace(tag, f"<script{attrs}>\n{code}\n</script>")
     # The artifact host wraps the page in its own document skeleton, so drop ours.
-    html = re.sub(r"<!doctype html>\s*|</?html[^>]*>\s*|</?head>\s*|</?body>\s*|<meta charset[^>]*>\s*|<meta name=\"viewport\"[^>]*>\s*",
-                  "", html, flags=re.I)
+    if not keep_document:
+        html = re.sub(r"<!doctype html>\s*|</?html[^>]*>\s*|</?head>\s*|</?body>\s*|<meta charset[^>]*>\s*|<meta name=\"viewport\"[^>]*>\s*",
+                      "", html, flags=re.I)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(html, encoding="utf-8")
 
@@ -160,6 +164,7 @@ def write_standalone(path):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--standalone", type=Path, help="also write a single self-contained HTML file here")
+    ap.add_argument("--page", type=Path, help="also write a self-contained HTML document here (docs/index.html for GitHub Pages)")
     args = ap.parse_args(argv)
     data = build_data()
     write_js(data, APP / "kb.js")
@@ -170,6 +175,9 @@ def main(argv=None):
     if args.standalone:
         write_standalone(args.standalone)
         print(f"standalone -> {args.standalone}")
+    if args.page:
+        write_standalone(args.page, keep_document=True)
+        print(f"page -> {args.page}")
 
 
 if __name__ == "__main__":
