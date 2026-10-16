@@ -135,7 +135,7 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
       <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
     </div>
     <div class="row">
-      <button class="btn" id="voice-start" type="button">שיחה קולית</button>
+      <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
       <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
     </div>
   </header>
@@ -1163,6 +1163,9 @@ const endBtn = document.getElementById("voice-end");
 const bar = document.getElementById("voicebar");
 const orb = document.getElementById("voice-orb");
 const statusEl = document.getElementById("voice-status");
+
+// Voice mode is paused while the written interview is the focus; ?voice=1 brings the button back.
+if (new URLSearchParams(location.search).get("voice") === "1") startBtn.hidden = false;
 
 let conversation = null;
 let flow = null;

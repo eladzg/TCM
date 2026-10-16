@@ -9,6 +9,9 @@ const bar = document.getElementById("voicebar");
 const orb = document.getElementById("voice-orb");
 const statusEl = document.getElementById("voice-status");
 
+// Voice mode is paused while the written interview is the focus; ?voice=1 brings the button back.
+if (new URLSearchParams(location.search).get("voice") === "1") startBtn.hidden = false;
+
 let conversation = null;
 let flow = null;
 let raf = 0;
