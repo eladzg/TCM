@@ -1,0 +1,549 @@
+# Interview feature lexicon (DRAFT, awaiting clinician review).
+#
+# Each feature is one yes/no finding the interview can collect. It links to WHO 2022 patterns
+# by English text match (`en`, regular expressions, case-insensitive) against the pattern's
+# presentation (symptoms), tongue or pulse text. tools/interview/build_interview.py derives the
+# pattern-feature links from these patterns; every derived link gets the same placeholder weight
+# (see `defaults` below) until the clinician sets real weights.
+#
+#   id        FT.<NAME> for symptoms, TG.<NAME> tongue, PL.<NAME> pulse
+#   group     interview section (order of the screening phase follows `groups`)
+#   q_he      the question shown to the patient (symptoms only; tongue/pulse are entered by the clinician)
+#   label_he  short label for the clinician report
+#   syn_he    Hebrew words that mark the finding in the patient's own free text (substring match)
+#   en        regexes matched against the WHO text; a match preceded by "absence of", "no", "without"
+#             or "lack of" is ignored, so negative findings need their own feature
+#   tags      eight-principle leanings used only to summarise the picture (heat, cold, def, excess,
+#             exterior, interior, damp, dry)
+#   screen    asked in the opening screening phase for every patient
+#   sex       F or M: asked only for that sex
+
+defaults:
+  weight: 1.0            # PLACEHOLDER: uniform weight for every derived link, to be calibrated by the clinician
+  denied_penalty: 0.5    # PLACEHOLDER: how much a finding the patient denies counts against a pattern
+
+groups:
+  cold_heat: חום וקור
+  sweat: הזעה
+  thirst_taste: צמא וטעם בפה
+  digestion: תיאבון ועיכול
+  stool: יציאות
+  urine: שתן
+  energy: אנרגיה ונשימה
+  sleep_mind: שינה ורגש
+  head: ראש וחושים
+  chest: חזה וריאות
+  pain: כאב ושלד-שריר
+  skin: עור
+  gyn: מחזור ופוריות
+  male: פוריות גבר
+  tongue: לשון (מטפל)
+  pulse: דופק (מטפל)
+
+features:
+# --- cold and heat ---
+- {id: FT.AVERSION_COLD, group: cold_heat, screen: true, tags: [cold],
+   q_he: "האם קר לך יותר מלאנשים אחרים, או שקשה לך להתחמם?",
+   label_he: "רגישות לקור / צמרמורות",
+   syn_he: ["קר לי", "קפוא", "צמרמורת", "צמרמורות", "רגיש לקור", "רגישה לקור", "מתחמם", "מתחממת"],
+   en: ['aversion to (wind[ /-]?)?cold', 'cold intolerance', 'intolerance (of|to) cold', '\bchills\b', 'aversion to wind']}
+- {id: FT.COLD_LIMBS, group: cold_heat, tags: [cold, def],
+   q_he: "האם הידיים או הרגליים שלך קרות בדרך כלל?",
+   label_he: "גפיים קרות",
+   syn_he: ["ידיים קרות", "רגליים קרות", "כפות רגליים קרות", "אצבעות קרות"],
+   en: ['cold (limbs|extremities)', 'cold hands', 'cold (hands/)?feet', 'cold (hands|feet)']}
+- {id: FT.FEELS_HOT, group: cold_heat, screen: true, tags: [heat],
+   q_he: "האם חם לך יותר מלאחרים, או שאת/ה מעדיף/ה מקום קריר?",
+   label_he: "תחושת חום / העדפת קור",
+   syn_he: ["חם לי", "מרגיש חם", "מרגישה חם", "שונא חום", "שונאת חום", "מזיע מהר"],
+   en: ['aversion to heat', 'heat intolerance', 'preference for cold', 'feverish sensation(?!s? in the palms)']}
+- {id: FT.FEVER, group: cold_heat, tags: [heat],
+   q_he: "האם היה לך חום (טמפרטורה גבוהה) בימים האחרונים?",
+   label_he: "חום (טמפרטורה)",
+   syn_he: ["חום גבוה", "קדחת", "טמפרטורה", "היה לי חום", "יש לי חום"],
+   en: ['(?<!tidal )(?<!low-grade )(?<!afternoon )\bfever\b(?! (that aggravates )?in the afternoon)']}
+- {id: FT.FIVE_PALM_HEAT, group: cold_heat, tags: [heat, def],
+   q_he: "האם יש לך תחושת חום בכפות הידיים, בכפות הרגליים או בחזה, בעיקר בערב?",
+   label_he: "חום בכפות ידיים ורגליים",
+   syn_he: ["חום בכפות", "כפות ידיים חמות", "כפות רגליים חמות", "שורף בכפות"],
+   en: ['feverish sensations? in the palms', 'heat in the (palms|five centres)', 'five[- ]cent(re|er) heat']}
+- {id: FT.HOT_FLUSHES, group: cold_heat, tags: [heat, def],
+   q_he: "האם יש לך גלי חום או סומק בלחיים, בעיקר אחר הצהריים או בערב?",
+   label_he: "גלי חום / סומק בלחיים",
+   syn_he: ["גלי חום", "גל חום", "הסמקה", "סומק"],
+   en: ['hot flush(es)?', 'tidal fever', 'afternoon fever', 'low-grade fever', 'malar flush', 'flushed cheeks']}
+- {id: FT.ALTERNATING, group: cold_heat, tags: [],
+   q_he: "האם יש לך התחלפות בין צמרמורת לחום?",
+   label_he: "התחלפות קור וחום",
+   syn_he: ["פעם קר לי ופעם חם", "קר וחם לסירוגין"],
+   en: ['alternating (fever and )?chills', 'alternating fever', 'alternating chills']}
+- {id: FT.RED_FACE, group: cold_heat, tags: [heat],
+   q_he: "האם הפנים שלך נוטות להיות אדומות או סמוקות?",
+   label_he: "פנים אדומות",
+   syn_he: ["פנים אדומות", "פרצוף אדום", "פנים סמוקות"],
+   en: ['red face', 'flushed face', 'facial (flushing|redness)', 'red complexion']}
+- {id: FT.PALE_FACE, group: cold_heat, tags: [def],
+   q_he: "האם אומרים לך שאת/ה חיוור/ת?",
+   label_he: "פנים חיוורות",
+   syn_he: ["חיוור", "חיוורת", "חיוורון"],
+   en: ['pale (face|complexion)', 'pale, (lustreless|sallow) (face|complexion)', 'lustreless (face|complexion)', 'sallow (face|complexion)', 'pale lips']}
+# --- sweating ---
+- {id: FT.NIGHT_SWEATS, group: sweat, screen: true, tags: [heat, def],
+   q_he: "האם את/ה מזיע/ה בלילה בזמן השינה?",
+   label_he: "הזעות לילה",
+   syn_he: ["הזעות לילה", "מזיע בלילה", "מזיעה בלילה", "מתעורר רטוב", "מתעוררת רטובה"],
+   en: ['night sweats?', 'sweating (during|in) sleep']}
+- {id: FT.SPONT_SWEAT, group: sweat, tags: [def],
+   q_he: "האם את/ה מזיע/ה ביום בקלות, גם במאמץ קטן או בלי סיבה?",
+   label_he: "הזעה ספונטנית ביום",
+   syn_he: ["מזיע בקלות", "מזיעה בקלות", "מזיע בלי סיבה", "מזיעה בלי סיבה"],
+   en: ['spontaneous sweating', 'sweating on (slight )?exertion']}
+- {id: FT.NO_SWEAT, group: sweat, tags: [cold, exterior],
+   q_he: "כשיש לך חום או צמרמורת, האם את/ה כמעט לא מזיע/ה?",
+   label_he: "היעדר הזעה",
+   syn_he: ["לא מזיע", "לא מזיעה"],
+   en: ['absence of sweating', 'anhidrosis', 'without sweating', 'no sweating']}
+- {id: FT.PROFUSE_SWEAT, group: sweat, tags: [heat],
+   q_he: "האם את/ה מזיע/ה הרבה מאוד?",
+   label_he: "הזעה מרובה",
+   syn_he: ["מזיע הרבה", "מזיעה הרבה", "הזעה מרובה", "הזעת יתר"],
+   en: ['profuse (sweating|sweats|perspiration)', 'heavy sweating', 'excessive sweating', 'cold sweats?']}
+# --- thirst and taste ---
+- {id: FT.THIRST, group: thirst_taste, screen: true, tags: [heat],
+   q_he: "האם את/ה צמא/ה הרבה ושותה הרבה?",
+   label_he: "צמא",
+   syn_he: ["צמא", "צמאה", "שותה הרבה"],
+   en: ['\bthirst\b']}
+- {id: FT.THIRST_COLD, group: thirst_taste, tags: [heat],
+   q_he: "כשאת/ה צמא/ה, האם את/ה מעדיף/ה משקאות קרים?",
+   label_he: "רצון במשקאות קרים",
+   syn_he: ["שתייה קרה", "משקאות קרים", "מים קרים"],
+   en: ['desire (for|to drink) cold', 'preference for cold drinks']}
+- {id: FT.NO_THIRST, group: thirst_taste, tags: [cold],
+   q_he: "האם בדרך כלל את/ה לא צמא/ה ושותה מעט, או מעדיף/ה משקאות חמים?",
+   label_he: "היעדר צמא / העדפת משקאות חמים",
+   syn_he: ["לא צמא", "לא צמאה", "שותה מעט", "רק חם", "משקאות חמים"],
+   en: ['absence of thirst', 'no thirst', 'lack of thirst', 'little water intake', 'desire (for|to drink) (warm|hot)', 'preference for (warm|hot) drinks']}
+- {id: FT.DRY_MOUTH, group: thirst_taste, tags: [dry],
+   q_he: "האם הפה, הגרון או השפתיים שלך יבשים?",
+   label_he: "יובש בפה / בגרון",
+   syn_he: ["יובש בפה", "פה יבש", "גרון יבש", "שפתיים יבשות"],
+   en: ['dry (mouth|throat|lips|tongue and mouth)', 'dryness of the (mouth|throat|lips)']}
+- {id: FT.BITTER_MOUTH, group: thirst_taste, tags: [heat],
+   q_he: "האם יש לך טעם מר בפה, בעיקר בבוקר?",
+   label_he: "טעם מר בפה",
+   syn_he: ["טעם מר", "מרירות"],
+   en: ['bitter (mouth|taste)', 'bitter taste in the mouth']}
+- {id: FT.STICKY_MOUTH, group: thirst_taste, tags: [damp],
+   q_he: "האם יש לך טעם דביק, שמנוני או מתוק בפה?",
+   label_he: "טעם דביק / מתוק בפה",
+   syn_he: ["טעם דביק", "טעם מתוק", "טעם שמנוני", "פה דביק"],
+   en: ['sticky (mouth|taste|sensation in the mouth)', 'greasy taste', 'sweet taste']}
+- {id: FT.TASTELESS, group: thirst_taste, tags: [def],
+   q_he: "האם האוכל נראה לך תפל, בלי טעם?",
+   label_he: "חוסר טעם",
+   syn_he: ["אין טעם", "תפל", "בלי טעם"],
+   en: ['tastelessness', 'bland taste', 'loss of taste']}
+# --- appetite and digestion ---
+- {id: FT.POOR_APPETITE, group: digestion, screen: true, tags: [def],
+   q_he: "האם התיאבון שלך חלש, או שאת/ה אוכל/ת מעט?",
+   label_he: "תיאבון חלש",
+   syn_he: ["אין תיאבון", "אין לי תיאבון", "תיאבון חלש", "אוכל מעט", "אוכלת מעט", "חוסר תיאבון"],
+   en: ['poor appetite', 'low food intake', 'loss of appetite', 'anorexia', 'no desire to eat', 'reduced (appetite|food intake)']}
+- {id: FT.HUNGER, group: digestion, tags: [heat],
+   q_he: "האם את/ה רעב/ה מהר שוב זמן קצר אחרי האוכל?",
+   label_he: "רעב מוגבר",
+   syn_he: ["רעב כל הזמן", "רעבה כל הזמן", "רעב מהר", "רעבה מהר"],
+   en: ['rapid hunger', 'swift digestion', 'excessive hunger', 'polyphagia', 'hunger']}
+- {id: FT.ABD_DIST, group: digestion, screen: true, tags: [],
+   q_he: "האם יש לך נפיחות או תחושת מלאות בבטן?",
+   label_he: "נפיחות / מלאות בבטן",
+   syn_he: ["נפיחות", "נפוח", "נפוחה", "מלאות בבטן", "גזים"],
+   en: ['abdominal (distension|bloating|fullness)', 'distension (in|of) the (abdomen|epigastri\w*|stomach)', 'gastric (distension|fullness|stuffiness|discomfort)', 'epigastric (distension|fullness|stuffiness|discomfort)', '\bbloating\b']}
+- {id: FT.POSTMEAL_DIST, group: digestion, tags: [def],
+   q_he: "האם הנפיחות או העייפות מחמירות אחרי אוכל?",
+   label_he: "החמרה אחרי אוכל",
+   syn_he: ["אחרי האוכל", "אחרי ארוחה", "אחרי שאני אוכל", "אחרי שאני אוכלת"],
+   en: ['(aggravates|worse|worsens) after (eating|meals)', 'after eating food']}
+- {id: FT.NAUSEA, group: digestion, tags: [],
+   q_he: "האם יש לך בחילות או הקאות?",
+   label_he: "בחילה / הקאה",
+   syn_he: ["בחילה", "בחילות", "הקאה", "הקאות", "מקיא", "מקיאה"],
+   en: ['nausea', 'vomiting', 'retching']}
+- {id: FT.BELCHING, group: digestion, tags: [],
+   q_he: "האם יש לך גיהוקים, צרבת או שיהוקים?",
+   label_he: "גיהוק / צרבת / שיהוק",
+   syn_he: ["גיהוק", "גיהוקים", "צרבת", "ריפלוקס", "שיהוק", "חומציות"],
+   en: ['belching', 'acid (reflux|regurgitation)', 'hiccups?', 'heartburn']}
+- {id: FT.ABD_PAIN, group: digestion, tags: [],
+   q_he: "האם יש לך כאבי בטן או כאב בקיבה?",
+   label_he: "כאב בטן / קיבה",
+   syn_he: ["כאב בטן", "כאבי בטן", "כאב בקיבה", "כואבת לי הבטן", "כואב לי בבטן"],
+   en: ['abdominal (pain|distension/pain)', '(stomach|epigastric|gastric) pain', 'pain in the (stomach|abdomen|epigastri\w*|lower abdomen)', 'burning pain in the stomach']}
+- {id: FT.PAIN_WARMTH, group: digestion, tags: [cold],
+   q_he: "כשכואב לך, האם חום (בקבוק חם, מקלחת חמה) מקל?",
+   label_he: "הקלה מחום",
+   syn_he: ["חום עוזר", "בקבוק חם", "מקלחת חמה עוזרת"],
+   en: ['(preference|desire) for warmth', '(relieved|alleviated|eased) by warmth', 'with preference for warmth']}
+- {id: FT.PAIN_PRESSURE_RELIEF, group: digestion, tags: [def],
+   q_he: "כשכואב לך, האם לחיצה או עיסוי מקלים?",
+   label_he: "הקלה מלחיצה",
+   syn_he: ["לחיצה עוזרת", "עיסוי עוזר"],
+   en: ['(preference|desire) for pressure', '(relieved|alleviated) by pressure']}
+- {id: FT.TENDERNESS, group: digestion, tags: [excess],
+   q_he: "כשכואב לך, האם לחיצה על המקום מחמירה את הכאב?",
+   label_he: "רגישות ללחיצה",
+   syn_he: ["כואב כשלוחצים", "רגיש למגע", "רגישה למגע"],
+   en: ['tenderness', '(aggravated|worsened) by pressure', 'refus\w* (of )?pressure']}
+# --- stool ---
+- {id: FT.LOOSE_STOOL, group: stool, screen: true, tags: [def, damp],
+   q_he: "האם היציאות שלך רכות, לא מגובשות או שלשוליות?",
+   label_he: "יציאות רכות / שלשול",
+   syn_he: ["שלשול", "שלשולים", "יציאות רכות", "צואה רכה", "יציאות לא מגובשות"],
+   en: ['loose stools?', 'diarrh(o)?ea', 'sloppy stools?', 'undigested food in the stool']}
+- {id: FT.CONSTIPATION, group: stool, screen: true, tags: [heat, dry],
+   q_he: "האם יש לך עצירות או צואה יבשה וקשה?",
+   label_he: "עצירות / צואה יבשה",
+   syn_he: ["עצירות", "צואה קשה", "צואה יבשה", "לא מצליח להתפנות", "לא מצליחה להתפנות"],
+   en: ['constipation', 'dry stools?', 'one bowel movement in several days', 'difficult (defecation|defaecation|bowel movement)']}
+- {id: FT.BLOODY_STOOL, group: stool, tags: [heat],
+   q_he: "האם ראית דם ביציאות או צואה שחורה?",
+   label_he: "דם בצואה",
+   syn_he: ["דם בצואה", "דם ביציאות", "צואה שחורה"],
+   en: ['bloody stools?', 'blood in the stools?', 'black stools?', 'stools? with (pus and )?blood']}
+- {id: FT.TENESMUS, group: stool, tags: [damp],
+   q_he: "האם יש לך תחושה שהיציאה לא הסתיימה, או דחיפות ללכת לשירותים?",
+   label_he: "תחושת התרוקנות לא מלאה / דחיפות",
+   syn_he: ["לא מתרוקן", "לא מתרוקנת", "דחיפות"],
+   en: ['tenesmus', 'urgent (and )?(diarrh|defecat|defaecat|bowel)', 'frequent urges? to defaecate', 'incomplete (defecation|defaecation)', 'burning sensation (in|of) the anus']}
+- {id: FT.PROLAPSE, group: stool, tags: [def],
+   q_he: "האם יש לך תחושת כובד או צניחה כלפי מטה בבטן התחתונה או בפי הטבעת?",
+   label_he: "תחושת צניחה / כובד מטה",
+   syn_he: ["צניחה", "לחץ כלפי מטה"],
+   en: ['prolapse', 'bearing[- ]down']}
+# --- urine ---
+- {id: FT.YELLOW_URINE, group: urine, screen: true, tags: [heat],
+   q_he: "האם השתן שלך כהה או צהוב מאוד?",
+   label_he: "שתן כהה / צהוב",
+   syn_he: ["שתן כהה", "שתן צהוב", "שתן עכור"],
+   en: ['(dark )?yellow urine', 'dark urine', 'deep[- ]colou?red urine', '\bred urine', 'reddish urine', 'cloudy urine', 'turbid urine']}
+- {id: FT.CLEAR_URINE, group: urine, tags: [cold],
+   q_he: "האם השתן שלך בהיר מאוד ושקוף, וכמותו גדולה?",
+   label_he: "שתן בהיר ומרובה",
+   syn_he: ["שתן בהיר", "שתן שקוף"],
+   en: ['clear urine', 'clear, (profuse|copious) urine', '(profuse|copious), clear urine', 'profuse urine']}
+- {id: FT.FREQ_URINE, group: urine, tags: [def],
+   q_he: "האם את/ה מטיל/ה שתן לעיתים קרובות, גם בלילה?",
+   label_he: "השתנה תכופה / לילית",
+   syn_he: ["משתין הרבה", "משתינה הרבה", "קם להשתין", "קמה להשתין", "השתנה תכופה", "פיפי בלילה"],
+   en: ['frequent (urination|micturition)', 'frequent(, urgent)? urination', 'nocturia', 'frequent urges? to urinate', 'nocturnal (urination|enuresis)']}
+- {id: FT.PAINFUL_URINE, group: urine, tags: [heat, damp],
+   q_he: "האם יש לך צריבה או כאב בזמן הטלת שתן?",
+   label_he: "צריבה / כאב בהטלת שתן",
+   syn_he: ["צריבה בשתן", "שורף כשאני משתין", "שורף כשאני משתינה", "כאב בהשתנה", "דלקת בדרכי השתן"],
+   en: ['painful urination', 'dysuria', 'burning (pain|sensation) (on|during|in) urination', 'urinary (pain|burning)', 'strangury', 'difficult and painful urination']}
+- {id: FT.SCANTY_URINE, group: urine, tags: [],
+   q_he: "האם קשה לך להטיל שתן, או שכמות השתן קטנה?",
+   label_he: "שתן מועט / קושי בהשתנה",
+   syn_he: ["קשה להשתין", "מעט שתן", "זרם חלש"],
+   en: ['scanty (urine|urination)', 'inhibited urination', 'difficult urination', 'urin(e|ary) retention', 'dribbling (of )?urin']}
+- {id: FT.ENURESIS, group: urine, tags: [def],
+   q_he: "האם יש לך דליפת שתן או בריחת שתן?",
+   label_he: "בריחת שתן",
+   syn_he: ["בריחת שתן", "דליפת שתן"],
+   en: ['enuresis', 'incontinence', 'dribbling after urination']}
+# --- energy and breathing ---
+- {id: FT.FATIGUE, group: energy, screen: true, tags: [def],
+   q_he: "האם את/ה עייף/ה או חלש/ה רוב הזמן?",
+   label_he: "עייפות / חולשה",
+   syn_he: ["עייף", "עייפה", "עייפות", "חלש", "חלשה", "חולשה", "אין לי כוח", "מותש", "מותשת"],
+   en: ['fatigue', 'lassitude', '\bweakness\b', 'tiredness', 'listlessness', 'lack of strength', 'exhaustion', 'lethargy']}
+- {id: FT.SOB, group: energy, tags: [def],
+   q_he: "האם את/ה נעשה/ית קצר/ת נשימה במאמץ קל?",
+   label_he: "קוצר נשימה",
+   syn_he: ["קוצר נשימה", "קשה לי לנשום", "מתנשף", "מתנשפת"],
+   en: ['shortness of breath', 'panting', 'breathlessness', 'dyspno?ea', 'rapid breathing', 'more exhalation than inhalation', 'inability to lie flat']}
+- {id: FT.LOW_VOICE, group: energy, tags: [def],
+   q_he: "האם אין לך כוח לדבר, או שהקול שלך חלש?",
+   label_he: "קול חלש / חוסר רצון לדבר",
+   syn_he: ["קול חלש", "אין כוח לדבר"],
+   en: ['reluctance to (talk|speak)', 'low voice', 'weak voice', 'faint breathing']}
+- {id: FT.HEAVINESS, group: energy, screen: true, tags: [damp],
+   q_he: "האם הגוף, הגפיים או הראש מרגישים כבדים?",
+   label_he: "כבדות בגוף / בראש",
+   syn_he: ["כבדות", "כבד לי", "ראש כבד", "רגליים כבדות", "גוף כבד"],
+   en: ['(body|limb|head) heaviness', 'heavy (body|limbs|head|sensation)', 'heaviness (of|in) the (body|limbs|head)', 'heavy-headedness', 'heavy and aching']}
+- {id: FT.OEDEMA, group: energy, tags: [damp, def],
+   q_he: "האם יש לך בצקות או נפיחות בפנים, בידיים או ברגליים?",
+   label_he: "בצקות",
+   syn_he: ["בצקת", "בצקות", "רגליים נפוחות", "פנים נפוחות"],
+   en: ['o?edema', 'puffiness', 'swelling of the (face|limbs|eyelids)', 'facial puffiness']}
+- {id: FT.WEIGHT_LOSS, group: energy, tags: [def],
+   q_he: "האם ירדת במשקל בלי להתכוון?",
+   label_he: "ירידה במשקל",
+   syn_he: ["ירדתי במשקל", "ירידה במשקל", "רזיתי"],
+   en: ['weight loss', 'emaciation', 'emaciated']}
+- {id: FT.OBESITY, group: energy, tags: [damp],
+   q_he: "האם עלית במשקל או שקשה לך לרדת במשקל?",
+   label_he: "עודף משקל",
+   syn_he: ["עליתי במשקל", "עודף משקל", "השמנה"],
+   en: ['obesity', 'overweight']}
+# --- sleep and emotions ---
+- {id: FT.INSOMNIA, group: sleep_mind, screen: true, tags: [],
+   q_he: "האם קשה לך להירדם, או שאת/ה מתעורר/ת בלילה?",
+   label_he: "נדודי שינה",
+   syn_he: ["נדודי שינה", "לא ישן", "לא ישנה", "קשה להירדם", "מתעורר בלילה", "מתעוררת בלילה", "שינה גרועה"],
+   en: ['insomnia', 'sleeplessness', 'difficulty (in )?(falling )?asleep', 'poor sleep', 'sleep disturbance']}
+- {id: FT.DREAMS, group: sleep_mind, tags: [],
+   q_he: "האם את/ה חולם/ת הרבה, ושהחלומות מפריעים לשינה?",
+   label_he: "שינה עם חלומות רבים",
+   syn_he: ["חלומות", "חולם הרבה", "חולמת הרבה", "סיוטים"],
+   en: ['dream-? ?disturbed sleep', 'excessive dream', 'profuse dream', 'nightmares']}
+- {id: FT.SOMNOLENCE, group: sleep_mind, tags: [damp, def],
+   q_he: "האם את/ה ישנוני/ת במהלך היום ורוצה לישון הרבה?",
+   label_he: "ישנוניות",
+   syn_he: ["ישנוני", "ישנונית", "נרדם ביום", "נרדמת ביום"],
+   en: ['somnolence', 'drowsiness', 'sleepiness', 'desire to sleep']}
+- {id: FT.RESTLESS, group: sleep_mind, tags: [heat],
+   q_he: "האם את/ה מרגיש/ה חוסר מנוחה או אי-שקט פנימי?",
+   label_he: "אי-שקט / חוסר מנוחה",
+   syn_he: ["חוסר מנוחה", "אי שקט", "לא מוצא מנוחה", "לא מוצאת מנוחה", "חסר מנוחה", "חסרת מנוחה"],
+   en: ['restlessness', 'vexation', 'agitation', 'fidget']}
+- {id: FT.IRRITABLE, group: sleep_mind, screen: true, tags: [heat, excess],
+   q_he: "האם את/ה מתעצבן/ת או כועס/ת בקלות?",
+   label_he: "עצבנות / כעס",
+   syn_he: ["עצבני", "עצבנית", "עצבנות", "כועס", "כועסת", "מתפרץ", "מתפרצת"],
+   en: ['irritability', 'irascib\w+', 'propensity to anger', 'quick temper', '\banger\b']}
+- {id: FT.LOW_MOOD, group: sleep_mind, tags: [],
+   q_he: "האם מצב הרוח שלך ירוד, או שאת/ה נאנח/ת הרבה?",
+   label_he: "מצב רוח ירוד / אנחות",
+   syn_he: ["מדוכא", "מדוכאת", "דיכאון", "עצוב", "עצובה", "נאנח", "נאנחת", "מצב רוח ירוד"],
+   en: ['emotional depression', '\bdepression\b', 'low (mood|spirits)', 'sighing', 'melancholy', 'sadness']}
+- {id: FT.ANXIETY, group: sleep_mind, tags: [def],
+   q_he: "האם את/ה נבהל/ת בקלות, חרד/ה או פחדן/ית?",
+   label_he: "חרדה / בהלה",
+   syn_he: ["חרדה", "חרד", "חרדה", "לחוץ", "לחוצה", "נבהל", "נבהלת", "פחד"],
+   en: ['easily startled', 'timidity', 'fright', 'fearful', 'anxiety', 'jumpiness', 'apprehension']}
+- {id: FT.POOR_MEMORY, group: sleep_mind, tags: [def],
+   q_he: "האם יש לך שכחה או קושי בריכוז?",
+   label_he: "שכחה / ריכוז",
+   syn_he: ["שכחה", "שוכח", "שוכחת", "ריכוז"],
+   en: ['poor memory', 'forgetfulness', 'poor concentration']}
+# --- head and senses ---
+- {id: FT.HEADACHE, group: head, screen: true, tags: [],
+   q_he: "האם יש לך כאבי ראש?",
+   label_he: "כאב ראש",
+   syn_he: ["כאב ראש", "כאבי ראש", "כואב לי הראש", "מיגרנה", "מיגרנות"],
+   en: ['headaches?', 'pain in the head']}
+- {id: FT.HEADACHE_DISTENDING, group: head, tags: [excess, heat],
+   q_he: "כשכואב לך הראש, האם הכאב לוחץ, פועם או מתפוצץ?",
+   label_he: "כאב ראש לוחץ / פועם",
+   syn_he: ["פועם", "דופק בראש", "לחץ בראש", "מתפוצץ"],
+   en: ['headache with a distending', 'distending (pain in the head|headache)', 'splitting headache', 'throbbing headache']}
+- {id: FT.DIZZY, group: head, tags: [],
+   q_he: "האם יש לך סחרחורות?",
+   label_he: "סחרחורת",
+   syn_he: ["סחרחורת", "סחרחורות", "מסתחרר", "מסתחררת", "ורטיגו"],
+   en: ['dizziness', 'vertigo', 'light-headedness', 'giddiness']}
+- {id: FT.TINNITUS, group: head, tags: [],
+   q_he: "האם יש לך צפצופים או רעש באוזניים, או ירידה בשמיעה?",
+   label_he: "טנטון / ירידה בשמיעה",
+   syn_he: ["טנטון", "צפצוף", "צפצופים", "רעש באוזניים", "ירידה בשמיעה"],
+   en: ['tinnitus', 'deafness', 'hearing loss', 'ringing in the ears']}
+- {id: FT.EYES_BLURRED, group: head, tags: [def],
+   q_he: "האם הראייה שלך מטושטשת או שהעיניים יבשות?",
+   label_he: "טשטוש ראייה / עיניים יבשות",
+   syn_he: ["ראייה מטושטשת", "טשטוש", "עיניים יבשות"],
+   en: ['blurred vision', 'dry eyes', 'dim(ness of)? vision', 'dizziness and blurred']}
+- {id: FT.RED_EYES, group: head, tags: [heat],
+   q_he: "האם העיניים שלך אדומות, כואבות או צורבות?",
+   label_he: "עיניים אדומות / כואבות",
+   syn_he: ["עיניים אדומות", "עיניים כואבות", "עיניים צורבות"],
+   en: ['red (and swollen |, swollen |, painful )?eyes', 'redness of the eyes', 'eye (redness|pain)', 'red, (swollen|painful) eyes']}
+- {id: FT.SORE_THROAT, group: head, tags: [heat],
+   q_he: "האם יש לך כאב גרון או גרון נפוח?",
+   label_he: "כאב גרון",
+   syn_he: ["כאב גרון", "כואב לי הגרון", "גרון נפוח"],
+   en: ['sore throat', 'swollen throat', 'throat pain', 'painful throat', 'sore, swollen throat']}
+- {id: FT.NASAL, group: head, tags: [exterior],
+   q_he: "האם יש לך אף סתום, נזלת או עיטושים?",
+   label_he: "גודש באף / נזלת",
+   syn_he: ["אף סתום", "נזלת", "עיטוש", "עיטושים"],
+   en: ['nasal (obstruction|discharge|congestion)', 'stuffy nose', 'runny nose', 'sneezing']}
+- {id: FT.BLEEDING, group: head, tags: [heat],
+   q_he: "האם יש לך דימומים מהאף או מהחניכיים, או נטייה לשטפי דם?",
+   label_he: "דימום מהאף / חניכיים",
+   syn_he: ["דימום מהאף", "דם מהאף", "דימום חניכיים", "שטפי דם"],
+   en: ['nosebleeds?', 'epistaxis', 'bleeding gums', 'gum bleeding', 'bruising', 'haemorrhage']}
+# --- chest and lungs ---
+- {id: FT.COUGH, group: chest, tags: [],
+   q_he: "האם יש לך שיעול?",
+   label_he: "שיעול",
+   syn_he: ["שיעול", "משתעל", "משתעלת"],
+   en: ['\bcough']}
+- {id: FT.PHLEGM, group: chest, tags: [damp],
+   q_he: "האם יש לך ליחה, בגרון או כשאת/ה משתעל/ת?",
+   label_he: "ליחה",
+   syn_he: ["ליחה", "כיח"],
+   en: ['phlegm', 'sputum']}
+- {id: FT.YELLOW_PHLEGM, group: chest, tags: [heat],
+   q_he: "האם הליחה צהובה או ירקרקה וסמיכה?",
+   label_he: "ליחה צהובה",
+   syn_he: ["ליחה צהובה", "ליחה ירוקה"],
+   en: ['yellow (, sticky |, thick )?(phlegm|sputum)', 'thick, yellow (phlegm|sputum)', 'purulent']}
+- {id: FT.WHITE_PHLEGM, group: chest, tags: [cold],
+   q_he: "האם הליחה לבנה ודלילה או שקופה?",
+   label_he: "ליחה לבנה / שקופה",
+   syn_he: ["ליחה לבנה", "ליחה שקופה"],
+   en: ['white (, thin )?(phlegm|sputum)', 'clear (, thin |, watery )?(phlegm|sputum)', 'thin, (white|clear) (phlegm|sputum)']}
+- {id: FT.CHEST_TIGHT, group: chest, tags: [excess],
+   q_he: "האם יש לך תחושת לחץ, מחנק או מלאות בחזה?",
+   label_he: "לחץ / מלאות בחזה",
+   syn_he: ["לחץ בחזה", "מחנק", "מועקה"],
+   en: ['chest (tightness|stuffiness|oppression|fullness)', '(fullness|stuffiness|oppression|tightness) in the chest']}
+- {id: FT.PALPITATIONS, group: chest, tags: [],
+   q_he: "האם את/ה מרגיש/ה דפיקות לב חזקות או מהירות?",
+   label_he: "דפיקות לב",
+   syn_he: ["דפיקות לב", "הלב דופק", "פלפיטציות"],
+   en: ['palpitations?']}
+# --- pain and musculoskeletal ---
+- {id: FT.FLANK_PAIN, group: pain, tags: [excess],
+   q_he: "האם יש לך כאב או לחץ מתחת לצלעות או בצדי הגוף?",
+   label_he: "כאב / מתח מתחת לצלעות",
+   syn_he: ["מתחת לצלעות", "בצד הגוף", "כאב בצלעות"],
+   en: ['subcostal', 'hypochondri\w+', 'flank pain', 'costal region']}
+- {id: FT.LOWBACK, group: pain, screen: true, tags: [def],
+   q_he: "האם יש לך כאב או חולשה בגב התחתון או בברכיים?",
+   label_he: "גב תחתון / ברכיים",
+   syn_he: ["גב תחתון", "כאב גב", "כאבי גב", "ברכיים", "מותניים"],
+   en: ['low(er)? back', 'lumbar', 'knee (soreness|weakness|pain)', 'back/knee']}
+- {id: FT.JOINT_PAIN, group: pain, tags: [],
+   q_he: "האם יש לך כאבי מפרקים או כאבים בגוף?",
+   label_he: "כאבי מפרקים / גוף",
+   syn_he: ["כאבי מפרקים", "כאב מפרקים", "מפרקים", "כאבים בגוף", "כואב לי כל הגוף"],
+   en: ['joint (pain|soreness|swelling|aches?)', 'body aches?', 'aching', 'arthralg\w+', 'soreness/pain']}
+- {id: FT.NUMBNESS, group: pain, tags: [def],
+   q_he: "האם יש לך נימול או עקצוץ בידיים או ברגליים?",
+   label_he: "נימול / עקצוץ",
+   syn_he: ["נימול", "עקצוץ", "עקצוצים", "הירדמות"],
+   en: ['numbness', 'tingling']}
+- {id: FT.STABBING_PAIN, group: pain, tags: [excess],
+   q_he: "האם הכאב דוקר וקבוע במקום אחד?",
+   label_he: "כאב דוקר וקבוע",
+   syn_he: ["דוקר", "דקירות", "באותו מקום"],
+   en: ['stabbing pain', 'fixed pain', 'pricking pain']}
+- {id: FT.MOVING_PAIN, group: pain, tags: [excess],
+   q_he: "האם הכאב נודד ממקום למקום, או מרגיש כמו מתיחה ונפיחות?",
+   label_he: "כאב נודד / מותח",
+   syn_he: ["כאב נודד", "עובר ממקום למקום"],
+   en: ['migratory pain', 'wandering pain', 'distending pain', 'moving pain']}
+- {id: FT.SPASM, group: pain, tags: [],
+   q_he: "האם יש לך התכווצויות שרירים, רעד או עוויתות?",
+   label_he: "התכווצויות / רעד",
+   syn_he: ["התכווצות", "התכווצויות", "רעד", "עוויתות", "קרמפים"],
+   en: ['spasms?', 'cramps?', 'convulsions?', 'tremors?', 'twitching', 'trembling', 'opisthotonos']}
+- {id: FT.COLD_PAIN, group: pain, tags: [cold],
+   q_he: "האם הכאב מלווה בתחושת קור, ומחמיר בקור?",
+   label_he: "כאב עם תחושת קור",
+   syn_he: ["מחמיר בקור", "כאב קר"],
+   en: ['cold pain', 'pain with a cold sensation', 'cold sensation', '(aggravated|worse) by cold']}
+# --- skin ---
+- {id: FT.ITCH, group: skin, tags: [],
+   q_he: "האם יש לך גרד בעור?",
+   label_he: "גרד",
+   syn_he: ["גרד", "מגרד", "גירוד"],
+   en: ['itching', 'itchy', 'pruritus']}
+- {id: FT.RASH, group: skin, tags: [],
+   q_he: "האם יש לך פריחה, אדמומיות או כתמים בעור?",
+   label_he: "פריחה בעור",
+   syn_he: ["פריחה", "אקזמה", "כתמים", "חטטים", "סרפדת"],
+   en: ['rash(es)?', 'wheals?', 'maculae', 'eczema', 'papules', 'skin redness', 'urticaria']}
+- {id: FT.DRY_SKIN, group: skin, tags: [dry, def],
+   q_he: "האם העור שלך יבש או מתקלף?",
+   label_he: "עור יבש",
+   syn_he: ["עור יבש", "יובש בעור", "מתקלף"],
+   en: ['dry skin', 'withered skin', 'rough skin', 'scaly skin', 'peeling']}
+- {id: FT.JAUNDICE, group: skin, tags: [damp, heat],
+   q_he: "האם העור או לובן העיניים הצהיבו?",
+   label_he: "הצהבה",
+   syn_he: ["צהבת", "הצהבה", "עיניים צהובות"],
+   en: ['yellowish (eyes|skin|sclera)', 'jaundice', 'yellow (eyes|skin|sclera)']}
+# --- menstruation and fertility (female) ---
+- {id: FT.MENS_IRREGULAR, group: gyn, screen: true, sex: F, tags: [],
+   q_he: "האם המחזור שלך לא סדיר?",
+   label_he: "מחזור לא סדיר",
+   syn_he: ["מחזור לא סדיר", "וסת לא סדירה"],
+   en: ['irregular (menstruation|menses|menstrual cycles?)', 'menstrual irregularit\w+']}
+- {id: FT.MENS_SCANTY, group: gyn, sex: F, tags: [def],
+   q_he: "האם הדימום במחזור מועט, בהיר, או שהמחזור נעדר?",
+   label_he: "מחזור מועט / חסר",
+   syn_he: ["מחזור חלש", "דימום מועט", "אין מחזור", "לא מקבלת מחזור"],
+   en: ['scanty (menstruation|menses|menstrual)', 'light (menstruation|menses|periods)', 'amenorrh\w+', 'pale menstrual blood']}
+- {id: FT.MENS_HEAVY, group: gyn, sex: F, tags: [],
+   q_he: "האם הדימום במחזור כבד או ממושך, או שיש דימום בין מחזורים?",
+   label_he: "מחזור כבד / דימום בין מחזורים",
+   syn_he: ["מחזור כבד", "דימום כבד", "דימום בין מחזורים"],
+   en: ['profuse (menstruation|menses|menstrual)', 'heavy (menstruation|menses|menstrual)', 'menorrhagia', 'uterine bleeding', 'metrorrhagia', 'flooding']}
+- {id: FT.MENS_PAIN, group: gyn, sex: F, tags: [],
+   q_he: "האם יש לך כאבי מחזור?",
+   label_he: "כאבי מחזור",
+   syn_he: ["כאבי מחזור", "כאב במחזור", "כאבי וסת"],
+   en: ['dysmenorrh\w+', 'menstrual pain', 'painful (menstruation|menses)']}
+- {id: FT.MENS_CLOTS, group: gyn, sex: F, tags: [excess],
+   q_he: "האם יש קרישים בדם המחזור, או שהדם כהה?",
+   label_he: "קרישים / דם כהה",
+   syn_he: ["קרישים", "קריש"],
+   en: ['clots', 'dark (purple )?menstrual blood']}
+- {id: FT.PMS, group: gyn, sex: F, tags: [excess],
+   q_he: "האם לפני המחזור יש לך רגישות בשדיים, עצבנות או נפיחות?",
+   label_he: "תסמונת קדם-וסתית",
+   syn_he: ["לפני המחזור", "רגישות בשדיים", "כאב בשדיים"],
+   en: ['premenstrual', 'before menstruation', 'breast (distension|tenderness|pain)', 'distending pain in the breasts?']}
+- {id: FT.DISCHARGE, group: gyn, sex: F, tags: [damp],
+   q_he: "האם יש לך הפרשות נרתיקיות מרובות?",
+   label_he: "הפרשות נרתיקיות",
+   syn_he: ["הפרשות", "הפרשה"],
+   en: ['vaginal discharge', 'leukorrh\w+', 'leucorrh\w+']}
+- {id: FT.INFERTILITY_F, group: gyn, sex: F, tags: [],
+   q_he: "האם יש קושי להיכנס להיריון?",
+   label_he: "קושי בפוריות",
+   syn_he: ["פוריות", "להיכנס להיריון", "טיפולי פוריות"],
+   en: ['infertility', 'sterility']}
+# --- male fertility ---
+- {id: FT.MALE_SEXUAL, group: male, sex: M, tags: [def],
+   q_he: "האם יש לך ירידה בחשק, קושי בזקפה או פליטות לילה?",
+   label_he: "חשק / זקפה / פליטות",
+   syn_he: ["זקפה", "חשק מיני", "פליטות"],
+   en: ['impotence', 'erectile', 'nocturnal emissions?', 'seminal emissions?', 'premature ejaculation', 'low libido', 'low sperm count', 'spermatorrh\w+']}
+
+# --- tongue (entered by the clinician; matched against the pattern's tongue text) ---
+- {id: TG.PALE, group: tongue, kind: tongue, tags: [def, cold], label_he: "לשון חיוורת", en: ['\bpale\b']}
+- {id: TG.RED, group: tongue, kind: tongue, tags: [heat], label_he: "לשון אדומה", en: ['\bred\b']}
+- {id: TG.DEEP_RED, group: tongue, kind: tongue, tags: [heat], label_he: "לשון אדומה כהה", en: ['deep red', 'crimson']}
+- {id: TG.RED_TIP, group: tongue, kind: tongue, tags: [heat], label_he: "קצה לשון אדום", en: ['tip is red', 'red tip']}
+- {id: TG.RED_SIDES, group: tongue, kind: tongue, tags: [heat], label_he: "צדי לשון אדומים", en: ['red (sides|edges|margins)', '(sides|edges|margins) (are )?red']}
+- {id: TG.PURPLE, group: tongue, kind: tongue, tags: [excess], label_he: "לשון סגולה / כתמי סטזיס", en: ['purple', 'ecchymos\w+', 'petechiae', 'tongue is dark']}
+- {id: TG.ENLARGED, group: tongue, kind: tongue, tags: [def, damp], label_he: "לשון נפוחה / סימני שיניים", en: ['enlarged', 'swollen', 'flabby', 'teeth marks', 'tooth[- ]marked']}
+- {id: TG.COAT_WHITE, group: tongue, kind: tongue, tags: [cold], label_he: "חיפוי לבן", en: ['white']}
+- {id: TG.COAT_YELLOW, group: tongue, kind: tongue, tags: [heat], label_he: "חיפוי צהוב", en: ['yellow']}
+- {id: TG.COAT_GREASY, group: tongue, kind: tongue, tags: [damp], label_he: "חיפוי שמנוני / דביק", en: ['greasy', 'sticky', 'putrid']}
+- {id: TG.COAT_SLIPPERY, group: tongue, kind: tongue, tags: [damp, cold], label_he: "חיפוי לח / חלקלק", en: ['slippery', 'moist', '\bwet\b']}
+- {id: TG.COAT_SCANTY, group: tongue, kind: tongue, tags: [def, dry], label_he: "חיפוי מועט / מקולף", en: ['scanty coating', 'no or scanty', 'no coating', 'peeled', 'mirror', 'little coating', 'without (a )?coating', 'absence of (a )?(tongue )?coating']}
+- {id: TG.COAT_THIN, group: tongue, kind: tongue, tags: [exterior], label_he: "חיפוי דק", en: ['\bthin\b']}
+- {id: TG.COAT_THICK, group: tongue, kind: tongue, tags: [excess], label_he: "חיפוי עבה", en: ['\bthick\b']}
+- {id: TG.DRY, group: tongue, kind: tongue, tags: [dry], label_he: "לשון / חיפוי יבשים", en: ['\bdry\b', '\brough\b']}
+
+# --- pulse (entered by the clinician; matched against the pattern's pulse text) ---
+- {id: PL.SUPERFICIAL, group: pulse, kind: pulse, tags: [exterior], label_he: "שטחי (צף)", en: ['superficial', 'floating']}
+- {id: PL.DEEP, group: pulse, kind: pulse, tags: [interior], label_he: "עמוק", en: ['\bdeep\b']}
+- {id: PL.RAPID, group: pulse, kind: pulse, tags: [heat], label_he: "מהיר", en: ['rapid']}
+- {id: PL.SLOW, group: pulse, kind: pulse, tags: [cold], label_he: "איטי", en: ['\bslow\b']}
+- {id: PL.WEAK, group: pulse, kind: pulse, tags: [def], label_he: "חלש / ריק", en: ['\bweak\b', 'feeble', 'deficient', 'forceless', '\bfaint\b']}
+- {id: PL.FORCEFUL, group: pulse, kind: pulse, tags: [excess], label_he: "חזק / מלא", en: ['forceful', 'replete', 'excessive', 'surging', '\bfull\b']}
+- {id: PL.THREADY, group: pulse, kind: pulse, tags: [def], label_he: "דק", en: ['thready']}
+- {id: PL.SLIPPERY, group: pulse, kind: pulse, tags: [damp], label_he: "חלקלק", en: ['slippery']}
+- {id: PL.WIRY, group: pulse, kind: pulse, tags: [excess], label_he: "מיתרי", en: ['wiry']}
+- {id: PL.HESITANT, group: pulse, kind: pulse, tags: [excess], label_he: "מחוספס (סֶה)", en: ['hesitant', 'choppy', 'rough']}
+- {id: PL.TIGHT, group: pulse, kind: pulse, tags: [cold, excess], label_he: "מתוח (הדוק)", en: ['tight', 'tense']}
+- {id: PL.SOFT, group: pulse, kind: pulse, tags: [damp, def], label_he: "רך", en: ['\bsoft\b', 'soggy']}
+- {id: PL.SLACK, group: pulse, kind: pulse, tags: [def, damp], label_he: "רפוי / מושהה", en: ['slack', 'delayed', 'moderate']}

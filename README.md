@@ -52,6 +52,24 @@ python3 shanghan.py && python3 jingui.py && python3 bencao_beiyao.py && python3 
 
 `curate.py` never overwrites a row the clinician marked `reviewed` or `approved`.
 
+## Patient interview prototype (`app/interview/`)
+
+A Hebrew intake interview that runs in the browser with no server and no LLM: open `app/interview/index.html`. The patient answers an intake form, a red-flag screen, a medications question and a free-text description, then yes/no questions; the clinician enters tongue and pulse and sees a draft `diagnostic_report.v1` with up to five candidate WHO 2022 patterns, the evidence for and against each, and the safety flags.
+
+| Path | What it holds |
+| --- | --- |
+| `kb/lexicon/interview_features.yaml` | 120 findings (symptoms, tongue, pulse): the Hebrew question, Hebrew words for free text, and English phrases that link each finding to WHO 2022 patterns |
+| `kb/lexicon/interview_safety.yaml` | Red-flag questions and words (category A), constraint words such as anticoagulants (category C), the emergency message |
+| `tools/interview/build_interview.py` | Derives the pattern-finding links from the WHO text and writes `app/interview/kb.js` |
+| `app/interview/engine.js` | Free-text extraction, safety screen, scoring, next-question choice, report |
+
+How it decides, for now: every derived link has the same placeholder weight (`defaults.weight` in the lexicon), and a pattern's score is the overlap between the patient's findings and the pattern's findings, minus half a point per finding the patient denied. Up to fifteen screening questions go to everyone (fewer when the free text already answered them); up to twelve more are chosen to split the leading candidates. Everything here is a draft: the Hebrew wording, the links and the weights need the clinician's review, and the red-flag screen is keyword matching, not the LLM Safety Monitor.
+
+```
+python3 tools/interview/build_interview.py                        # after editing the lexicon or syndromes
+python3 tools/interview/build_interview.py --standalone out.html  # one self-contained file
+```
+
 ## Run
 
 ```

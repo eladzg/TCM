@@ -1,0 +1,38 @@
+# Interview safety screen (DRAFT: the clinic must approve every text here before patients see it).
+# Follows the Safety Monitor categories in the architecture doc (section A1):
+#   A = emergency, stop the interview and show the emergency template
+#   C = treatment-constraining context, shown to the clinician
+#   D = missing safety-critical information
+# The prototype does keyword matching only; it is a backstop, not a replacement for the LLM Safety Monitor.
+
+emergency_template_he: >-
+  לפי מה שתיארת, ייתכן שמדובר במצב שדורש בדיקה רפואית דחופה. אנא פנה/י מיד למד"א בטלפון 101
+  או לחדר המיון הקרוב. הראיון הופסק, והמטפל/ת יקבל/תקבל הודעה.
+
+# Category A questions asked at the start. Any "yes" halts the interview.
+red_flag_questions:
+- {id: RF.CHEST_PAIN, q_he: "האם יש לך עכשיו כאב, לחץ או מועקה בחזה?", gloss_en: "current chest pain or pressure"}
+- {id: RF.STROKE, q_he: "האם הופיעו פתאום חולשה או נימול בצד אחד של הגוף, עיוות בפנים, קושי לדבר או אובדן ראייה?", gloss_en: "sudden stroke signs"}
+- {id: RF.HEADACHE, q_he: "האם יש לך כאב ראש פתאומי וחזק מאוד, החזק ביותר שהיה לך, או כאב ראש עם חום וצוואר נוקשה?", gloss_en: "thunderclap headache or headache with fever and stiff neck"}
+- {id: RF.BREATH, q_he: "האם קשה לך לנשום גם במנוחה, או שיש נפיחות בגרון או בלשון?", gloss_en: "breathing difficulty at rest or airway swelling"}
+- {id: RF.BLEEDING, q_he: "האם הקאת דם, השתעלת דם, או ראית צואה שחורה או דם רב ביציאות?", gloss_en: "haematemesis, haemoptysis or melaena"}
+- {id: RF.SELF_HARM, q_he: "האם יש לך מחשבות לפגוע בעצמך או שאין טעם לחיות?", gloss_en: "suicidal thoughts or self-harm"}
+
+# Category A words in the patient's free text (substring match on the Hebrew text).
+red_flag_terms:
+- {terms: ["כאב בחזה", "לחץ בחזה", "כאבים בחזה"], gloss_en: "chest pain"}
+- {terms: ["לא יכול לנשום", "לא יכולה לנשום", "נחנק", "נחנקת"], gloss_en: "breathing difficulty"}
+- {terms: ["להתאבד", "לפגוע בעצמי", "לא רוצה לחיות", "אין טעם לחיות", "למות"], gloss_en: "suicidal content"}
+- {terms: ["הקאתי דם", "מקיא דם", "מקיאה דם", "משתעל דם", "משתעלת דם", "צואה שחורה"], gloss_en: "gastrointestinal or pulmonary bleeding"}
+- {terms: ["איבדתי הכרה", "התעלפתי", "פרכוס", "פרכוסים"], gloss_en: "loss of consciousness or seizure"}
+- {terms: ["הכאב ראש הכי חזק", "כאב ראש פתאומי", "צוואר נוקשה"], gloss_en: "thunderclap headache or meningism"}
+- {terms: ["חצי גוף", "צד אחד של הגוף", "פה עקום", "קשה לי לדבר"], gloss_en: "stroke signs"}
+
+# Category C words in the medication / background answers.
+constraint_terms:
+- {code: ANTICOAGULANT, terms: ["קומדין", "coumadin", "וורפרין", "warfarin", "אליקוויס", "eliquis", "קסרלטו", "xarelto", "פרדקסה", "pradaxa", "פלביקס", "plavix", "אספירין", "aspirin", "קרטיה", "micropirin", "מיקרופירין", "קלקסן", "clexane", "הפרין"], gloss_en: "anticoagulant or antiplatelet drug"}
+- {code: DEVICE, terms: ["קוצב", "pacemaker", "דפיברילטור"], gloss_en: "implanted electrical device"}
+- {code: EPILEPSY, terms: ["אפילפסיה", "פרכוסים"], gloss_en: "epilepsy"}
+- {code: IMMUNO, terms: ["כימותרפיה", "השתלה", "מדכאי חיסון", "סטרואידים"], gloss_en: "immunosuppression or chemotherapy"}
+- {code: ORGAN, terms: ["מחלת כבד", "מחלת כליות", "דיאליזה", "כבד שומני"], gloss_en: "liver or kidney disease"}
+- {code: ALLERGY, terms: ["אלרגיה", "אלרגי", "אלרגית"], gloss_en: "allergy"}
