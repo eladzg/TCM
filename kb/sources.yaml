@@ -92,3 +92,15 @@
   license: all rights reserved (no terms published)
   license_class: prohibited
   url: https://www.americandragon.com/
+
+- source_id: WS-JINGUI
+  title: 金匱要略 Jingui Yaolue (Zhang Zhongjing), Wikisource transcription
+  license: public domain text; Wikisource page CC BY-SA 4.0
+  license_class: public_domain
+  url: https://zh.wikisource.org/wiki/金匱要略
+
+- source_id: WS-ZJDC
+  title: 針灸大成 Zhenjiu Dacheng (Yang Jizhou, 1601), Wikisource transcription
+  license: public domain text; Wikisource page CC BY-SA 4.0
+  license_class: public_domain
+  url: https://zh.wikisource.org/wiki/針灸大成

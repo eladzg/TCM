@@ -55,6 +55,7 @@ CREATE TABLE points (
     indications    text,
     needling_notes text,
     cautions       text,
+    classical      text,                          -- original-language passage (e.g. Zhenjiu Dacheng)
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
 );
@@ -102,6 +103,7 @@ CREATE TABLE herbs (
     dose_min_g     numeric,
     dose_max_g     numeric,
     pregnancy_caution text,
+    classical      text,                          -- original-language entry (e.g. Bencao Beiyao)
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL,
     CHECK (dose_min_g IS NULL OR dose_max_g IS NULL OR dose_min_g <= dose_max_g)
@@ -114,6 +116,7 @@ CREATE TABLE formulas (
     name_en        text,
     indications    text,
     modifications  text,
+    classical      text,                          -- preparation and administration as written
     status         review_status NOT NULL DEFAULT 'draft',
     kb_version     text NOT NULL
 );

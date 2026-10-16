@@ -1,2 +1,4 @@
 pyyaml>=6
 pytest>=8
+pypinyin>=0.51
+opencc-python-reimplemented>=0.1.7
