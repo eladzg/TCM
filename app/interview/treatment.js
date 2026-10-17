@@ -61,7 +61,7 @@
           addScore(herbs, h.id, h.s * share, { sid: sid, actions: h.a.map(function (i) { return herb.act[i]; }) });
         });
         l.fm.forEach(function (f) {
-          addScore(formulas, f.id, f.s * share, { sid: sid, herbs: f.h, findings: f.f });
+          addScore(formulas, f.id, f.s * share, { sid: sid, herbs: f.h, findings: f.f, ind: f.q || null, cat: f.cat || null });
         });
       });
       Object.keys(points).forEach(function (id) {
@@ -738,7 +738,7 @@
 
   function herbsPanel(issues) {
     var p = el("div", { class: "panel" }, [el("h3", { text: "מרשם צמחים" }),
-      el("p", { class: "hint", text: "מרשמי הבסיס הם משאנג האן לון (傷寒論) ומג'ין גוויי יאו לואה (金匱要略) בלבד (152 מרשמים במאגר), ולכן לתבניות של איברים פנימיים ההתאמה לעיתים חלשה. המינון המקורי מוצג לעיון; המינון בגרם נקבע על ידך." })]);
+      el("p", { class: "hint", text: "מרשמי הבסיס הם משאנג האן לון (傷寒論), מג'ין גוויי יאו לואה (金匱要略) ומיי פאנג ג'י ג'יה (醫方集解, 1682), 469 מרשמים במאגר. בתעתיק של יי פאנג ג'י ג'יה רשימות רכיבים רבות קטועות, ולכן ההרכב שמוצג עלול להיות חלקי; השוו למקור. המינון המקורי מוצג לעיון; המינון בגרם נקבע על ידך." })]);
     var fr = el("div", { class: "checks" });
     function formulaOption(id, s) {
       var f = tx.formulas[id];
@@ -761,13 +761,16 @@
         var carrying = [].concat.apply([], sel.from.map(function (x) { return x.herbs; }));
         var finds = [].concat.apply([], sel.from.map(function (x) { return x.findings; }));
         if (carrying.length) why.push(el("div", {}, ["צמחים במרשם שפעולתם תואמת את עקרון הטיפול: " + carrying.filter(function (x, i) { return carrying.indexOf(x) === i; }).map(T.label).join(", ")]));
+        var inds = sel.from.filter(function (x) { return x.ind; }), cats = sel.from.filter(function (x) { return x.cat; });
+        if (inds.length) why.push(el("div", { class: "quote" }, ["ההתוויה בספר תואמת את התבנית: ", quote(inds[0].ind.ev, "WS-YFJJ", I.books(inds[0].ind.c))]));
+        if (cats.length) why.push(el("div", {}, ["קבוצת המרשמים בספר מתאימה לעקרון הטיפול: " + I.books(cats[0].cat)]));
         if (finds.length) why.push(el("div", {}, ["ממצאי התבנית בסעיפים: " + findingNames(finds.filter(function (x, i) { return finds.indexOf(x) === i; }))]));
         if (sel.patient && sel.patient.length) {
           why.push(el("div", {}, ["ממצאי המטופל בסעיפים: " + findingNames(sel.patient)]));
-          why.push(el("div", { class: "quote" }, sel.patient.map(function (h) { return quote(h.ev, /^金匱/.test(h.c) ? "WS-JINGUI" : "GUT-SHANGHAN", I.books(h.c)); })));
+          why.push(el("div", { class: "quote" }, sel.patient.map(function (h) { return quote(h.ev, /^金匱/.test(h.c) ? "WS-JINGUI" : /^醫方集解/.test(h.c) ? "WS-YFJJ" : "GUT-SHANGHAN", I.books(h.c)); })));
         }
       }
-      p.appendChild(el("div", { class: "why" }, why.concat([el("div", { class: "hint" }, ["הרכב: " + I.books(f.src) + " ", srcLink(f.src, f.zh),
+      p.appendChild(el("div", { class: "why" }, why.concat([el("div", { class: "hint" }, ["הרכב: " + I.books(f.src) + " ", srcLink(f.src, f.anchor || f.zh),
         f.ind_src ? " · התוויה: " + I.books(f.ind_src) : null]), sel ? decisionButtons("formula", plan.formula_id) : null])));
     }
 

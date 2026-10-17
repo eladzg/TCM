@@ -1,7 +1,7 @@
 """Turn the staging records of the classics and WHO 2022 into draft rows in kb/curation/*.yaml.
 
 Writes points.yaml (AcuAtlas + Zhenjiu Dacheng), herbs.yaml (Bencao Beiyao + every herb the
-formulas name), formulas.yaml (Shanghan Lun + Jingui Yaolue) and safety_rules.yaml (pregnancy,
+formulas name), formulas.yaml (Shanghan Lun + Jingui Yaolue + Yifang Jijie) and safety_rules.yaml (pregnancy,
 toxicity, 十八反 pairs, classical needling/moxibustion bans), and, from the WHO 2022 terminology,
 syndromes.yaml (425 patterns), and manifestations.yaml (symptoms, signs, tongue and
 pulse findings). WHO lists formula categories only, so formulas keep their classical names. Every generated row is `draft`.
@@ -180,7 +180,78 @@ def build_formulas(index):
                 if f["preparation"]:
                     row["classical"] = f["preparation"]
                     row["sources"].append(ref(source, "classical", f"{f['chapter']}, {f['name_zh']}方"))
-    return formulas
+    unmapped = add_yifang(index, formulas, by_key)
+    return formulas, unmapped
+
+
+YFJJ = "WS-YFJJ"
+YFJJ_LABEL = "醫方集解"
+
+
+def yifang_dose(item):
+    """The dose as printed, with a short preparation note: 二钱（土炒）. Long notes stay in the quote."""
+    dose, prep = item["dose_original"], item["prep"]
+    if not dose:
+        return None
+    return dose + (f"（{prep}）" if prep and len(prep) <= 4 else "")
+
+
+def add_yifang(index, formulas, by_key):
+    """Yifang Jijie formulas: a new draft row per formula, or one more indications source on a Han-classic row.
+
+    Ingredients map only to herbs already in the index (Bencao Beiyao and the Han classics); a name that
+    maps to none is left out of the composition and returned, so the gap is visible."""
+    path = STAGING / YFJJ / "formulas.jsonl"
+    if not path.exists():
+        return {}
+    from yifang import ALIASES
+    folded = {herb_key(k): v for k, v in ALIASES.items()}
+    ids = {r["formula_id"] for r in formulas}
+    unmapped = {}
+    for f in read_jsonl(path):
+        if not f["herbal"] or not (f.get("indications") or f["ingredients"]):
+            continue
+        key = herb_key(f["name_zh"])
+        row = by_key.get(key)
+        if row is None:
+            fid, n = to_id("FORM", f["name_zh"]), 2
+            while fid in ids:
+                fid, n = f"{to_id('FORM', f['name_zh'])}_{n}", n + 1
+            ids.add(fid)
+            row = {"formula_id": fid, "name_pinyin": to_pinyin_title(f["name_zh"]), "name_zh": f["name_zh"],
+                   "status": "draft", "sources": []}
+            by_key[key] = row
+            formulas.append(row)
+        if f.get("indications"):
+            line = f"{YFJJ_LABEL} {f['locator']}：{f['indications']}"
+            row["indications"] = "\n".join(filter(None, [row.get("indications"), line]))
+            row["sources"].append(ref(YFJJ, "indications", f["locator"], f["indications"]))
+        if "composition" in row or not f["ingredients"]:
+            continue
+        comp, seen = [], set()
+        for item in f["ingredients"]:
+            name = item["name"]
+            herb = index.get(folded.get(herb_key(name), name))
+            if herb is None:
+                unmapped.setdefault(name, []).append(f["name_zh"])
+                continue
+            if herb["herb_id"] in seen:
+                continue
+            seen.add(herb["herb_id"])
+            entry = {"herb_id": herb["herb_id"]}
+            if dose := yifang_dose(item):
+                entry["dose_original"] = dose
+            comp.append(entry)
+        if comp:
+            row["composition"] = comp
+            where = f"{f['locator']}, line {f['ingredient_line']}"
+            if f["partial"]:
+                where += ", list cut short in this transcription"
+            row["sources"].append(ref(YFJJ, "composition", where, f["ingredient_text"]))
+            if f["preparation"] and "classical" not in row:
+                row["classical"] = f["preparation"]
+                row["sources"].append(ref(YFJJ, "classical", f["locator"]))
+    return unmapped
 
 
 # ---------- safety rules ----------
@@ -309,7 +380,11 @@ def main():
     points, classical_points = build_points()
     index = HerbIndex()
     build_herbs(index)
-    formulas = build_formulas(index)
+    formulas, unmapped = build_formulas(index)
+    if unmapped:
+        print(f"{len(unmapped)} Yifang Jijie ingredient name(s) map to no herb and are left out of the composition:")
+        for name, where in sorted(unmapped.items()):
+            print(f"  {name}: {'、'.join(where)}")
     safety = build_safety(index, classical_points)
     terms = who_terms()
     syndromes, manifestations = build_syndromes(terms), build_manifestations(terms)

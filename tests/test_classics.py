@@ -7,6 +7,7 @@ import bencao_beiyao  # noqa: E402
 import common  # noqa: E402
 import jingui  # noqa: E402
 import shanghan  # noqa: E402
+import yifang  # noqa: E402
 import zjdc  # noqa: E402
 
 
@@ -50,6 +51,17 @@ def test_jingui_list_layout_folds_notes_into_previous_herb():
     items = shanghan.parse_ingredients(block)
     assert names_doses(items) == [("蜀椒", "一兩"), ("烏頭", "一分"), ("附子", "半兩")]
     assert items[1]["prep"] == "炮" and items[2]["prep"] == "炮，去皮"
+
+
+def test_yifang_group_dose_restored_huangqi_and_cut_lists():
+    seg = yifang.Segmenter({common.herb_key(n): n for n in ["人參", "白术", "茯苓", "甘草", "当归", "百合", "麦冬", "姜", "枣"]})
+    items, end, prep, unknown, stopped = yifang.parse_ingredients("人參白术（土炒）茯苓（二钱）甘草（一钱。）姜三片枣二枚，煎。", seg)
+    assert names_doses(items) == [("人參", "二钱"), ("白术", "二钱"), ("茯苓", "二钱"), ("甘草", "一钱"),
+                                  ("姜", "三片"), ("枣", "二枚")]
+    assert items[1]["prep"] == "土炒" and prep.startswith("煎") and not stopped
+    items, *_, stopped = yifang.parse_ingredients("黄（炙。钱半）麦冬（钱半）百合当归（酒洗）", seg)
+    assert names_doses(items) == [("黄芪", "钱半"), ("麦冬", "钱半"), ("百合", None), ("当归", None)]
+    assert stopped      # no preparation after the list: the transcription cut it
 
 
 def test_bencao_nature_flavour_channels_and_relations():

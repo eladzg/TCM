@@ -128,3 +128,9 @@
   license: CC BY-NC-SA 4.0
   license_class: non_commercial     # used to estimate draft link weights and to evaluate; records are never copied into the KB
   url: https://github.com/Borororo/ZY-BERT
+
+- source_id: WS-YFJJ
+  title: 醫方集解 Yifang Jijie (Wang Ang, 1682), Wikisource transcription
+  license: public domain text; Wikisource page CC BY-SA 4.0
+  license_class: public_domain
+  url: https://zh.wikisource.org/wiki/醫方集解
