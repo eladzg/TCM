@@ -471,10 +471,15 @@
     // 6. shiatsu
     body.appendChild(shiatsuPanel(issues));
 
-    // 7. series of sessions
+    // 7. the plan's points on the figure (acupuncture and shiatsu together)
+    var planMap = mapBlock("plan", plan.points.map(function (x) { return x.id; }), plan.shiatsu.map(function (x) { return x.id; }), true,
+                           "הנקודות של התכנית על הדמות (דיקור ושיאצו)");
+    if (planMap) body.appendChild(el("div", { class: "panel" }, [planMap]));
+
+    // 8. series of sessions
     body.appendChild(seriesPanel());
 
-    // 8. follow-up and save
+    // 9. follow-up and save
     body.appendChild(followupPanel(issues));
   }
 
@@ -713,7 +718,6 @@
       el("p", { class: "hint", text: "הצעות לפי פעולות הנקודה ב-AcuAtlas שמטפלות באותו איבר ובאותה הפרעה, ולפי ההתוויות ב-AcuAtlas ובג'ן ג'יו דא צ'נג (针灸大成, 1601) שתואמות את ממצאי התבנית והמטופל." })]);
     if (!plan.sugg.points.length) p.appendChild(el("p", { class: "empty", text: "אין הצעות נקודות לתבנית הזו במאגר." }));
     splitList(p, plan.sugg.points, plan.points, "points", issues);
-    p.appendChild(mapBlock("points", plan.points.map(function (x) { return x.id; }), []));
     p.appendChild(addBox("הוספת נקודה לפי קוד (למשל LR3)", pointsList(), function (id) {
       if (!plan.points.some(function (x) { return x.id === id; })) plan.points.push({ id: id, technique: "even", moxa: false, note: "", origin: "added" });
       touch();
@@ -725,7 +729,6 @@
     var p = el("div", { class: "panel" }, [el("h3", { text: "נקודות לשיאצו (" + plan.shiatsu.length + " נבחרו)" }),
       el("p", { class: "hint", text: "אותן הצעות כמו בדיקור, בלי נקודות סביב העין, הפטמה והטבור. כללי ההיריון חלים גם על לחיצה." })]);
     splitList(p, plan.sugg.points.filter(function (s) { return T.shiatsuAllowed(s.id); }), plan.shiatsu, "shiatsu", issues);
-    p.appendChild(mapBlock("shiatsu", [], plan.shiatsu.map(function (x) { return x.id; })));
     p.appendChild(addBox("הוספת נקודה לשיאצו", pointsList(), function (id) {
       if (!plan.shiatsu.some(function (x) { return x.id === id; })) plan.shiatsu.push({ id: id, note: "", origin: "added" });
       touch();
