@@ -7,8 +7,9 @@ normal phrases (纳可, 眠可, 二便调) do the same. When the record describe
 every tongue or pulse feature it does not name counts as absent, as when the clinician fills in
 the tongue and pulse section.
 
-The expert's pattern (norm_syndrome) is mapped to a WHO pattern by Chinese name, directly or
-through GB/T 16751.2 synonyms; records whose pattern has no WHO counterpart are skipped.
+The expert's pattern (norm_syndrome) is mapped to a KB pattern by Chinese name, directly or
+through GB/T 16751.2 synonyms: a WHO 2022 pattern, else a GB pattern WHO does not list; records
+whose pattern is in neither are skipped.
 """
 
 import json
@@ -122,7 +123,7 @@ def _prepare_one(args):
 
 
 def prepared(split, features, index=None):
-    """Records of one split with a WHO pattern: [{gold, sex, findings}]."""
+    """Records of one split with a KB pattern: [{gold, sex, findings}]."""
     from multiprocessing import Pool
     index = index or who_index()
     jobs = [(r, index[r["norm_syndrome"]], features) for r in raw_records()[split] if r["norm_syndrome"] in index]

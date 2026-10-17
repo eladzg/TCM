@@ -5,6 +5,8 @@ Reads the WHO 2022 patterns (kb/curation/syndromes.yaml) and the interview lexic
 matching each feature's English phrases against the WHO pattern text and its Chinese phrases
 against the findings GB/T 16751.2 lists for the same pattern (kb/staging/GBT-16751-2, matched by
 Chinese name), and writes app/interview/kb.js. Each link names the sources that support it.
+The GB patterns WHO does not list (rows of syndromes.yaml sourced from GBT-16751-2) are candidates
+too, linked from their own GB findings only.
 Where TCM-SD clinical records give enough data (kb/staging/TCM-SD/link_stats.json, written by
 learn_weights.py), links get a draft weight from how much more often the pattern's records report
 the finding, and findings the records clearly tie to the pattern are added as TCM-SD links.
@@ -85,6 +87,9 @@ def find(patterns, text):
 def derive_links(syndromes, features):
     links = {}
     for syn in syndromes:
+        if gb_code(syn):            # GB patterns have Chinese text only; derive_gb_links reads it
+            links[syn["syndrome_id"]] = []
+            continue
         texts = dict(zip(("symptom", "tongue", "pulse"), split_texts(syn)))
         found = []
         for feat in features:
@@ -103,7 +108,7 @@ PULSE_ONLY = re.compile(r"^(或|且|而)?[浮沉伏数疾促迟缓弱无力虚�
 
 
 def load_gb():
-    """GB/T 16751.2 entries by Chinese name and synonym, or {} when the source was not ingested."""
+    """GB/T 16751.2 entries by Chinese name and synonym, and by code, or {} when the source was not ingested."""
     if not GB_STAGING.exists():
         return {}
     index = {}
@@ -112,7 +117,22 @@ def load_gb():
             rec = json.loads(line)
             for name in [rec["name_zh"]] + rec["synonyms_zh"]:
                 index.setdefault(name, rec)
+            index[rec["code"]] = rec
     return index
+
+
+def gb_code(syn):
+    """The GB/T 16751.2 code of a pattern taken from GB itself (one WHO 2022 does not list), else None."""
+    for src in syn.get("sources", []):
+        if src.get("source_id") == "GBT-16751-2" and src.get("field") == "presentation":
+            return src["locator"].split()[0]
+    return None
+
+
+def gb_record(syn, gb):
+    """The GB entry of a pattern: its own entry for a GB pattern, the entry with the same name for a WHO one."""
+    code = gb_code(syn)
+    return gb.get(code) if code else gb.get(syn.get("name_zh", ""))
 
 
 def gb_segments(rec):
@@ -155,7 +175,7 @@ def derive_gb_links(syndromes, features, gb):
     """{syndrome_id: [{f, ev, secondary}]} from the GB findings of the pattern with the same name."""
     links = {}
     for syn in syndromes:
-        rec = gb.get(syn.get("name_zh", ""))
+        rec = gb_record(syn, gb)
         if not rec or not rec.get("findings_main"):
             continue
         found = {}
@@ -186,6 +206,11 @@ def merge_links(who_links, gb_links):
         merged[sid] = list(out.values())
     return merged
 
+
+# Score multiplier for the GB patterns WHO does not list: 1264 narrower variants would otherwise crowd
+# the WHO patterns out of the top five. A draft value, the one that ranks the TCM-SD dev split best
+# (top 1 over all its records, the WHO and the GB patterns together); see README.
+GB_ONLY_PRIOR = 0.75
 
 SD_STATS = KB / "staging" / "TCM-SD" / "link_stats.json"
 SD_MIN_RECORDS = 30        # patterns with fewer training records keep the placeholder weight
@@ -255,14 +280,15 @@ def build_data():
     apply_record_stats(links, features)
     out_syndromes = []
     for syn in syndromes:
+        gb_only = bool(gb_code(syn))
         out_syndromes.append({
             "id": syn["syndrome_id"],
-            "en": syn["name_en"],
+            "en": syn.get("name_en") or "",
             "zh": syn.get("name_zh", ""),
             "py": syn.get("name_pinyin", ""),
             "he": syn.get("name_he"),
             "cat": syn.get("category", ""),
-            "text": syn.get("presentation", ""),
+            "text": "" if gb_only else syn.get("presentation", ""),   # the GB text is in gbtext
             "tongue": syn.get("tongue", ""),
             "pulse": syn.get("pulse", ""),
             "tp": syn.get("treatment_principle"),
@@ -271,6 +297,7 @@ def build_data():
             "gbtext": gb_links.get(syn["syndrome_id"], {}).get("text"),
             "status": syn.get("status", "draft"),
             "links": links[syn["syndrome_id"]],
+            **({"prior": GB_ONLY_PRIOR} if gb_only else {}),
         })
     return {
         "schema_version": "interview_kb.v1",

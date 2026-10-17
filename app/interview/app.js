@@ -305,8 +305,8 @@
       var s = E.featById;
       var card = el("article", { class: "dx" + (d.rank === 1 ? " primary" : "") }, [
         el("div", { class: "dx-head" }, [
-          el("div", { class: "dx-name" }, [d.rank + ". " + (d.names.he || d.names.en), " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin }),
-            d.names.he ? el("span", { class: "en", text: " " + d.names.en }) : null]),
+          el("div", { class: "dx-name" }, [d.rank + ". " + (d.names.he || d.names.en || d.names.zh), " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin }),
+            d.names.he && d.names.en ? el("span", { class: "en", text: " " + d.names.en }) : null]),
           el("span", { class: "score", text: "התאמה " + d.graph_score.toFixed(2) + " · ביטחון " + (d.confidence === "moderate" ? "בינוני" : "נמוך") })
         ]),
         el("div", { class: "bar" }, [el("i", { style: "width:" + Math.round(Math.min(1, d.graph_score) * 100) + "%" })]),
@@ -335,8 +335,9 @@
         card.appendChild(det);
       }
       var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + I.books(d.supporting[0].evidence_ref) + ")" }),
-        el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : "", " ",
-          el("a", { class: "srclink", href: I.source("WHO-ISTTCM-2022").url, target: "_blank", rel: "noopener", text: "מקור" })])]);
+        // a GB/T 16751.2 pattern that WHO 2022 does not list has only the GB text below
+        d.source_text.presentation ? el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : "", " ",
+          el("a", { class: "srclink", href: I.source("WHO-ISTTCM-2022").url, target: "_blank", rel: "noopener", text: "מקור" })]) : null]);
       if (d.source_text.gb_zh) {
         var gbLink = I.source("GBT-16751-2");
         src.appendChild(el("div", { class: "src he" }, ["התקן הסיני GB/T 16751.2, סעיף " + d.source_text.gb_code + ": " + I.heOr(d.source_text.gb_zh) + " ",

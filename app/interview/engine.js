@@ -6,7 +6,8 @@
 // link carries a draft weight `w` (from TCM-SD record counts where there are enough, otherwise
 // kb.defaults.weight), and a pattern's score is a weighted cosine similarity between the findings
 // the patient confirmed and the pattern's linked features, minus a penalty for linked features
-// the patient denied.
+// the patient denied. A pattern with a `prior` (the GB/T 16751.2 patterns WHO 2022 does not list)
+// has its score multiplied by it.
 (function (root) {
   "use strict";
 
@@ -191,6 +192,7 @@
           else missing.push(l);
         });
         var value = yesWeight && L ? Math.max(0, P - penalty * D) / Math.sqrt(L * yesWeight) : 0;
+        if (s.prior !== undefined) value *= s.prior;   // GB/T 16751.2 patterns WHO 2022 does not list (build_interview.py)
         return { syndrome: s, score: value, supporting: supporting, contradicting: contradicting, missing: missing };
       });
       ranked.sort(function (a, b) { return b.score - a.score || b.supporting.length - a.supporting.length; });

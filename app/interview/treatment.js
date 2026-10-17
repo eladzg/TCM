@@ -334,9 +334,9 @@
   }
   function patternName(sid) {
     var d = ctx.report.differential.filter(function (x) { return x.syndrome_id === sid; })[0];
-    if (d) return I.heOr(d.names.zh) + " (" + d.names.en + ", " + d.names.zh + ")";
+    if (d) return I.heOr(d.names.zh) + " (" + [d.names.en, d.names.zh].filter(Boolean).join(", ") + ")";
     var l = (root.TCM_KB.syndromes || []).filter(function (s) { return s.id === sid; })[0];
-    return l ? I.heOr(l.zh) + " (" + l.en + ", " + l.zh + ")" : sid;
+    return l ? I.heOr(l.zh) + " (" + [l.en, l.zh].filter(Boolean).join(", ") + ")" : sid;
   }
 
   function render(container, context) {
