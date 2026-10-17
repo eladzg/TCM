@@ -142,9 +142,14 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 .txname { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: baseline; cursor: pointer; }
 .txhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
 .txhead .row { gap: 8px; }
-.quote { direction: ltr; text-align: left; unicode-bidi: isolate; font-size: .8rem; color: var(--muted); }
+.quote { direction: rtl; text-align: right; font-size: .8rem; color: var(--muted); }
 .why { font-size: .86rem; color: var(--ink); display: grid; gap: 2px; }
 .zh { color: var(--muted); }
+.why .zh, .q .zh, td .zh, .txname .zh, .ev .zh { font-size: .82em; }
+.q { display: block; direction: rtl; text-align: right; }
+.src.he { direction: rtl; text-align: right; }
+a.srclink { font-size: .78rem; white-space: nowrap; }
+a.srclink::after { content: " ↗"; }
 .mini.on { background: var(--jade); color: var(--surface); border-color: var(--jade); }
 .mini.on.no { background: var(--cinnabar); border-color: var(--cinnabar); }
 input[type="text"].note, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; min-width: 0; }
@@ -187,6 +192,8 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
   <section id="view-clin" hidden></section>
 </div>
 <script src="kb.js"></script>
+<script src="he_dict.js"></script>
+<script src="i18n.js"></script>
 <script src="engine.js"></script>
 <script src="treatment_kb.js"></script>
 <script src="treatment.js"></script>

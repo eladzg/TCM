@@ -2,6 +2,8 @@
 (function () {
   "use strict";
   var kb = window.TCM_KB;
+  var I = window.TCMI18n;
+  kb.syndromes.forEach(function (s) { if (!s.he) s.he = I.he(s.zh) || null; });   // draft Hebrew names
   var E = window.TCMEngine.createEngine(kb);
   var state;
   var current = null;     // the question waiting for an answer
@@ -302,7 +304,8 @@
       var s = E.featById;
       var card = el("article", { class: "dx" + (d.rank === 1 ? " primary" : "") }, [
         el("div", { class: "dx-head" }, [
-          el("div", { class: "dx-name" }, [d.rank + ". " + d.names.en, " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin })]),
+          el("div", { class: "dx-name" }, [d.rank + ". " + (d.names.he || d.names.en), " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin }),
+            d.names.he ? el("span", { class: "en", text: " " + d.names.en }) : null]),
           el("span", { class: "score", text: "התאמה " + d.graph_score.toFixed(2) + " · ביטחון " + (d.confidence === "moderate" ? "בינוני" : "נמוך") })
         ]),
         el("div", { class: "bar" }, [el("i", { style: "width:" + Math.round(Math.min(1, d.graph_score) * 100) + "%" })]),
@@ -310,7 +313,8 @@
       ]);
       card.appendChild(el("h3", { text: "תומך (" + d.supporting.length + ")" }));
       card.appendChild(evList(d.supporting, function (x) {
-        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en }),
+        var m = x.matched_manifestation_en || "";
+        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: I.he(m) ? "“" + I.he(m) + "” " : m }), I.he(m) ? el("span", { class: "zh", text: m }) : null,
           " ", el("span", { class: "id", text: x.sources.join("+") + (x.records ? " · " + x.records + " · משקל " + x.weight : "") }),
           " ", answerButtons(x.feature_id, true)]);
       }));
@@ -323,15 +327,20 @@
       if (d.missing_key_manifestations.length) {
         var det = el("details", { open: "" }, [el("summary", { text: "לא נשאל / לא נבדק (" + d.missing_key_manifestations.length + "): סמנו כן/לא כדי לדייק" })]);
         det.appendChild(evList(d.missing_key_manifestations, function (x) {
-          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.manifestation_en }), " ",
+          var m = x.manifestation_en || "";
+          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: I.he(m) ? "“" + I.he(m) + "” " : m }), I.he(m) ? el("span", { class: "zh", text: m }) : null, " ",
             answerButtons(x.feature_id, undefined)]);
         }));
         card.appendChild(det);
       }
-      var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + d.supporting[0].evidence_ref + ")" }),
-        el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : ""])]);
+      var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + I.books(d.supporting[0].evidence_ref) + ")" }),
+        el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : "", " ",
+          el("a", { class: "srclink", href: I.source("WHO-ISTTCM-2022").url, target: "_blank", rel: "noopener", text: "מקור" })])]);
       if (d.source_text.gb_zh) {
-        src.appendChild(el("div", { class: "src zh" }, ["GB/T 16751.2 " + d.source_text.gb_code + ": " + d.source_text.gb_zh]));
+        var gbLink = I.source("GBT-16751-2");
+        src.appendChild(el("div", { class: "src he" }, ["התקן הסיני GB/T 16751.2, סעיף " + d.source_text.gb_code + ": " + I.heOr(d.source_text.gb_zh) + " ",
+          el("a", { class: "srclink", href: gbLink.url, target: "_blank", rel: "noopener", text: "מקור" })]));
+        src.appendChild(el("div", { class: "src zh" }, [d.source_text.gb_zh]));
       }
       card.appendChild(src);
       return card;

@@ -355,9 +355,9 @@
       if (!differential.length) return "אין מספיק ממצאים כדי להציע תבנית. מומלץ להשלים ראיון ובדיקת לשון ודופק.";
       var first = differential[0];
       var labels = first.supporting.map(function (x) { return featById[x.feature_id].label_he; });
-      var text = "הממצאים תואמים בעיקר את התבנית " + first.names.en + " (" + first.names.zh + "): " +
+      var text = "הממצאים תואמים בעיקר את התבנית " + (first.names.he || first.names.en) + " (" + first.names.zh + "): " +
         labels.slice(0, 6).join(", ") + ".";
-      if (differential[1]) text += " חלופה: " + differential[1].names.en + ".";
+      if (differential[1]) text += " חלופה: " + (differential[1].names.he || differential[1].names.en) + ".";
       var missing = flags.filter(function (f) { return f.code === "OBJECTIVE_FINDINGS_MISSING" || f.code === "PREGNANCY_STATUS_UNKNOWN"; });
       if (missing.length) text += " חסר: " + missing.map(function (f) {
         return f.code === "PREGNANCY_STATUS_UNKNOWN" ? "סטטוס היריון" : "לשון/דופק";

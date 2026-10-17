@@ -81,3 +81,39 @@ console.log(JSON.stringify({{ startPoints, issues,
     assert rules["DRAFT.ANTICOAGULANT.BLOOD_MOVING"] == "red"  # 丹參 with an anticoagulant
     assert "DOSE.MISSING.HERB.DA_JI" in rules and "DOSE.MISSING.HERB.GAN_CAO" not in rules
     assert out["bannedSuggested"] and not out["bannedChosen"]   # with a reported pregnancy, points a pregnancy rule names start unselected
+
+
+def test_every_shown_chinese_string_has_hebrew():
+    import build_he
+    data, missing = build_he.build()
+    assert not missing, {c: v[:3] for c, v in missing.items()}
+    assert data["平肝潜阳"] and data["太冲"]
+
+
+def test_committed_he_dict_is_current():
+    import build_he
+    data, _ = build_he.build()
+    text = (ROOT / "app" / "interview" / "he_dict.js").read_text("utf-8")
+    assert json.loads(text[text.index("=") + 1:].rstrip().rstrip(";")) == data
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_i18n_templates_and_source_links(tmp_path):
+    script = tmp_path / "run.js"
+    script.write_text(f"""
+global.window = {{}};
+require({json.dumps(str(ROOT / "app" / "interview" / "he_dict.js"))});
+require({json.dumps(str(ROOT / "app" / "interview" / "i18n.js"))});
+const I = window.TCMI18n;
+console.log(JSON.stringify({{
+  fan: I.he("十八反: 甘草 反 大戟 (do not combine)"),
+  zjdc: I.source("WS-ZJDC 卷九 考正穴法, line 59", "主上氣咳逆"),
+  gut: I.source("GUT-SHANGHAN 條21", "脈促"),
+  books: I.books("傷寒論 條21")
+}}));
+""")
+    out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
+    assert out["fan"].startswith("שמונה-עשר הניגודים") and "大戟" not in out["fan"]
+    assert out["zjdc"]["url"].startswith("https://zh.wikisource.org/wiki/%E9%87%9D%E7%81%B8%E5%A4%A7%E6%88%90/%E5%8D%B7%E4%B9%9D#:~:text=")
+    assert out["gut"]["url"].startswith("https://www.gutenberg.org/cache/epub/24272/")
+    assert out["books"] == "שאנג האן לון סעיף 21"

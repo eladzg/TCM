@@ -10,10 +10,11 @@
   var PATIENT_FORMULA_BONUS = 0.4;   // per patient finding a formula's clauses describe
   var SECOND_PATTERN_SHARE = 0.6;    // a second selected pattern counts this much
   var DEFAULT_POINTS = 6, DEFAULT_SHIATSU = 5;
-  var BLOOD_MOVING = /活血|破血|破宿血|逐瘀|散瘀|祛瘀|去瘀|化瘀|行血|破瘀|通经/;   // DRAFT heuristic, no source: checked against anticoagulants
+  var BLOOD_MOVING = /活血|破血|破宿血|逐瘀|散瘀|祛瘀|去瘀|化瘀|行血|破瘀|通经|通經/;   // DRAFT heuristic, no source: checked against anticoagulants
   var NO_PRESSURE = /orbit|eyeball|canthus|nipple|umbilicus/i; // not offered for shiatsu pressure
 
-  function createTreatment(tx) {
+  function createTreatment(tx, heOf) {
+    heOf = heOf || function () { return ""; };
     var rulesByEntity = {};
     tx.safety.forEach(function (r) {
       r.ids.forEach(function (id) { (rulesByEntity[id] = rulesByEntity[id] || []).push(r); });
@@ -158,9 +159,9 @@
       plan.points.forEach(function (p) {
         (rulesByEntity[p.id] || []).forEach(function (r) {
           if (/NO_NEEDLE/.test(r.id)) {
-            push({ sev: "amber", ids: [p.id], rule: r.id, src: r.src, note: r.note, he: "דיקור אסור בנקודה לפי 针灸大成: " + label(p.id) });
+            push({ sev: "amber", ids: [p.id], rule: r.id, src: r.src, note: r.note, he: "דיקור אסור בנקודה לפי ג'ן ג'יו דא צ'נג: " + label(p.id) });
           } else if (/NO_MOXA/.test(r.id) && p.moxa) {
-            push({ sev: "amber", ids: [p.id], rule: r.id, src: r.src, note: r.note, he: "מוקסה אסורה בנקודה לפי 针灸大成: " + label(p.id) });
+            push({ sev: "amber", ids: [p.id], rule: r.id, src: r.src, note: r.note, he: "מוקסה אסורה בנקודה לפי ג'ן ג'יו דא צ'נג: " + label(p.id) });
           }
         });
         var caution = tx.points[p.id].caution;
@@ -207,8 +208,8 @@
     }
 
     function label(id) {
-      if (tx.points[id]) return id + " " + tx.points[id].zh;
-      if (tx.herbs[id]) return tx.herbs[id].zh + " " + tx.herbs[id].py;
+      if (tx.points[id]) return id + " " + (heOf(tx.points[id].zh) ? heOf(tx.points[id].zh) + " " : "") + tx.points[id].zh;
+      if (tx.herbs[id]) return (heOf(tx.herbs[id].zh) || tx.herbs[id].py) + " " + tx.herbs[id].zh;
       return id;
     }
 
@@ -221,7 +222,8 @@
   root.TCMTreatment = api;
 
   // ---------------- browser UI ----------------
-  var T = createTreatment(root.TCM_TX);
+  var I = root.TCMI18n;
+  var T = createTreatment(root.TCM_TX, I.he);
   var tx = root.TCM_TX;
   var plan = null;          // the plan being edited
   var userPicked = false;   // the clinician chose the patterns, so a re-ranking does not move them
@@ -229,7 +231,7 @@
   var host = null;
   var STORE = "tcm_treatment_plans.v1";
 
-  var TECH = { even: "ניטרלי", tonify: "חיזוק (補)", reduce: "פיזור (瀉)" };
+  var TECH = { even: "ניטרלי", tonify: "חיזוק", reduce: "פיזור" };
   var INTERVAL = { week: "בעוד שבוע", two_weeks: "בעוד שבועיים", month: "בעוד חודש", custom: "אחר (בהערות)" };
 
   function el(tag, attrs, children) {
@@ -256,9 +258,9 @@
   }
   function patternName(sid) {
     var d = ctx.report.differential.filter(function (x) { return x.syndrome_id === sid; })[0];
-    if (d) return d.names.en + " " + d.names.zh;
+    if (d) return I.heOr(d.names.zh) + " (" + d.names.en + ", " + d.names.zh + ")";
     var l = (root.TCM_KB.syndromes || []).filter(function (s) { return s.id === sid; })[0];
-    return l ? l.en + " " + l.zh : sid;
+    return l ? I.heOr(l.zh) + " (" + l.en + ", " + l.zh + ")" : sid;
   }
 
   function render(container, context) {
@@ -271,6 +273,7 @@
       host.appendChild(el("p", { class: "empty", text: "תכנית הטיפול תופיע אחרי שתהיה תבנית מובילה." }));
       return;
     }
+    host.appendChild(el("p", { class: "hint", text: "התרגומים לעברית של הטקסט הסיני הם טיוטה שנכתבה בעזרת Claude ומחכה לבדיקת מטפל. המקור הסיני מוצג לידם, וקישור \"מקור\" פותח את הטקסט המקורי." }));
     var ids = diff.map(function (d) { return d.syndrome_id; });
     if (!plan || !userPicked && !plan.dirty && plan.patterns[0] !== ids[0]) {
       build([ids[0]]);
@@ -307,6 +310,21 @@
     ]);
   }
 
+  function zh(text) { return el("span", { class: "zh", lang: "zh", text: text }); }
+
+  function srcLink(ref, q) {
+    var s = I.source(ref, q);
+    return s ? el("a", { class: "srclink", href: s.url, target: "_blank", rel: "noopener", title: s.he + " · " + ref, text: "מקור" }) : null;
+  }
+
+  // A quote from a Chinese source: the Hebrew translation, the original, and a link that opens the
+  // source at the quoted words. parts, when given, are translated one by one (a herb's action list).
+  function quote(text, ref, who, parts) {
+    var heText = parts ? parts.map(I.heOr).join("; ") : I.heOr(text);
+    var han = /[\u4e00-\u9fff]/.test(text);
+    return el("span", { class: "q" }, [who ? who + ": " : "", "“" + heText + "” ", han ? zh(text) : null, " ", srcLink(ref, han ? (parts ? parts[0] : text) : null)]);
+  }
+
   function findingNames(list) {
     return list.map(function (f) { var x = ctx.featById[f.f || f]; return x ? x.label_he : f.f || f; }).join(", ");
   }
@@ -335,7 +353,7 @@
             build(next);
             draw();
           } }),
-          d.rank + ". " + d.names.en + " ", el("span", { class: "zh", text: d.names.zh })
+          d.rank + ". " + I.heOr(d.names.zh) + " ", el("span", { class: "zh", text: d.names.zh }), " ", el("span", { class: "en", text: d.names.en })
         ]);
       }))
     ]));
@@ -350,8 +368,8 @@
             plan.methods = plan.methods.filter(function (x) { return x !== m.i; });
             if (e.target.checked) plan.methods.push(m.i);
             touch();
-          } }), " ", el("b", { text: m.method.zh }), " ", el("span", { class: "en", text: m.method.en })]),
-          " ", el("span", { class: "id", text: "WHO 2022 #" + m.method.no + " · התאמה " + m.s }),
+          } }), " ", el("b", { text: I.heOr(m.method.zh) }), " ", zh(m.method.zh), " ", el("span", { class: "en", text: m.method.en })]),
+          " ", el("span", { class: "id", text: "WHO 2022 #" + m.method.no + " · התאמה " + m.s }), " ", srcLink("WHO-ISTTCM-2022"),
           " ", decisionButtons("method", "WHO" + m.method.no),
           el("div", { class: "src", text: m.method.def })
         ]);
@@ -390,13 +408,14 @@
     var cautions = issues.filter(function (i) { return /^ACUATLAS/.test(i.rule); });
     var doses = issues.filter(function (i) { return /^DOSE/.test(i.rule); });
     var preg = ctx.state.patient.pregnancy;
-    p.appendChild(el("p", { class: "hint", text: "נבדק מול " + tx.safety.length + " כללי הבטיחות שבמאגר (היריון, 十八反/十九畏, צמחים רעילים, נקודות אסורות לדיקור או למוקסה), מול רשימת התרופות ומול אזהרות הדיקור של AcuAtlas." +
+    p.appendChild(el("p", { class: "hint", text: "נבדק מול " + tx.safety.length + " כללי הבטיחות שבמאגר (היריון, שמונה-עשר הניגודים ותשע-עשרה הרתיעות בין צמחים, צמחים רעילים, נקודות אסורות לדיקור או למוקסה), מול רשימת התרופות ומול אזהרות הדיקור של AcuAtlas." +
       (preg === "yes" ? " המטופלת דיווחה על היריון אפשרי." : preg === "unknown" ? " סטטוס ההיריון לא אושר, ולכן כל פריט שאסור בהיריון מסומן." : "") }));
     if (!shown.length) p.appendChild(el("div", { class: "flag info", text: "לא נמצאה התנגשות עם כללי הבטיחות שבמאגר." }));
     shown.forEach(function (i) {
       p.appendChild(el("div", { class: "flag " + i.sev, title: i.rule }, [i.he,
-        i.note ? el("span", { class: "en", text: " · " + i.note }) : null,
-        i.src ? el("span", { class: "id", text: " · " + i.src }) : null]));
+        i.note ? el("span", { class: "en", text: " · " + I.heOr(i.note) }) : null,
+        i.note && I.he(i.note) ? zh(" " + i.note) : null,
+        i.src ? el("span", { class: "id", text: " · " + I.books(i.src) + " " }) : null, i.src ? srcLink(i.src) : null]));
     });
     if (doses.length) p.appendChild(el("div", { class: "flag info", text: "לא נקבע מינון בגרם ל-" + doses.length + " צמחים. המינון הוא החלטה של המטפל, והמערכת לא מציעה אותו." }));
     if (cautions.length) {
@@ -417,10 +436,11 @@
     if (actions.length) why.push(el("div", {}, ["פעולה (AcuAtlas): ", el("span", { class: "en", text: actions.filter(function (x, i) { return actions.indexOf(x) === i; }).join("; ") })]));
     if (finds.length) why.push(el("div", {}, ["ממצאי התבנית בהתוויות: " + findingNames(finds.filter(function (x, i) { return finds.indexOf(x) === i; }))]));
     if (s.patient && s.patient.length) {
-      var quotes = s.patient.map(function (h) { return (h.src === "WS-ZJDC" ? "针灸大成 “" : "AcuAtlas “") + h.ev.replace(/^[;\s]+/, "") + "”"; })
-        .filter(function (q, i, a) { return a.indexOf(q) === i; });
+      var seenQ = {};
+      var quotes = s.patient.filter(function (h) { var k = h.src + h.ev; if (seenQ[k]) return false; seenQ[k] = true; return true; })
+        .map(function (h) { return quote(h.ev.replace(/^[;\s]+/, ""), h.src === "WS-ZJDC" ? pt.zjdc || "WS-ZJDC" : "ACUATLAS", h.src === "WS-ZJDC" ? "ג'ן ג'יו דא צ'נג" : "AcuAtlas"); });
       why.push(el("div", {}, [el("b", { text: "ממצאי המטופל בהתוויות: " }), findingNames(s.patient)]));
-      why.push(el("div", { class: "quote" }, [quotes.join(" · ")]));
+      why.push(el("div", { class: "quote" }, quotes));
     }
     var row = el("li", { class: "txrow" + (item ? " on" : "") + (sev ? " risk-" + sev : "") });
     row.appendChild(el("div", { class: "txhead" }, [
@@ -430,7 +450,7 @@
           else list.splice(list.indexOf(item), 1);
           touch();
         } }),
-        " ", el("b", { text: s.id }), " ", pt.zh + " " + pt.py, " ", el("span", { class: "en", text: pt.en })
+        " ", el("b", { text: s.id }), " ", I.heOr(pt.zh) + " ", zh(pt.zh + " " + pt.py), " ", el("span", { class: "en", text: pt.en })
       ]),
       el("span", { class: "row" }, [
         s.score !== undefined ? el("span", { class: "id", text: "ציון " + s.score.toFixed(1) }) : el("span", { class: "id", text: "נוספה ידנית" }),
@@ -456,7 +476,7 @@
     row.appendChild(el("details", {}, [el("summary", { text: "מיקום והתוויות" }),
       el("div", { class: "src" }, [pt.loc]), el("div", { class: "src" }, [pt.ind]),
       pt.needle && kind === "points" ? el("div", { class: "src" }, [pt.needle]) : null,
-      el("div", { class: "id", text: pt.src + (pt.zjdc ? " · " + pt.zjdc : "") })]));
+      el("div", { class: "hint" }, [pt.src + " ", srcLink(pt.src), pt.zjdc ? " · " + I.books(pt.zjdc) + " " : null, pt.zjdc ? srcLink(pt.zjdc) : null])]));
     return row;
   }
 
@@ -476,11 +496,11 @@
 
   var pointOptions = null, herbOptions = null;
   function pointsList() {
-    if (!pointOptions) pointOptions = Object.keys(tx.points).map(function (id) { return { value: id, label: id + " " + tx.points[id].zh + " " + tx.points[id].py }; });
+    if (!pointOptions) pointOptions = Object.keys(tx.points).map(function (id) { return { value: id, label: id + " " + I.heOr(tx.points[id].zh) + " " + tx.points[id].zh + " " + tx.points[id].py }; });
     return pointOptions;
   }
   function herbsList() {
-    if (!herbOptions) herbOptions = Object.keys(tx.herbs).map(function (id) { return { value: id, label: tx.herbs[id].zh + " " + tx.herbs[id].py }; });
+    if (!herbOptions) herbOptions = Object.keys(tx.herbs).map(function (id) { return { value: id, label: I.heOr(tx.herbs[id].zh) + " " + tx.herbs[id].zh + " " + tx.herbs[id].py }; });
     return herbOptions;
   }
 
@@ -499,7 +519,7 @@
 
   function pointsPanel(issues) {
     var p = el("div", { class: "panel" }, [el("h3", { text: "נקודות דיקור (" + plan.points.length + " נבחרו)" }),
-      el("p", { class: "hint", text: "הצעות לפי פעולות הנקודה ב-AcuAtlas שמטפלות באותו איבר ובאותה הפרעה, ולפי ההתוויות ב-AcuAtlas וב-针灸大成 שתואמות את ממצאי התבנית והמטופל." })]);
+      el("p", { class: "hint", text: "הצעות לפי פעולות הנקודה ב-AcuAtlas שמטפלות באותו איבר ובאותה הפרעה, ולפי ההתוויות ב-AcuAtlas ובג'ן ג'יו דא צ'נג (针灸大成, 1601) שתואמות את ממצאי התבנית והמטופל." })]);
     if (!plan.sugg.points.length) p.appendChild(el("p", { class: "empty", text: "אין הצעות נקודות לתבנית הזו במאגר." }));
     splitList(p, plan.sugg.points, plan.points, "points", issues);
     p.appendChild(addBox("הוספת נקודה לפי קוד (למשל LR3)", pointsList(), function (id) {
@@ -522,13 +542,13 @@
 
   function herbsPanel(issues) {
     var p = el("div", { class: "panel" }, [el("h3", { text: "מרשם צמחים" }),
-      el("p", { class: "hint", text: "מרשמי הבסיס הם מ-傷寒論 ו-金匱要略 בלבד (152 מרשמים במאגר), ולכן לתבניות של איברים פנימיים ההתאמה לעיתים חלשה. המינון המקורי מוצג לעיון; המינון בגרם נקבע על ידך." })]);
+      el("p", { class: "hint", text: "מרשמי הבסיס הם משאנג האן לון (傷寒論) ומג'ין גוויי יאו לואה (金匱要略) בלבד (152 מרשמים במאגר), ולכן לתבניות של איברים פנימיים ההתאמה לעיתים חלשה. המינון המקורי מוצג לעיון; המינון בגרם נקבע על ידך." })]);
     var fr = el("div", { class: "checks" });
     function formulaOption(id, s) {
       var f = tx.formulas[id];
       return el("label", { class: "opt" }, [
         el("input", { type: "radio", name: "tx-formula", checked: plan.formula_id === id, onchange: function () { T.setFormula(plan, id); touch(); } }),
-        f.zh + " " + f.py, s ? el("span", { class: "id", text: " · " + s.score.toFixed(1) }) : null
+        I.heOr(f.zh) + " ", zh(f.zh + " " + f.py), s ? el("span", { class: "id", text: " · " + s.score.toFixed(1) }) : null
       ]);
     }
     plan.sugg.formulas.forEach(function (s) { fr.appendChild(formulaOption(s.id, s)); });
@@ -546,9 +566,13 @@
         var finds = [].concat.apply([], sel.from.map(function (x) { return x.findings; }));
         if (carrying.length) why.push(el("div", {}, ["צמחים במרשם שפעולתם תואמת את עקרון הטיפול: " + carrying.filter(function (x, i) { return carrying.indexOf(x) === i; }).map(T.label).join(", ")]));
         if (finds.length) why.push(el("div", {}, ["ממצאי התבנית בסעיפים: " + findingNames(finds.filter(function (x, i) { return finds.indexOf(x) === i; }))]));
-        if (sel.patient && sel.patient.length) why.push(el("div", {}, ["ממצאי המטופל בסעיפים: " + findingNames(sel.patient) + " ", el("span", { class: "id", text: sel.patient.map(function (h) { return h.c + " “" + h.ev + "”"; }).join(" · ") })]));
+        if (sel.patient && sel.patient.length) {
+          why.push(el("div", {}, ["ממצאי המטופל בסעיפים: " + findingNames(sel.patient)]));
+          why.push(el("div", { class: "quote" }, sel.patient.map(function (h) { return quote(h.ev, /^金匱/.test(h.c) ? "WS-JINGUI" : "GUT-SHANGHAN", I.books(h.c)); })));
+        }
       }
-      p.appendChild(el("div", { class: "why" }, why.concat([el("div", { class: "id", text: f.src + (f.ind_src ? " · " + f.ind_src : "") }), sel ? decisionButtons("formula", plan.formula_id) : null])));
+      p.appendChild(el("div", { class: "why" }, why.concat([el("div", { class: "hint" }, ["הרכב: " + I.books(f.src) + " ", srcLink(f.src, f.zh),
+        f.ind_src ? " · התוויה: " + I.books(f.ind_src) : null]), sel ? decisionButtons("formula", plan.formula_id) : null])));
     }
 
     var table = el("table", { class: "herbs" }, [el("thead", {}, [el("tr", {}, ["צמח", "מינון מקורי", "גרם", "הערה", ""].map(function (h) { return el("th", { text: h }); }))])]);
@@ -557,8 +581,8 @@
       var herb = tx.herbs[h.id] || { zh: h.id, py: "" };
       var sev = sevOf(issues, h.id);
       tb.appendChild(el("tr", { class: sev ? "risk-" + sev : "" }, [
-        el("td", {}, [el("b", { text: herb.zh }), " " + herb.py]),
-        el("td", { text: h.dose_original || "" }),
+        el("td", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py)]),
+        el("td", {}, h.dose_original ? [I.heOr(h.dose_original), " ", zh(h.dose_original)] : []),
         el("td", {}, [el("input", { type: "number", min: "0", step: "0.5", inputmode: "decimal", class: "gram", "aria-label": "גרם " + herb.zh, value: h.dose_g,
           oninput: function (e) { h.dose_g = e.target.value === "" ? "" : Number(e.target.value); plan.dirty = true; },
           onchange: function () { touch(); } })]),
@@ -570,13 +594,14 @@
     if (plan.herbs.length) p.appendChild(el("div", { class: "scroll" }, [table]));
 
     if (plan.sugg.herbs.length) {
-      var det = el("details", { open: "" }, [el("summary", { text: "צמחים בודדים שפעולתם ב-本草備要 תואמת את עקרון הטיפול (" + plan.sugg.herbs.length + ")" })]);
+      var det = el("details", { open: "" }, [el("summary", { text: "צמחים בודדים שפעולתם בבן צאו ביי יאו (本草備要) תואמת את עקרון הטיפול (" + plan.sugg.herbs.length + ")" })]);
       det.appendChild(el("ul", { class: "ev" }, plan.sugg.herbs.map(function (s) {
         var herb = tx.herbs[s.id];
         var acts = [].concat.apply([], s.from.map(function (x) { return x.actions; }));
         var inPlan = plan.herbs.some(function (h) { return h.id === s.id; });
-        return el("li", {}, [el("b", { text: herb.zh }), " " + herb.py + " ", el("span", { class: "zh", text: "“" + acts.join("，") + "”" }),
-          " ", el("span", { class: "id", text: herb.src }), " ",
+        return el("li", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py), " ",
+          quote(acts.join("，"), herb.src, I.books(herb.src).replace(/ \(.*$/, ""), acts),
+          " ",
           inPlan ? el("span", { class: "id", text: "במרשם" }) : el("button", { class: "mini", type: "button", text: "הוספה למרשם", onclick: function () {
             plan.herbs.push({ id: s.id, dose_original: "", dose_g: "", note: "", origin: "added" });
             touch();
@@ -585,7 +610,7 @@
       })));
       p.appendChild(det);
     }
-    p.appendChild(addBox("הוספת צמח (שם סיני או פיניין)", herbsList(), function (id) {
+    p.appendChild(addBox("הוספת צמח (שם בעברית, סינית או פיניין)", herbsList(), function (id) {
       if (!plan.herbs.some(function (h) { return h.id === id; })) plan.herbs.push({ id: id, dose_original: "", dose_g: "", note: "", origin: "added" });
       touch();
     }));
@@ -602,13 +627,13 @@
       patient: rep.patient,
       patterns: plan.patterns.map(function (sid) { return { syndrome_id: sid, name: patternName(sid) }; }),
       principle: {
-        methods: plan.methods.map(function (i) { var m = tx.methods[i]; return { who_no: m.no, zh: m.zh, en: m.en, source: "WHO-ISTTCM-2022 #" + m.no }; }),
+        methods: plan.methods.map(function (i) { var m = tx.methods[i]; return { who_no: m.no, zh: m.zh, he: I.he(m.zh) || null, en: m.en, source: "WHO-ISTTCM-2022 #" + m.no }; }),
         text_he: plan.principle_he
       },
       acupuncture: plan.points.map(function (p) { return { point_id: p.id, technique: p.technique, moxa: p.moxa, note_he: p.note, origin: p.origin }; }),
       herbal: {
-        base_formula: plan.formula_id ? { formula_id: plan.formula_id, zh: tx.formulas[plan.formula_id].zh, source: tx.formulas[plan.formula_id].src } : null,
-        herbs: plan.herbs.map(function (h) { return { herb_id: h.id, zh: (tx.herbs[h.id] || {}).zh, dose_original: h.dose_original || null, dose_g: h.dose_g === "" ? null : h.dose_g, note_he: h.note, origin: h.origin }; })
+        base_formula: plan.formula_id ? { formula_id: plan.formula_id, zh: tx.formulas[plan.formula_id].zh, he: I.he(tx.formulas[plan.formula_id].zh) || null, source: tx.formulas[plan.formula_id].src } : null,
+        herbs: plan.herbs.map(function (h) { return { herb_id: h.id, zh: (tx.herbs[h.id] || {}).zh, he: I.he((tx.herbs[h.id] || {}).zh) || null, dose_original: h.dose_original || null, dose_g: h.dose_g === "" ? null : h.dose_g, note_he: h.note, origin: h.origin }; })
       },
       shiatsu: plan.shiatsu.map(function (p) { return { point_id: p.id, note_he: p.note, origin: p.origin }; }),
       followup: { interval: plan.followup.interval, sessions: plan.followup.sessions === "" ? null : Number(plan.followup.sessions), notes_he: plan.followup.notes_he },
@@ -624,9 +649,9 @@
   function planText(doc) {
     var lines = ["תכנית טיפול (טיוטה) · " + doc.created_at.slice(0, 10)];
     lines.push("תבניות: " + doc.patterns.map(function (p) { return p.name; }).join("; "));
-    if (doc.principle.methods.length || doc.principle.text_he) lines.push("עקרון טיפול: " + doc.principle.methods.map(function (m) { return m.zh + " (" + m.en + ")"; }).join("; ") + (doc.principle.text_he ? " · " + doc.principle.text_he : ""));
+    if (doc.principle.methods.length || doc.principle.text_he) lines.push("עקרון טיפול: " + doc.principle.methods.map(function (m) { return I.heOr(m.zh) + " (" + m.zh + ")"; }).join("; ") + (doc.principle.text_he ? " · " + doc.principle.text_he : ""));
     if (doc.acupuncture.length) lines.push("דיקור: " + doc.acupuncture.map(function (p) { return p.point_id + " " + TECH[p.technique] + (p.moxa ? " + מוקסה" : "") + (p.note_he ? " (" + p.note_he + ")" : ""); }).join(", "));
-    if (doc.herbal.herbs.length) lines.push("צמחים" + (doc.herbal.base_formula ? " (בסיס " + doc.herbal.base_formula.zh + ")" : "") + ": " + doc.herbal.herbs.map(function (h) { return h.zh + " " + (h.dose_g === null ? "[מינון לא נקבע]" : h.dose_g + " גרם"); }).join(", "));
+    if (doc.herbal.herbs.length) lines.push("צמחים" + (doc.herbal.base_formula ? " (בסיס " + I.heOr(doc.herbal.base_formula.zh) + " " + doc.herbal.base_formula.zh + ")" : "") + ": " + doc.herbal.herbs.map(function (h) { return I.heOr(h.zh) + " " + h.zh + " " + (h.dose_g === null ? "[מינון לא נקבע]" : h.dose_g + " גרם"); }).join(", "));
     if (doc.shiatsu.length) lines.push("שיאצו: " + doc.shiatsu.map(function (p) { return p.point_id + (p.note_he ? " (" + p.note_he + ")" : ""); }).join(", "));
     lines.push("מעקב: " + INTERVAL[doc.followup.interval] + (doc.followup.sessions ? " · " + doc.followup.sessions + " טיפולים" : "") + (doc.followup.notes_he ? " · " + doc.followup.notes_he : ""));
     var risks = doc.safety_check.filter(function (s) { return s.severity !== "info"; });

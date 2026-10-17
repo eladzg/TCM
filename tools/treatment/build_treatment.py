@@ -192,18 +192,22 @@ def method_phrases(zh):
 
 
 def herb_index(herbs):
-    """{herb_id: [action phrases]} from the opening of the Bencao Beiyao entry, commentary in （） removed.
+    """{herb_id: [action phrases as printed]} from the opening of the Bencao Beiyao entry, commentary in （） removed.
 
     The `actions` field holds only the entry's first clause; the main actions (除心熱，平肝風) follow
-    in the next sentences of the same entry, before the indications (治...)."""
+    in the next sentences of the same entry, before the indications (治...). The phrases keep the
+    edition's traditional characters so the page can quote and link them; match on `simplified()`."""
     out = {}
     for h in herbs:
         text = re.sub(r"（[^（）]*）", "", h.get("classical") or h.get("actions") or "")
-        text = T2S.convert(text)
         head = text.split("治", 1)[0] if text.find("治") > 8 else text
         head = "。".join(head.split("。")[:3])[:120]
         out[h["herb_id"]] = [p for p in re.split(r"[，。；、︰:]", head) if p]
     return out
+
+
+def simplified(index):
+    return {k: [T2S.convert(p) for p in parts] for k, parts in index.items()}
 
 
 def match_herbs(phrases, herb_phrases, usage):
@@ -234,14 +238,15 @@ def point_findings(points, features):
             ev = bi.find(f["en"], p.get("indications") or "")
             if ev:
                 found[f["id"]] = {"f": f["id"], "ev": ev, "src": "ACUATLAS"}
-        classical = T2S.convert(p.get("classical") or "")
+        classical = p.get("classical") or ""
         main = classical[classical.find("主"):] if "主" in classical else ""
-        for phrase in re.split(r"[，。；、]", main):
+        for printed in re.split(r"[，。；、]", main):
+            phrase = T2S.convert(printed)
             for f in symptom:
                 if f["id"] in found or not f.get("zh"):
                     continue
                 if bi.find_zh(f["zh"], phrase):
-                    found[f["id"]] = {"f": f["id"], "ev": phrase, "src": "WS-ZJDC"}
+                    found[f["id"]] = {"f": f["id"], "ev": printed, "src": "WS-ZJDC"}
         out[p["point_id"]] = list(found.values())
     return out
 
@@ -258,14 +263,18 @@ def formula_findings(formulas, features):
             m = CLAUSE_LINE.match(line.strip())
             if not m:
                 continue
-            book, where, text = m.groups()
-            text = T2S.convert(text)
-            for kind, phrase, _ in bi.gb_segments({"findings_main": text}):
+            book, where, printed = m.groups()
+            # Same split on the printed and the simplified text, so each phrase keeps its printed form.
+            originals = [x.strip() for x in bi.GB_SEGMENT.split(printed) if x.strip()]
+            segments = bi.gb_segments({"findings_main": T2S.convert(printed)})
+            if len(originals) != len(segments):
+                originals = [s for _, s, _ in segments]
+            for (kind, phrase, _), shown in zip(segments, originals):
                 for f in features:
                     if f.get("kind", "symptom") != kind or f["id"] in found or not f.get("zh"):
                         continue
                     if bi.find_zh(f["zh"], phrase):
-                        found[f["id"]] = {"f": f["id"], "ev": phrase, "c": f"{book} {where}"}
+                        found[f["id"]] = {"f": f["id"], "ev": shown, "c": f"{book} {where}"}
         out[fm["formula_id"]] = list(found.values())
     return out
 
@@ -291,7 +300,8 @@ def build_data():
     rules = bi.load(KB / "curation" / "safety_rules.yaml")
     methods = load_methods()
 
-    herb_phrases = herb_index(herbs)
+    herb_printed = herb_index(herbs)
+    herb_phrases = simplified(herb_printed)
     herb_ids = {h["herb_id"] for h in herbs}
     p_find = point_findings(points, features)
     f_find = formula_findings(formulas, features)
@@ -394,7 +404,7 @@ def build_data():
         } for p in points},
         "herbs": {h["herb_id"]: {
             "zh": h["name_zh"], "py": h["name_pinyin"], "nature": h.get("nature", ""), "flavour": h.get("flavour", ""),
-            "channels": h.get("channels_entered", ""), "act": herb_phrases[h["herb_id"]], "src": src(h, "actions"),
+            "channels": h.get("channels_entered", ""), "act": herb_printed[h["herb_id"]], "src": src(h, "actions"),
         } for h in herbs},
         "formulas": {fm["formula_id"]: {
             "zh": fm["name_zh"], "py": fm["name_pinyin"],

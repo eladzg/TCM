@@ -89,6 +89,16 @@ The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pr
 python3 tools/treatment/build_treatment.py   # after editing the KB or the lexicon, before build_interview.py --page
 ```
 
+### Hebrew for the Chinese text
+
+Every Chinese string the page shows (pattern, point, herb and formula names, treatment methods, classical doses, herb actions from 本草備要, indications from 針灸大成, clauses from 傷寒論 / 金匱要略, GB/T 16751.2 text, safety notes) is shown in Hebrew first, with the Chinese original next to it and a "מקור" link. Links to Wikisource and Project Gutenberg carry a text fragment (`#:~:text=`), so the browser opens the source page at the quoted words; WHO 2022, GB/T 16751.2 and AcuAtlas link to the document.
+
+The translations are drafts written with Claude and wait for clinician review. They live in `kb/translations/he/*.txt`, one `chinese|hebrew` pair per line; correct a line there and rebuild. `tools/treatment/build_he.py` writes `app/interview/he_dict.js` with only the strings the page uses (`--check` fails if one is missing); `app/interview/i18n.js` looks them up, renders 十八反/十九畏 notes from the herb names, and builds the source links.
+
+```
+python3 tools/treatment/build_he.py          # after editing kb/translations/he or rebuilding the KB files
+```
+
 ## Run
 
 ```
