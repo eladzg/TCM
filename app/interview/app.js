@@ -287,6 +287,12 @@
     PLACEHOLDER_WEIGHTS: "הקישורים בין תסמינים לתבניות נגזרו אוטומטית מ-WHO 2022 ומהתקן GB/T 16751.2. למשקלות יש טיוטה מרשומות TCM-SD רק בתבניות שיש להן מספיק נתונים. הדירוג הוא הצעה בלבד."
   };
 
+  function gbToggle() {
+    var box = el("input", { type: "checkbox", id: "gb-patterns", onchange: function (e) { state.gbPatterns = e.target.checked; renderClinician(); } });
+    box.checked = state.gbPatterns !== false;
+    return box;
+  }
+
   function renderClinician() {
     if (!state) return;
     E.setObjective(state, "tongue", objective.tongue);
@@ -382,7 +388,10 @@
             .concat(no.map(function (f) { return el("span", { class: "chip neg", text: f.label_he }); }))),
         state.patient.medications ? el("p", { style: "margin:0;font-size:.9rem", text: "תרופות ורקע: " + state.patient.medications }) : null
       ]),
-      el("h2", { text: "תבניות אפשריות" })
+      el("div", { class: "row" }, [el("h2", { text: "תבניות אפשריות" }),
+        el("label", { class: "hint", title: "1,311 תבניות מהתקן הסיני GB/T 16751.2 שאינן ברשימת WHO 2022. הן מקבלות משקל נמוך יותר בדירוג." }, [
+          gbToggle(),
+          " כולל תבניות מהתקן הסיני"])])
     ];
     if (!dxs.length) children.push(el("p", { class: "empty", text: "עוד אין מספיק ממצאים. השלימו את הראיון בלשונית 'ראיון המטופל', או לחצו על 'מילוי מקרה לדוגמה'." }));
     children = children.concat(dxs);

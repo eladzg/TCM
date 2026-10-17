@@ -530,7 +530,9 @@ window.TCM_HE = {"Zhenjiu Dacheng lists moxibustion as forbidden (禁灸) here":
     function score(state) {
       var yes = Object.keys(state.answers).filter(function (k) { return state.answers[k].value === true; });
       var yesWeight = yes.length;
-      var ranked = syndromes.map(function (s) {
+      // state.gbPatterns === false leaves out the GB/T 16751.2 patterns WHO 2022 does not list.
+      var pool = state.gbPatterns === false ? syndromes.filter(function (s) { return s.prior === undefined; }) : syndromes;
+      var ranked = pool.map(function (s) {
         var P = 0, D = 0, L = 0, supporting = [], contradicting = [], missing = [];
         s.links.forEach(function (l) {
           if (!sexAllows(featById[l.f], state)) return;
@@ -2321,6 +2323,12 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     PLACEHOLDER_WEIGHTS: "הקישורים בין תסמינים לתבניות נגזרו אוטומטית מ-WHO 2022 ומהתקן GB/T 16751.2. למשקלות יש טיוטה מרשומות TCM-SD רק בתבניות שיש להן מספיק נתונים. הדירוג הוא הצעה בלבד."
   };
 
+  function gbToggle() {
+    var box = el("input", { type: "checkbox", id: "gb-patterns", onchange: function (e) { state.gbPatterns = e.target.checked; renderClinician(); } });
+    box.checked = state.gbPatterns !== false;
+    return box;
+  }
+
   function renderClinician() {
     if (!state) return;
     E.setObjective(state, "tongue", objective.tongue);
@@ -2416,7 +2424,10 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
             .concat(no.map(function (f) { return el("span", { class: "chip neg", text: f.label_he }); }))),
         state.patient.medications ? el("p", { style: "margin:0;font-size:.9rem", text: "תרופות ורקע: " + state.patient.medications }) : null
       ]),
-      el("h2", { text: "תבניות אפשריות" })
+      el("div", { class: "row" }, [el("h2", { text: "תבניות אפשריות" }),
+        el("label", { class: "hint", title: "1,311 תבניות מהתקן הסיני GB/T 16751.2 שאינן ברשימת WHO 2022. הן מקבלות משקל נמוך יותר בדירוג." }, [
+          gbToggle(),
+          " כולל תבניות מהתקן הסיני"])])
     ];
     if (!dxs.length) children.push(el("p", { class: "empty", text: "עוד אין מספיק ממצאים. השלימו את הראיון בלשונית 'ראיון המטופל', או לחצו על 'מילוי מקרה לדוגמה'." }));
     children = children.concat(dxs);

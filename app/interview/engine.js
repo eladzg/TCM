@@ -180,7 +180,9 @@
     function score(state) {
       var yes = Object.keys(state.answers).filter(function (k) { return state.answers[k].value === true; });
       var yesWeight = yes.length;
-      var ranked = syndromes.map(function (s) {
+      // state.gbPatterns === false leaves out the GB/T 16751.2 patterns WHO 2022 does not list.
+      var pool = state.gbPatterns === false ? syndromes.filter(function (s) { return s.prior === undefined; }) : syndromes;
+      var ranked = pool.map(function (s) {
         var P = 0, D = 0, L = 0, supporting = [], contradicting = [], missing = [];
         s.links.forEach(function (l) {
           if (!sexAllows(featById[l.f], state)) return;
