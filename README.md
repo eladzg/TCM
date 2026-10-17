@@ -95,6 +95,12 @@ The clinician can split the plan into 7 or 14 sessions. `series()` in `treatment
 
 `app/interview/body_map.js` draws schematic front and back figures with the course of each channel used, an arrow for its direction of flow (the order of its point numbers), filled dots for acupuncture and rings for shiatsu. Points are placed by hand-set anchors along each channel and interpolated by point number, so the figure is a map, not an anatomical location; the AcuAtlas location text stays the reference.
 
+When WebGL is available the same points show on a 3D figure: `app/interview/body3d.js` (three.js 0.160 from jsDelivr) loads `app/interview/body.glb`, "[Male base muscular anatomy](https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66)" by Harshit Prajapati, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (credited under every figure), and draws the channels on both sides with arrows for their flow, filled dots for acupuncture and rings for shiatsu; the clinician rotates and zooms it. `tools/treatment/build_points3d.py` places each schematic position on the model's surface (landmark heights and widths measured on the model, the arm turned to the model's T-pose) and writes `app/interview/points3d.js`; like the 2D figure, it is a map, not an anatomical location. The 2D figure stays as the fallback. `build_interview.py --page` copies the model next to the page; `--standalone` embeds it.
+
+```
+python3 tools/treatment/build_points3d.py    # after changing the anchors in body_map.js or the model
+```
+
 ### Hebrew for the Chinese text
 
 Every Chinese string the page shows (pattern, point, herb and formula names, treatment methods, classical doses, herb actions from 本草備要, indications from 針灸大成, clauses from 傷寒論 / 金匱要略, GB/T 16751.2 text, safety notes) is shown in Hebrew first, with the Chinese original next to it and a "מקור" link. Links to Wikisource and Project Gutenberg carry a text fragment (`#:~:text=`), so the browser opens the source page at the quoted words; WHO 2022, GB/T 16751.2 and AcuAtlas link to the document.

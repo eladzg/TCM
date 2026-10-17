@@ -18,9 +18,11 @@ Usage:
 """
 
 import argparse
+import base64
 import json
 import math
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -294,14 +296,21 @@ def write_standalone(path, keep_document=False):
     By default the document skeleton is dropped for the artifact host; keep_document keeps it, for
     a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
-    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("treatment.js", ""), ("app.js", ""), ("voice_config.js", ""),
-               ("voice_flow.js", ""), ("voice_ui.js", ' type="module"')]
+    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("voice_config.js", ""),
+               ("voice_flow.js", ""), ("voice_ui.js", ' type="module"'), ("body3d.js", ' type="module"')]
     for name, attrs in scripts:
         tag = f'<script{attrs} src="{name}"></script>'
         if tag not in html:
             raise SystemExit(f"index.html has no {tag}")
         code = (APP / name).read_text(encoding="utf-8").replace("</script", "<\\/script")
         html = html.replace(tag, f"<script{attrs}>\n{code}\n</script>")
+    # The 3D body model: next to a page served from a folder, inside a single file.
+    if keep_document:
+        shutil.copyfile(APP / "body.glb", path.parent / "body.glb")
+    else:
+        glb = base64.b64encode((APP / "body.glb").read_bytes()).decode("ascii")
+        html = html.replace('<script type="module">\n// 3D body figure',
+                            f'<script>window.TCM_BODY_GLB = "data:model/gltf-binary;base64,{glb}";</script>\n<script type="module">\n// 3D body figure', 1)
     # The artifact host wraps the page in its own document skeleton, so drop ours.
     if not keep_document:
         html = re.sub(r"<!doctype html>\s*|</?html[^>]*>\s*|</?head>\s*|</?body>\s*|<meta charset[^>]*>\s*|<meta name=\"viewport\"[^>]*>\s*",

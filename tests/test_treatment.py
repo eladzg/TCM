@@ -147,3 +147,13 @@ console.log(JSON.stringify({{ k7: s7.map(s => s.kind), k14: s14.map(s => s.kind)
     assert set(out["focus"]) <= {"FT.HEADACHE", "FT.DIZZY", "FT.INSOMNIA", "FT.TINNITUS"} and out["focus"]
     assert out["extraRules"] == []      # added points never carry a pregnancy or no-needling rule
     assert out["badPlaces"] == []       # every point has a place on the schematic figures
+
+
+def test_committed_points3d_is_current():
+    pytest.importorskip("numpy")
+    import build_points3d
+    text = (ROOT / "app" / "interview" / "points3d.js").read_text("utf-8")
+    committed = json.loads(text[text.index("=") + 1:].rstrip().rstrip(";"))
+    built = build_points3d.build()
+    assert set(committed) == set(json.loads((ROOT / "app" / "interview" / "treatment_kb.js").read_text("utf-8").split("=", 1)[1].rstrip().rstrip(";"))["points"])
+    assert committed == built

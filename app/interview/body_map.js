@@ -66,12 +66,9 @@
       if (a[i][0] === p.n) return { view: a[i][1], x: a[i][2], y: a[i][3] };
       if (a[i][0] > p.n) {
         var b = a[i - 1] || a[i], c = a[i];
-        if (!a[i - 1] || b[1] !== c[1] || c[4] === "jump") {   // across a view change: nearer anchor's view
-          var near = p.n - b[0] <= c[0] - p.n ? b : c;
-          return { view: near[1], x: near[2], y: near[3] };
-        }
-        var t = (p.n - b[0]) / (c[0] - b[0]);
-        return { view: c[1], x: b[2] + t * (c[2] - b[2]), y: b[3] + t * (c[3] - b[3]) };
+        var t = b === c ? 0 : (p.n - b[0]) / (c[0] - b[0]);
+        // across a view change (over the head) the point takes the view of the nearer anchor
+        return { view: t < 0.5 ? b[1] : c[1], x: b[2] + t * (c[2] - b[2]), y: b[3] + t * (c[3] - b[3]) };
       }
     }
     var last = a[a.length - 1];

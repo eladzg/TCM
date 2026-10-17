@@ -481,16 +481,44 @@
   // ---- body map and series of sessions ----
   var BM = root.TCMBodyMap;
 
-  function mapBlock(acu, press, open) {
+  var viewers = {};      // slot -> 3D viewer, kept across redraws (one WebGL context each)
+  var openMaps = {};     // slot -> whether its block is open, kept across redraws
+
+  function legend(all) {
+    return el("div", { class: "bm-legend" }, BM.channels(all).map(function (c) {
+      return el("span", {}, [el("i", { style: "background:" + c.color }), c.ch + " " + c.he]);
+    }).concat([el("span", {}, [el("b", { text: "●" }), " דיקור"]), el("span", {}, [el("b", { text: "◯" }), " שיאצו"])]));
+  }
+
+  // The points of a list on the 3D figure (when WebGL and the model are available), with the 2D figure
+  // as a fallback and for print. slot names the viewer; open is the default state of the block.
+  function mapBlock(slot, acu, press, open, title) {
     if (!BM || !acu.length && !press.length) return null;
     var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
-    return el("details", open ? { open: "" } : {}, [el("summary", { text: "תרשים הנקודות והמרידיאנים" }),
-      el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, label: T.label })]),
-      el("div", { class: "bm-legend" }, BM.channels(all).map(function (c) {
-        return el("span", {}, [el("i", { style: "background:" + c.color }), c.ch + " " + c.he]);
-      }).concat([el("span", {}, [el("b", { text: "●" }), " דיקור"]), el("span", {}, [el("b", { text: "◯" }), " שיאצו"])])),
-      el("p", { class: "hint", text: "תרשים סכמטי: הקווים מראים את מהלך המרידיאן והחץ את כיוון הזרימה בו (לפי סדר מספרי הנקודות). מיקום הנקודה משוער לאורך הקו; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas). המרידיאנים מצוירים בצד אחד של הגוף, והנקודות הן דו־צדדיות למעט אלה שבקו האמצע (CV, GV)." })]);
+    var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, label: T.label })]);
+    var B3 = root.TCMBody3D;
+    var body = [];
+    if (B3 && B3.available) {
+      var host3 = el("div", { class: "b3d-host" });
+      if (!viewers[slot]) viewers[slot] = B3.create(host3, { label: T.label });
+      else host3.appendChild(viewers[slot].element);
+      viewers[slot].show({ acu: acu, shiatsu: press });
+      body.push(host3, legend(all),
+        el("p", { class: "hint", text: "גוררים כדי לסובב ומגלגלים כדי להתקרב. הקווים מראים את מהלך המרידיאנים בשני צדי הגוף, והחצים את כיוון הזרימה (לפי סדר מספרי הנקודות). מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
+        el("p", { class: "hint credit" }, ["דמות: ", el("a", { href: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66", target: "_blank", rel: "noopener", text: "Male base muscular anatomy" }),
+          " מאת Harshit Prajapati, ברישיון ", el("a", { href: "https://creativecommons.org/licenses/by/4.0/", target: "_blank", rel: "noopener", text: "CC BY 4.0" })]),
+        el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
+    } else {
+      body.push(flat, legend(all),
+        el("p", { class: "hint", text: "תרשים סכמטי: הקווים מראים את מהלך המרידיאן והחץ את כיוון הזרימה בו (לפי סדר מספרי הנקודות). מיקום הנקודה משוער לאורך הקו; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas). המרידיאנים מצוירים בצד אחד של הגוף, והנקודות הן דו־צדדיות למעט אלה שבקו האמצע (CV, GV)." }));
+    }
+    var isOpen = slot in openMaps ? openMaps[slot] : !!open;
+    var det = el("details", isOpen ? { open: "" } : {}, [el("summary", { text: title || "הנקודות על הדמות" })].concat(body));
+    det.addEventListener("toggle", function () { openMaps[slot] = det.open; });
+    return det;
   }
+
+  root.addEventListener && root.addEventListener("tcm-body3d-ready", function () { if (plan && document.getElementById("tx-body")) draw(); });
 
   var REGION_HE = {};
   T.REGIONS.forEach(function (r) { REGION_HE[r[0]] = r[1]; });
@@ -527,6 +555,9 @@
       p.appendChild(el("div", { class: "row" }, [el("span", { class: "hint", text: "הסדרה נערכה ידנית ולא מתעדכנת אוטומטית. " }),
         el("button", { class: "mini", type: "button", text: "בנייה מחדש לפי התכנית", onclick: function () { buildSeries(cur); touch(); } })]));
     }
+    var view = Math.min(plan.series.view || 0, plan.series.sessions.length - 1);
+    var shown = plan.series.sessions[view];
+    p.appendChild(mapBlock("series", shown.points, shown.shiatsu, true, "מפגש " + shown.n + " על הדמות: " + shown.focus_he));
     var list = el("ol", { class: "sessions" });
     plan.series.sessions.forEach(function (s, k) {
       // the session's own points through the same safety rules (they can differ from the chosen ones)
@@ -549,7 +580,8 @@
         el("div", {}, ["שיאצו: ", s.shiatsu.length ? chips(s.shiatsu, "shiatsu") : el("span", { class: "hint", text: "אין" })]),
         own.length ? el("div", { class: "flags" }, own.map(function (i) { return el("div", { class: "flag " + i.sev, title: i.rule, text: i.he }); })) : null,
         el("input", { type: "text", class: "note", placeholder: "הערה למפגש", value: s.note_he, oninput: function (e) { s.note_he = e.target.value; edited(); } }),
-        mapBlock(s.points, s.shiatsu, k === 0)
+        el("button", { class: "mini" + (view === k ? " on" : ""), type: "button", text: view === k ? "מוצג על הדמות" : "הצגה על הדמות",
+          onclick: function () { plan.series.view = k; openMaps.series = true; draw(); } })
       ]));
     });
     p.appendChild(list);
@@ -681,7 +713,7 @@
       el("p", { class: "hint", text: "הצעות לפי פעולות הנקודה ב-AcuAtlas שמטפלות באותו איבר ובאותה הפרעה, ולפי ההתוויות ב-AcuAtlas ובג'ן ג'יו דא צ'נג (针灸大成, 1601) שתואמות את ממצאי התבנית והמטופל." })]);
     if (!plan.sugg.points.length) p.appendChild(el("p", { class: "empty", text: "אין הצעות נקודות לתבנית הזו במאגר." }));
     splitList(p, plan.sugg.points, plan.points, "points", issues);
-    p.appendChild(mapBlock(plan.points.map(function (x) { return x.id; }), []));
+    p.appendChild(mapBlock("points", plan.points.map(function (x) { return x.id; }), []));
     p.appendChild(addBox("הוספת נקודה לפי קוד (למשל LR3)", pointsList(), function (id) {
       if (!plan.points.some(function (x) { return x.id === id; })) plan.points.push({ id: id, technique: "even", moxa: false, note: "", origin: "added" });
       touch();
@@ -693,7 +725,7 @@
     var p = el("div", { class: "panel" }, [el("h3", { text: "נקודות לשיאצו (" + plan.shiatsu.length + " נבחרו)" }),
       el("p", { class: "hint", text: "אותן הצעות כמו בדיקור, בלי נקודות סביב העין, הפטמה והטבור. כללי ההיריון חלים גם על לחיצה." })]);
     splitList(p, plan.sugg.points.filter(function (s) { return T.shiatsuAllowed(s.id); }), plan.shiatsu, "shiatsu", issues);
-    p.appendChild(mapBlock([], plan.shiatsu.map(function (x) { return x.id; })));
+    p.appendChild(mapBlock("shiatsu", [], plan.shiatsu.map(function (x) { return x.id; })));
     p.appendChild(addBox("הוספת נקודה לשיאצו", pointsList(), function (id) {
       if (!plan.shiatsu.some(function (x) { return x.id === id; })) plan.shiatsu.push({ id: id, note: "", origin: "added" });
       touch();

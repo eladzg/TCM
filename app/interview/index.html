@@ -150,6 +150,13 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 .src.he { direction: rtl; text-align: right; }
 a.srclink { font-size: .78rem; white-space: nowrap; }
 .bm-wrap { max-width: 560px; margin: 6px auto; }
+.b3d-stage { position: relative; width: 100%; background: radial-gradient(circle at 50% 35%, var(--surface, #fff), var(--paper)); border-radius: 10px; overflow: hidden; touch-action: none; }
+.b3d-stage canvas { display: block; }
+.b3d-labels { position: absolute; inset: 0; pointer-events: none; direction: ltr; }
+.b3d-labels > * { left: 0; top: 0; }
+.b3d-label { font: 600 11px sans-serif; padding: 0 3px; border-radius: 4px; background: color-mix(in srgb, var(--surface, #fff) 80%, transparent); transform: translateY(-12px); pointer-events: auto; }
+.b3d-bar { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.hint.credit { font-size: .75rem; }
 .bodymap { width: 100%; height: auto; display: block; }
 .bm-body { fill: var(--paper); stroke: var(--muted); stroke-width: .9; }
 .bm-line { fill: none; stroke: var(--muted); stroke-width: .7; }
@@ -212,10 +219,12 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
 <script src="engine.js"></script>
 <script src="treatment_kb.js"></script>
 <script src="body_map.js"></script>
+<script src="points3d.js"></script>
 <script src="treatment.js"></script>
 <script src="app.js"></script>
 <script src="voice_config.js"></script>
 <script src="voice_flow.js"></script>
 <script type="module" src="voice_ui.js"></script>
+<script type="module" src="body3d.js"></script>
 </body>
 </html>
