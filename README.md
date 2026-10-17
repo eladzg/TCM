@@ -89,6 +89,12 @@ The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pr
 python3 tools/treatment/build_treatment.py   # after editing the KB or the lexicon, before build_interview.py --page
 ```
 
+### Series of sessions and body map
+
+The clinician can split the plan into 7 or 14 sessions. `series()` in `treatment.js` drafts them: session 1 treats the root of the pattern with the chosen points; the middle sessions keep a core of two chosen points and add up to three points whose indications list one of the patient's findings (one finding per session, preferring points no earlier session used, never a point a pregnancy or no-needling rule names); a 14-session series reassesses at session 7 and tapers at 13; the last session reassesses. Each session has an editable focus, its own safety check, and a figure. This is a scheduling heuristic without a source, for the clinician to edit.
+
+`app/interview/body_map.js` draws schematic front and back figures with the course of each channel used, an arrow for its direction of flow (the order of its point numbers), filled dots for acupuncture and rings for shiatsu. Points are placed by hand-set anchors along each channel and interpolated by point number, so the figure is a map, not an anatomical location; the AcuAtlas location text stays the reference.
+
 ### Hebrew for the Chinese text
 
 Every Chinese string the page shows (pattern, point, herb and formula names, treatment methods, classical doses, herb actions from 本草備要, indications from 針灸大成, clauses from 傷寒論 / 金匱要略, GB/T 16751.2 text, safety notes) is shown in Hebrew first, with the Chinese original next to it and a "מקור" link. Links to Wikisource and Project Gutenberg carry a text fragment (`#:~:text=`), so the browser opens the source page at the quoted words; WHO 2022, GB/T 16751.2 and AcuAtlas link to the document.

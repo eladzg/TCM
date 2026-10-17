@@ -12,6 +12,16 @@
   var DEFAULT_POINTS = 6, DEFAULT_SHIATSU = 5;
   var BLOOD_MOVING = /活血|破血|破宿血|逐瘀|散瘀|祛瘀|去瘀|化瘀|行血|破瘀|通经|通經/;   // DRAFT heuristic, no source: checked against anticoagulants
   var NO_PRESSURE = /orbit|eyeball|canthus|nipple|umbilicus/i; // not offered for shiatsu pressure
+  // Body region of a point, from the first matching word of its AcuAtlas location (order matters).
+  var REGIONS = [
+    ["head", "ראש ופנים", /\b(head|face|scalp|eye|ear|nose|nasal|mouth|lip|temple|temporal|forehead|vertex|occip\w*|chin|jaw|mandib\w*|eyebrow|canthus|hairline|cheek|zygom\w*|philtrum|tragus|auricle)\b/i],
+    ["neck", "צוואר וגרון", /\b(neck|throat|larynx|laryngeal|thyroid|sternocleidomastoid|adam's apple)\b/i],
+    ["back", "גב ועמוד השדרה", /\b(spinous|vertebra\w*|spine|scapula\w*|sacr\w*|lumbar|coccyx|buttock|gluteal|posterior midline)\b/i],
+    ["chest", "חזה", /\b(chest|stern\w*|intercostal|clavic\w*|nipple|breast|axill\w*|thora\w*|costal)\b/i],
+    ["abdomen", "בטן", /\b(abdomen|abdominal|umbilic\w*|pubic|pubis|epigastr\w*|inguinal)\b/i],
+    ["arm", "זרוע ויד", /\b(arm|elbow|forearm|wrist|hand|finger|thumb|palm|cubital|radi\w*|ulna\w*|humer\w*|metacarpal|shoulder|deltoid)\b/i],
+    ["leg", "רגל וכף רגל", /\b(thigh|knee|leg|ankle|foot|toe|malleol\w*|patella|popliteal|tibia\w*|fibula\w*|calf|heel|metatars\w*|sole|femur|femoral)\b/i]
+  ];
 
   function createTreatment(tx, heOf) {
     heOf = heOf || function () { return ""; };
@@ -81,13 +91,15 @@
 
     // A first plan from the suggestions. With a reported pregnancy every item a pregnancy rule names
     // starts unselected; with an unconfirmed status, the contraindicated ones. The clinician can add them back.
-    function newPlan(patternIds, sugg, patient) {
+    function blockedFor(patient, id) {
       var pregnancy = patient && patient.pregnancy;
-      function blocked(id) {
-        return pregnancyRisk(id).some(function (r) {
-          return pregnancy === "yes" || (pregnancy === "unknown" && r.sev === "contraindicated");
-        });
-      }
+      return pregnancyRisk(id).some(function (r) {
+        return pregnancy === "yes" || (pregnancy === "unknown" && r.sev === "contraindicated");
+      });
+    }
+
+    function newPlan(patternIds, sugg, patient) {
+      function blocked(id) { return blockedFor(patient, id); }
       var formula = sugg.formulas[0] ? sugg.formulas[0].id : null;
       var plan = {
         patterns: patternIds.slice(),
@@ -213,8 +225,72 @@
       return id;
     }
 
-    return { suggest: suggest, newPlan: newPlan, setFormula: setFormula, checkSafety: checkSafety,
-             pregnancyRisk: pregnancyRisk, shiatsuAllowed: shiatsuAllowed, label: label, tx: tx };
+    function region(id) {
+      var loc = (tx.points[id] && tx.points[id].loc) || "";
+      for (var i = 0; i < REGIONS.length; i++) if (REGIONS[i][2].test(loc)) return REGIONS[i][0];
+      return "other";
+    }
+
+    // DRAFT split of the plan into a series of n sessions (7 or 14), each with a focus. Session 1 treats
+    // the root of the pattern with the chosen points; the middle sessions keep a core of the chosen points
+    // and add points whose indications list one of the patient's findings (one finding per session,
+    // preferring points no earlier session used); a 14-session series reassesses at session 7 and tapers at 13; the last
+    // session reassesses. No source: a scheduling heuristic for the clinician to edit.
+    function series(plan, sugg, presentFindings, n, patient) {
+      var chosen = plan.points.map(function (p) { return p.id; });
+      var order = {};
+      sugg.points.forEach(function (s, i) { order[s.id] = i; });
+      function rank(id) { var c = chosen.indexOf(id); return c !== -1 ? c : 100 + (id in order ? order[id] : 1000); }
+      var pool = chosen.concat(sugg.points.map(function (s) { return s.id; })
+        .filter(function (id) { return chosen.indexOf(id) === -1 && !blockedFor(patient, id); }));
+      var base = chosen.length ? chosen : pool;
+      var core = base.slice(0, 3);
+      var present = presentFindings || [];
+      function hits(id) { return tx.points[id].find.filter(function (x) { return present.indexOf(x.f) !== -1; }).length; }
+      // any point whose indications list the finding, apart from the core: chosen, then suggested, then the rest
+      function noNeedle(id) { return (rulesByEntity[id] || []).some(function (r) { return /NO_NEEDLE/.test(r.id); }); }
+      var candidates = Object.keys(tx.points).filter(function (id) { return core.indexOf(id) === -1 && !blockedFor(patient, id) && !noNeedle(id); });
+      var topics = [];
+      present.forEach(function (f) {
+        var pts = candidates.filter(function (id) { return tx.points[id].find.some(function (x) { return x.f === f; }); })
+          .sort(function (a, b) { return rank(a) - rank(b) || hits(b) - hits(a) || (a < b ? -1 : 1); }).slice(0, 12);
+        if (pts.length) topics.push({ finding: f, points: pts });
+      });
+      topics.sort(function (a, b) { return rank(a.points[0]) - rank(b.points[0]) || b.points.length - a.points.length; });
+      if (!topics.length) {   // no finding is listed by a point: one region of the suggested points per session
+        var byRegion = {};
+        pool.forEach(function (id) { (byRegion[region(id)] = byRegion[region(id)] || []).push(id); });
+        topics = Object.keys(byRegion).map(function (r) { return { region: r, points: byRegion[r].slice(0, 3) }; });
+      }
+      function uniq(list) { return list.filter(function (x, i) { return list.indexOf(x) === i; }); }
+      function session(kind, points, topic, focusPts) {
+        var pts = uniq(points).slice(0, 8);
+        var regions = uniq((focusPts || pts).map(region));
+        return { kind: kind, finding: topic && topic.finding || null, regions: topic && topic.region ? [topic.region] : regions,
+                 points: pts, shiatsu: pts.filter(shiatsuAllowed).slice(0, 5) };
+      }
+      var out = [], t = 0, used = {};
+      base.slice(0, 6).forEach(function (id) { used[id] = true; });   // session 1 already treats these
+      function pick(tp) {   // three of the topic's points, preferring ones earlier focus sessions did not use
+        var fresh = tp.points.filter(function (id) { return !used[id]; });
+        var pts = fresh.concat(tp.points.filter(function (id) { return used[id]; })).slice(0, 3);
+        pts.forEach(function (id) { used[id] = true; });
+        return pts;
+      }
+      for (var i = 1; i <= n; i++) {
+        if (i === 1) out.push(session("root", base.slice(0, 6)));
+        else if (i === n) out.push(session("review", core));
+        else if (n >= 14 && i === Math.ceil(n / 2)) out.push(session("midreview", base.slice(0, 6)));
+        else if (n >= 14 && i === n - 1) out.push(session("taper", core.slice(0, 2).concat(topics.length ? topics[0].points.slice(0, 1) : [])));
+        else if (topics.length) { var tp = topics[t++ % topics.length], fp = pick(tp); out.push(session("focus", core.slice(0, 2).concat(fp), tp, fp)); }
+        else out.push(session("root", base.slice(0, 6)));
+      }
+      out.forEach(function (s, k) { s.n = k + 1; });
+      return out;
+    }
+
+    return { suggest: suggest, newPlan: newPlan, setFormula: setFormula, checkSafety: checkSafety, series: series, region: region,
+             pregnancyRisk: pregnancyRisk, shiatsuAllowed: shiatsuAllowed, label: label, tx: tx, REGIONS: REGIONS };
   }
 
   var api = { createTreatment: createTreatment };
@@ -395,8 +471,89 @@
     // 6. shiatsu
     body.appendChild(shiatsuPanel(issues));
 
-    // 7. follow-up and save
+    // 7. series of sessions
+    body.appendChild(seriesPanel());
+
+    // 8. follow-up and save
     body.appendChild(followupPanel(issues));
+  }
+
+  // ---- body map and series of sessions ----
+  var BM = root.TCMBodyMap;
+
+  function mapBlock(acu, press, open) {
+    if (!BM || !acu.length && !press.length) return null;
+    var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
+    return el("details", open ? { open: "" } : {}, [el("summary", { text: "תרשים הנקודות והמרידיאנים" }),
+      el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, label: T.label })]),
+      el("div", { class: "bm-legend" }, BM.channels(all).map(function (c) {
+        return el("span", {}, [el("i", { style: "background:" + c.color }), c.ch + " " + c.he]);
+      }).concat([el("span", {}, [el("b", { text: "●" }), " דיקור"]), el("span", {}, [el("b", { text: "◯" }), " שיאצו"])])),
+      el("p", { class: "hint", text: "תרשים סכמטי: הקווים מראים את מהלך המרידיאן והחץ את כיוון הזרימה בו (לפי סדר מספרי הנקודות). מיקום הנקודה משוער לאורך הקו; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas). המרידיאנים מצוירים בצד אחד של הגוף, והנקודות הן דו־צדדיות למעט אלה שבקו האמצע (CV, GV)." })]);
+  }
+
+  var REGION_HE = {};
+  T.REGIONS.forEach(function (r) { REGION_HE[r[0]] = r[1]; });
+  REGION_HE.other = "אחר";
+
+  function sessionFocus(s) {
+    var regions = s.regions.map(function (r) { return REGION_HE[r]; }).join(", ");
+    if (s.kind === "root") return "שורש התבנית: " + patternName(plan.patterns[0]).replace(/ \(.*$/, "") + " · אזורים: " + regions;
+    if (s.kind === "focus") return (s.finding ? "מוקד: " + findingNames([s.finding]) + " · " : "") + "אזורים: " + regions;
+    if (s.kind === "midreview") return "הערכת ביניים: לבדוק שוב לשון, דופק ותלונות עיקריות ולעדכן את התכנית";
+    if (s.kind === "taper") return "ביסוס: פחות נקודות ומרווח ארוך יותר עד המפגש הבא";
+    return "סיכום: הערכה מחדש של הלשון, הדופק והתלונות, והחלטה על המשך";
+  }
+
+  function buildSeries(count) {
+    var sessions = T.series(plan, plan.sugg, presentFindings(), count, ctx.state.patient);
+    sessions.forEach(function (s) { s.focus_he = sessionFocus(s); s.note_he = ""; });
+    plan.series = { count: count, sessions: sessions, edited: false };
+  }
+
+  function seriesPanel() {
+    var cur = plan.series ? plan.series.count : 0;
+    if (cur && !plan.series.edited) buildSeries(cur);   // follows the plan until a session is edited
+    var p = el("div", { class: "panel", id: "tx-series" }, [el("h3", { text: "פירוק לסדרת מפגשים" }),
+      el("p", { class: "hint", text: "הצעת טיוטה לפי הנקודות שנבחרו: המפגש הראשון מטפל בשורש התבנית, המפגשים באמצע שומרים על גרעין של הנקודות שנבחרו ומוסיפים בכל פעם נקודות לתלונה אחת של המטופל (לפי ההתוויות של הנקודות), והאחרון מוקדש להערכה מחדש. זו חלוקה מוצעת בלי מקור, והמטפל מחליט." })]);
+    p.appendChild(el("div", { class: "checks" }, [[0, "בלי סדרה"], [7, "7 מפגשים"], [14, "14 מפגשים"]].map(function (o) {
+      return el("label", { class: "opt" }, [el("input", { type: "radio", name: "tx-series", checked: cur === o[0], onchange: function () {
+        if (o[0]) buildSeries(o[0]); else plan.series = null;
+        touch();
+      } }), o[1]]);
+    })));
+    if (!cur) return p;
+    if (plan.series.edited) {
+      p.appendChild(el("div", { class: "row" }, [el("span", { class: "hint", text: "הסדרה נערכה ידנית ולא מתעדכנת אוטומטית. " }),
+        el("button", { class: "mini", type: "button", text: "בנייה מחדש לפי התכנית", onclick: function () { buildSeries(cur); touch(); } })]));
+    }
+    var list = el("ol", { class: "sessions" });
+    plan.series.sessions.forEach(function (s, k) {
+      // the session's own points through the same safety rules (they can differ from the chosen ones)
+      var own = T.checkSafety({ points: s.points.map(function (id) { return { id: id, moxa: false }; }),
+                                shiatsu: s.shiatsu.map(function (id) { return { id: id }; }), herbs: [] }, ctx.state.patient, constraints())
+        .filter(function (i) { return i.sev !== "info"; });
+      function edited() { plan.series.edited = true; plan.dirty = true; }
+      function chips(ids, kind) {
+        return el("span", { class: "chips" }, ids.map(function (id) {
+          var sev = sevOf(own, id);
+          return el("span", { class: "chip" + (sev ? " risk-" + sev : ""), title: T.label(id) }, [el("b", { text: id }), " " + I.heOr(tx.points[id].zh),
+            el("button", { class: "x", type: "button", "aria-label": "הסרה", text: "×", onclick: function () {
+              s[kind].splice(s[kind].indexOf(id), 1); edited(); draw(); } })]);
+        }));
+      }
+      list.appendChild(el("li", { class: "session" }, [
+        el("div", { class: "txhead" }, [el("b", { text: "מפגש " + s.n }),
+          el("input", { type: "text", class: "note focus", value: s.focus_he, "aria-label": "מוקד המפגש", oninput: function (e) { s.focus_he = e.target.value; edited(); } })]),
+        el("div", {}, ["דיקור: ", s.points.length ? chips(s.points, "points") : el("span", { class: "hint", text: "אין" })]),
+        el("div", {}, ["שיאצו: ", s.shiatsu.length ? chips(s.shiatsu, "shiatsu") : el("span", { class: "hint", text: "אין" })]),
+        own.length ? el("div", { class: "flags" }, own.map(function (i) { return el("div", { class: "flag " + i.sev, title: i.rule, text: i.he }); })) : null,
+        el("input", { type: "text", class: "note", placeholder: "הערה למפגש", value: s.note_he, oninput: function (e) { s.note_he = e.target.value; edited(); } }),
+        mapBlock(s.points, s.shiatsu, k === 0)
+      ]));
+    });
+    p.appendChild(list);
+    return p;
   }
 
   function sevOf(issues, id) {
@@ -524,6 +681,7 @@
       el("p", { class: "hint", text: "הצעות לפי פעולות הנקודה ב-AcuAtlas שמטפלות באותו איבר ובאותה הפרעה, ולפי ההתוויות ב-AcuAtlas ובג'ן ג'יו דא צ'נג (针灸大成, 1601) שתואמות את ממצאי התבנית והמטופל." })]);
     if (!plan.sugg.points.length) p.appendChild(el("p", { class: "empty", text: "אין הצעות נקודות לתבנית הזו במאגר." }));
     splitList(p, plan.sugg.points, plan.points, "points", issues);
+    p.appendChild(mapBlock(plan.points.map(function (x) { return x.id; }), []));
     p.appendChild(addBox("הוספת נקודה לפי קוד (למשל LR3)", pointsList(), function (id) {
       if (!plan.points.some(function (x) { return x.id === id; })) plan.points.push({ id: id, technique: "even", moxa: false, note: "", origin: "added" });
       touch();
@@ -535,6 +693,7 @@
     var p = el("div", { class: "panel" }, [el("h3", { text: "נקודות לשיאצו (" + plan.shiatsu.length + " נבחרו)" }),
       el("p", { class: "hint", text: "אותן הצעות כמו בדיקור, בלי נקודות סביב העין, הפטמה והטבור. כללי ההיריון חלים גם על לחיצה." })]);
     splitList(p, plan.sugg.points.filter(function (s) { return T.shiatsuAllowed(s.id); }), plan.shiatsu, "shiatsu", issues);
+    p.appendChild(mapBlock([], plan.shiatsu.map(function (x) { return x.id; })));
     p.appendChild(addBox("הוספת נקודה לשיאצו", pointsList(), function (id) {
       if (!plan.shiatsu.some(function (x) { return x.id === id; })) plan.shiatsu.push({ id: id, note: "", origin: "added" });
       touch();
@@ -638,6 +797,9 @@
         herbs: plan.herbs.map(function (h) { return { herb_id: h.id, zh: (tx.herbs[h.id] || {}).zh, he: I.he((tx.herbs[h.id] || {}).zh) || null, dose_original: h.dose_original || null, dose_g: h.dose_g === "" ? null : h.dose_g, note_he: h.note, origin: h.origin }; })
       },
       shiatsu: plan.shiatsu.map(function (p) { return { point_id: p.id, note_he: p.note, origin: p.origin }; }),
+      series: plan.series ? { sessions_planned: plan.series.count, edited: plan.series.edited, sessions: plan.series.sessions.map(function (x) {
+        return { n: x.n, kind: x.kind, focus_he: x.focus_he, focus_finding: x.finding, regions: x.regions, acupuncture: x.points, shiatsu: x.shiatsu, note_he: x.note_he };
+      }) } : null,
       followup: { interval: plan.followup.interval, sessions: plan.followup.sessions === "" ? null : Number(plan.followup.sessions), notes_he: plan.followup.notes_he },
       safety_check: issues.map(function (i) { return { severity: i.sev, rule_id: i.rule, entity_ids: i.ids, message_he: i.he, source: i.src || null }; }),
       link_decisions: Object.keys(plan.decisions).map(function (k) {
@@ -655,6 +817,12 @@
     if (doc.acupuncture.length) lines.push("דיקור: " + doc.acupuncture.map(function (p) { return p.point_id + " " + TECH[p.technique] + (p.moxa ? " + מוקסה" : "") + (p.note_he ? " (" + p.note_he + ")" : ""); }).join(", "));
     if (doc.herbal.herbs.length) lines.push("צמחים" + (doc.herbal.base_formula ? " (בסיס " + I.heOr(doc.herbal.base_formula.zh) + " " + doc.herbal.base_formula.zh + ")" : "") + ": " + doc.herbal.herbs.map(function (h) { return I.heOr(h.zh) + " " + h.zh + " " + (h.dose_g === null ? "[מינון לא נקבע]" : h.dose_g + " גרם"); }).join(", "));
     if (doc.shiatsu.length) lines.push("שיאצו: " + doc.shiatsu.map(function (p) { return p.point_id + (p.note_he ? " (" + p.note_he + ")" : ""); }).join(", "));
+    if (doc.series) {
+      lines.push("סדרה של " + doc.series.sessions_planned + " מפגשים:");
+      doc.series.sessions.forEach(function (x) {
+        lines.push("  " + x.n + ". " + x.focus_he + " · דיקור: " + (x.acupuncture.join(", ") || "-") + " · שיאצו: " + (x.shiatsu.join(", ") || "-") + (x.note_he ? " · " + x.note_he : ""));
+      });
+    }
     lines.push("מעקב: " + INTERVAL[doc.followup.interval] + (doc.followup.sessions ? " · " + doc.followup.sessions + " טיפולים" : "") + (doc.followup.notes_he ? " · " + doc.followup.notes_he : ""));
     var risks = doc.safety_check.filter(function (s) { return s.severity !== "info"; });
     if (risks.length) lines.push("בטיחות: " + risks.map(function (s) { return s.message_he; }).join(" | "));

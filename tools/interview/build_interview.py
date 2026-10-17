@@ -294,7 +294,7 @@ def write_standalone(path, keep_document=False):
     By default the document skeleton is dropped for the artifact host; keep_document keeps it, for
     a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
-    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("treatment_kb.js", ""), ("treatment.js", ""), ("app.js", ""), ("voice_config.js", ""),
+    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("treatment.js", ""), ("app.js", ""), ("voice_config.js", ""),
                ("voice_flow.js", ""), ("voice_ui.js", ' type="module"')]
     for name, attrs in scripts:
         tag = f'<script{attrs} src="{name}"></script>'

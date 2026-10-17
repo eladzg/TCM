@@ -117,3 +117,33 @@ console.log(JSON.stringify({{
     assert out["zjdc"]["url"].startswith("https://zh.wikisource.org/wiki/%E9%87%9D%E7%81%B8%E5%A4%A7%E6%88%90/%E5%8D%B7%E4%B9%9D#:~:text=")
     assert out["gut"]["url"].startswith("https://www.gutenberg.org/cache/epub/24272/")
     assert out["books"] == "שאנג האן לון סעיף 21"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_series_and_body_map(tmp_path):
+    script = tmp_path / "run.js"
+    script.write_text(f"""
+global.window = {{}};
+require({json.dumps(str(ROOT / "app" / "interview" / "treatment_kb.js"))});
+require({json.dumps(str(ROOT / "app" / "interview" / "body_map.js"))});
+const {{ createTreatment }} = require({json.dumps(str(ROOT / "app" / "interview" / "treatment.js"))});
+const T = createTreatment(window.TCM_TX);
+const F = ["FT.HEADACHE", "FT.DIZZY", "FT.INSOMNIA", "FT.TINNITUS"];
+const sugg = T.suggest(["SYN.LR.GAN_YANG_SHANG_KANG"], F);
+const plan = T.newPlan(["SYN.LR.GAN_YANG_SHANG_KANG"], sugg, {{ pregnancy: "yes" }});
+const s7 = T.series(plan, sugg, F, 7, {{ pregnancy: "yes" }});
+const s14 = T.series(plan, sugg, F, 14, {{ pregnancy: "yes" }});
+const chosen = plan.points.map(p => p.id);
+const extra = s14.flatMap(s => s.points).filter(id => chosen.indexOf(id) === -1);
+const rules = id => window.TCM_TX.safety.filter(r => r.ids.indexOf(id) !== -1);
+const places = Object.keys(window.TCM_TX.points).map(id => [id, window.TCMBodyMap.place(id)]);
+console.log(JSON.stringify({{ k7: s7.map(s => s.kind), k14: s14.map(s => s.kind), focus: s7.filter(s => s.kind === "focus").map(s => s.finding),
+  extraRules: extra.flatMap(id => rules(id).filter(r => r.cond === "pregnancy" || /NO_NEEDLE/.test(r.id)).map(r => r.id)),
+  badPlaces: places.filter(([id, p]) => !p || p.x < 0 || p.x > 200 || p.y < 0 || p.y > 420).map(([id]) => id) }}));
+""")
+    out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
+    assert len(out["k7"]) == 7 and out["k7"][0] == "root" and out["k7"][-1] == "review"
+    assert len(out["k14"]) == 14 and out["k14"][6] == "midreview" and out["k14"][12] == "taper"
+    assert set(out["focus"]) <= {"FT.HEADACHE", "FT.DIZZY", "FT.INSOMNIA", "FT.TINNITUS"} and out["focus"]
+    assert out["extraRules"] == []      # added points never carry a pregnancy or no-needling rule
+    assert out["badPlaces"] == []       # every point has a place on the schematic figures
