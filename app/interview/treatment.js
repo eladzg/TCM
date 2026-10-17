@@ -277,6 +277,8 @@
     var ids = diff.map(function (d) { return d.syndrome_id; });
     if (!plan || !userPicked && !plan.dirty && plan.patterns[0] !== ids[0]) {
       build([ids[0]]);
+    } else if (!plan.dirty) {
+      build(plan.patterns);   // nothing edited yet, so the default selection follows the new answers
     } else {
       plan.sugg = T.suggest(plan.patterns, presentFindings());   // the patient's findings may have changed
     }
