@@ -36,6 +36,14 @@ def test_herb_suggestions_quote_bencao(data):
     assert data["herbs"][herb["id"]]["src"].startswith("GUT-BENCAO-BEIYAO")
 
 
+def test_yifang_formulas_link_by_indication_with_a_quote(data):
+    fm = data["links"]["SYN.SP.PI_QI_XU"]["fm"][0]
+    assert data["formulas"][fm["id"]]["src"].startswith("WS-YFJJ")
+    assert fm["q"]["c"].startswith("醫方集解 补养之劑第一") and "脾" in fm["q"]["ev"]
+    yang = [data["formulas"][f["id"]]["zh"] for f in data["links"]["SYN.KI.SHEN_YANG_XU"]["fm"]]
+    assert "滋肾丸" not in yang     # 治肾虛蒸熱 contradicts a yang deficiency
+
+
 def test_no_gram_doses_anywhere(data):
     text = json.dumps(data, ensure_ascii=False)
     assert "dose_g" not in text and "dose_min_g" not in text

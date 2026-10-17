@@ -28,12 +28,13 @@ The verified TCM knowledge base (points, channels, herbs, formulas, syndromes, s
 | --- | --- |
 | 傷寒論 Shanghan Lun (Gutenberg #24272) | 397 numbered clauses; 110 formulas with ingredients, original doses (三兩, 十二枚) and preparation; which clauses prescribe each formula |
 | 金匱要略 Jingui Yaolue (Wikisource) | 448 paragraphs (chapters 1-22); the 53 formulas whose ingredients this transcription prints |
+| 醫方集解 Yifang Jijie (Wang Ang, 1682; Wikisource) | 373 main formulas (正方) with their category (補養之劑 ... 經產之劑), indications (治...), ingredients with the printed doses (二钱, 钱半) and full text; 317 become new formula rows (253 with a composition), 42 add an indications source to a Han-classic row |
 | 本草備要 Bencao Beiyao (Gutenberg #26888) | 465 entries: nature, flavour, channels entered, toxicity, pregnancy warnings, 惡/畏/反/忌 relations, full text |
 | 針灸大成 Zhenjiu Dacheng (Wikisource vols. 8-9) | 356 point entries (考正穴法) mapped to WHO codes: location, needle and moxa counts, indications |
 | AcuAtlas (CC BY 4.0) | English location, actions, indications, depth and cautions for the 361 WHO points |
 | WHO International Standard Terminologies on TCM 2022 (CC BY-NC-SA 3.0 IGO) | 3,357 terms; 423 patterns become `syndromes` (presentation, cause, tongue, pulse); 345 symptoms, signs, tongue and pulse findings become `manifestations` |
 
-Everything generated is `draft`. Not extracted, by design: gram doses (`dose_min_g`/`dose_max_g`), syndrome-manifestation weights and the links between syndromes and points or formulas, which are clinician decisions. Known gaps: the Gutenberg Bencao Beiyao has no entries for 大黃, 黃芩 and 黃連, and the Wikisource Jingui omits most formula listings ("方見上").
+Everything generated is `draft`. Not extracted, by design: gram doses (`dose_min_g`/`dose_max_g`), syndrome-manifestation weights and the links between syndromes and points or formulas, which are clinician decisions. Known gaps: the Gutenberg Bencao Beiyao has no entries for 大黃, 黃芩 and 黃連, and the Wikisource Jingui omits most formula listings ("方見上"). The Wikisource Yifang Jijie lost the ends of many lines, so 193 of its 292 ingredient lists stop early (the composition locator says "list cut short"); 芪 is missing throughout and a bare 黄 in a list is read as 黃耆; 10 ingredient names (草果, 鬱金, 三棱, 莪术...) match no Bencao Beiyao herb and are left out, as `curate.py` reports. Appended formulas (附方, "本方加...") are not extracted.
 
 Rebuild from the sources:
 
@@ -43,11 +44,12 @@ python3 tools/ingest/fetch_raw.py GUT-BENCAO-BEIYAO https://www.gutenberg.org/ca
 python3 tools/ingest/fetch_raw.py WS-JINGUI "https://zh.wikisource.org/w/index.php?title=金匱要略&action=raw" --name jingui.wiki
 python3 tools/ingest/fetch_raw.py WS-ZJDC "https://zh.wikisource.org/w/index.php?title=針灸大成/卷八&action=raw" --name 卷八.wiki
 python3 tools/ingest/fetch_raw.py WS-ZJDC "https://zh.wikisource.org/w/index.php?title=針灸大成/卷九&action=raw" --name 卷九.wiki
+python3 tools/ingest/fetch_raw.py WS-YFJJ "https://zh.wikisource.org/w/index.php?title=醫方集解&action=raw" --name index.wiki
 python3 tools/ingest/fetch_raw.py ACUATLAS https://acupointatlas.com/data/acupoints.json
 python3 tools/ingest/fetch_raw.py WHO-ISTTCM-2022 "https://iris.who.int/server/api/core/bitstreams/02be07cf-ef55-4ae2-9184-ded49210aa05/content" --name who_isttcm_2022.pdf
 python3 tools/ingest/who2022.py     # needs pdftotext (poppler-utils)
 cd tools/ingest/classics
-python3 shanghan.py && python3 jingui.py && python3 bencao_beiyao.py && python3 zjdc.py && python3 curate.py
+python3 shanghan.py && python3 jingui.py && python3 bencao_beiyao.py && python3 zjdc.py && python3 yifang.py && python3 curate.py
 ```
 
 `curate.py` never overwrites a row the clinician marked `reviewed` or `approved`.
@@ -89,7 +91,7 @@ After the hypotheses, the clinician view shows a draft treatment plan for the le
 | Treatment principle | WHO 2022 treatment methods (治法) whose definition says "indicated for" a pattern named with the same words |
 | Points | AcuAtlas actions that treat the same organ and disorder ("subdues Liver yang"), plus AcuAtlas and 針灸大成 indications that list the pattern's and the patient's findings |
 | Herbs | 本草備要 entries whose opening actions name the method ("平肝", "補脾") |
-| Base formula | 傷寒論 / 金匱要略 formulas carried by those herbs, plus clauses describing the findings. Only these 152 formulas are in the KB, so zang-fu patterns often get weak or no formula matches |
+| Base formula | 傷寒論 / 金匱要略 / 醫方集解 formulas (469) carried by those herbs; 醫方集解 formulas whose indications name the pattern's organ and disorder (治脾胃虛弱 for spleen qi deficiency, quoted with its source), with a bonus when the book's category treats it (補養之劑 for a deficiency); clauses and indications describing the findings add to it. 367 of the 423 patterns get a formula (296 with the Han classics alone); liver yang rising still gets none |
 
 The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pregnancy, 十八反/十九畏, toxic herbs, 禁針/禁灸 points), the AcuAtlas needling cautions, and the medication answers. Rules for anticoagulants, implanted devices, organ disease and allergy are draft heuristics without a source and say so. No gram dose is ever suggested; formulas show only their classical doses (三兩).
 

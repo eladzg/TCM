@@ -59,6 +59,9 @@ def shown_strings():
         for h in link["h"]:
             for i in h["a"]:
                 add("herb_act", tx["herbs"][h["id"]]["act"][i])
+        for f in link["fm"]:
+            if f.get("q"):
+                add("clause_ev", f["q"]["ev"])
     for f in tx["formulas"].values():
         add("formula_name", f["zh"])
         for c in f["comp"]:

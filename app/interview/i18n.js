@@ -11,7 +11,8 @@
     "金匱要略": "ג'ין גוויי יאו לואה",
     "本草備要": "בן צאו ביי יאו",
     "针灸大成": "ג'ן ג'יו דא צ'נג",
-    "針灸大成": "ג'ן ג'יו דא צ'נג"
+    "針灸大成": "ג'ן ג'יו דא צ'נג",
+    "醫方集解": "יי פאנג ג'י ג'יה"
   };
 
   var NUM = "一二三四五六七八九十";
@@ -28,7 +29,15 @@
     "奔豚氣病脈證並治": "צ'י החזיר הדוהר", "胸痹心痛短氣病脈證並治": "חסימת חזה, כאב לב וקוצר נשימה",
     "嘔吐噦下利病脈證並治": "הקאה, שיהוק ושלשול", "瘡癰腸癰浸淫病脈證並治": "פצעים, מורסות, מורסת מעי ופריחה מתפשטת",
     "跗蹶手指臂腫轉筋陰狐疝蚘蟲病脈證並治": "נפילת כף הרגל, נפיחות היד, התכווצויות, שבר ותולעים",
-    "婦人妊娠病脈證並治": "מחלות היריון", "水氣病脈證並治": "מחלות מים (בצקות)"
+    "婦人妊娠病脈證並治": "מחלות היריון", "水氣病脈證並治": "מחלות מים (בצקות)",
+    // 醫方集解: the 21 categories of formulas, as printed on Wikisource
+    "补养之劑": "מרשמים מחזקים ומזינים", "发表之劑": "מרשמים לשחרור החיצוני", "涌吐之劑": "מרשמים מעוררי הקאה",
+    "攻里之劑": "מרשמים לתקיפת הפנים (משלשלים)", "表里之劑": "מרשמים לחיצוני ולפנימי יחד", "和解之劑": "מרשמים מרמנים ומפשרים",
+    "理气之劑": "מרשמים לוויסות הצ'י", "理血之劑": "מרשמים לוויסות הדם", "祛风之劑": "מרשמים לסילוק רוח",
+    "祛寒之劑": "מרשמים לסילוק קור", "清暑之劑": "מרשמים לקירור חום הקיץ", "利湿之劑": "מרשמים לניקוז לחות",
+    "润燥之劑": "מרשמים להרטבת יובש", "瀉火之劑": "מרשמים להורדת אש", "除痰之劑": "מרשמים לסילוק ליחה",
+    "消导之劑": "מרשמים לעיכול ולהורדת מזון תקוע", "收涩之劑": "מרשמים מכווצים ומייצבים", "杀虫之劑": "מרשמים נגד תולעים",
+    "明目之劑": "מרשמים להבהרת העיניים", "痈疡之劑": "מרשמים למורסות וכיבים", "經产之劑": "מרשמים למחזור וללידה"
   };
   var SECTIONS = { "草部": "צמחי עשב", "木部": "עצים", "果部": "פירות", "穀菜部": "דגנים וירקות", "金石水土部": "מתכות, אבנים, מים ואדמה",
                    "禽獸部": "עופות ובהמות", "鱗介魚蟲部": "בעלי קשקשים, צדפות, דגים וחרקים", "人部": "מן האדם" };
@@ -42,6 +51,7 @@
     { re: /^WS-ZJDC (卷\S+)/, url: function (m) { return "https://zh.wikisource.org/wiki/" + encodeURI("針灸大成/" + m[1]); }, frag: true, he: "ג'ן ג'יו דא צ'נג (ויקיטקסט)" },
     { re: /^WS-ZJDC/, url: function () { return "https://zh.wikisource.org/wiki/" + encodeURI("針灸大成"); }, frag: true, he: "ג'ן ג'יו דא צ'נג (ויקיטקסט)" },
     { re: /^WS-JINGUI/, url: function () { return "https://zh.wikisource.org/wiki/" + encodeURI("金匱要略"); }, frag: true, he: "ג'ין גוויי יאו לואה (ויקיטקסט)" },
+    { re: /^WS-YFJJ/, url: function () { return "https://zh.wikisource.org/wiki/" + encodeURI("醫方集解"); }, frag: true, he: "יי פאנג ג'י ג'יה (ויקיטקסט)" },
     { re: /^GUT-SHANGHAN/, url: function () { return GUT + "24272/pg24272-images.html"; }, frag: true, he: "שאנג האן לון (פרויקט גוטנברג)" },
     { re: /^GUT-BENCAO-BEIYAO/, url: function () { return GUT + "26888/pg26888-images.html"; }, frag: true, he: "בן צאו ביי יאו (פרויקט גוטנברג)" },
     { re: /^ACUATLAS/, url: function () { return "https://acupointatlas.com/it/dataset/"; }, he: "AcuAtlas" },
@@ -66,14 +76,16 @@
 
   // Hebrew name of a classic named inside a string ("傷寒論 條21" -> "שאנג האן לון סעיף 21").
   function books(s) {
-    return String(s || "").replace(/傷寒論|金匱要略|本草備要|针灸大成|針灸大成/g, function (b) { return BOOKS[b]; })
+    return String(s || "").replace(/傷寒論|金匱要略|本草備要|针灸大成|針灸大成|醫方集解/g, function (b) { return BOOKS[b]; })
       .replace(/條(\d+)/g, "סעיף $1").replace(/篇(\d+)\.(\d+)/g, "פרק $1 סעיף $2")
       .replace(/卷(\S)/g, function (x, n) { return "כרך " + (NUM.indexOf(n) + 1); }).replace(/考正穴法/g, "בירור מיקומי הנקודות")
       .replace(/line (\d+)/g, "שורה $1").replace(/\(([\u4e00-\u9fff]+)\)/g, function (x, z) { return D[z] ? "(" + D[z] + ")" : x; })
       .replace(/^WS-ZJDC /, "ג'ן ג'יו דא צ'נג ").replace(/^GUT-SHANGHAN /, "שאנג האן לון ").replace(/^WS-JINGUI /, "ג'ין גוויי יאו לואה ")
-      .replace(/^GUT-BENCAO-BEIYAO /, "בן צאו ביי יאו ")
+      .replace(/^GUT-BENCAO-BEIYAO /, "בן צאו ביי יאו ").replace(/^WS-YFJJ /, "יי פאנג ג'י ג'יה ")
+      .replace(/, list cut short in this transcription/g, ", רשימת הרכיבים קטועה בתעתיק הזה")
       .replace(/([\u4e00-\u9fff（）]+?)第([一二三四五六七八九十]+)/g, function (x, c, n) { return (CHAPTERS[c] || c) + " (פרק " + chinese(n) + ")"; })
       .replace(/([\u4e00-\u9fff]+部)·([\u4e00-\u9fff]+)/g, function (x, sec, h) { return (SECTIONS[sec] || sec) + " · " + (D[h] || h); })
+      .replace(/\)·([\u4e00-\u9fff]+)/g, function (x, f) { return ") · " + (D[f] || f); })
       .replace(/, after /g, ", אחרי ");
   }
 

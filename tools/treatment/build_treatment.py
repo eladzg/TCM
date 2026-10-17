@@ -9,8 +9,10 @@ came from, and writes app/interview/treatment_kb.js (window.TCM_TX):
             ("subdues Liver yang" for Hyperactivity of liver yang), plus points whose AcuAtlas
             indications or Zhenjiu Dacheng 主 text list the pattern's findings
   herbs     Bencao Beiyao herbs whose actions name the method ("平肝", "補氣")
-  formulas  Shanghan Lun / Jingui Yaolue formulas whose herbs carry those actions and whose clauses
-            describe the pattern's findings
+  formulas  Shanghan Lun / Jingui Yaolue / Yifang Jijie formulas whose herbs carry those actions, Yifang
+            Jijie formulas whose indications (治...) name the pattern's organ and disorder (with a bonus
+            when the book's category, e.g. 補養之劑, treats that disorder), and whose clauses or
+            indications describe the pattern's findings
 
 The patient-specific part (re-ranking by the patient's own findings) and the safety check run in the
 browser (app/interview/treatment.js) from the per-point and per-formula findings written here.
@@ -251,7 +253,92 @@ def point_findings(points, features):
     return out
 
 
-CLAUSE_LINE = re.compile(r"^(傷寒論|金匱要略)\s*([^：:]+)[：:](.*)$")
+CLAUSE_LINE = re.compile(r"^(傷寒論|金匱要略|醫方集解)\s*([^：:]+)[：:](.*)$")
+
+# ---- Yifang Jijie: indications (治...) and category (補養之劑...) against the pattern ----
+# Chinese concepts in a pattern name or an indication phrase (simplified characters), with the same
+# keys as the English ones above so the two can be compared by concept_score.
+ORGANS_ZH = {"LIVER": r"肝", "HEART": r"心(?!下)", "SPLEEN": r"脾|中气|中焦", "STOMACH": r"胃", "LUNG": r"肺",
+             "KIDNEY": r"肾|命门|下元", "GB": r"胆", "LI": r"大肠|肠", "BLADDER": r"膀胱",
+             "UTERUS": r"胞宫|冲任|经水|月经|经候|崩|带下|胎|妊娠|产"}
+SUBSTANCES_ZH = {"QI": r"气", "BLOOD": r"血", "YIN": r"阴|水亏|肾水", "YANG": r"阳|命火|相火不足", "ESSENCE": r"精|髓",
+                 "FLUID": r"津|液"}
+DISORDERS_ZH = {"DEF": r"虚|不足|亏|损|衰|弱|羸|劳|怯|少气|不固", "HEAT": r"热|火|暑|温毒", "COLD": r"寒|冷",
+                "WIND": r"风", "DAMP": r"湿", "PHLEGM": r"痰|饮(?!食)", "STASIS": r"瘀|蓄血|死血|恶血",
+                "STAG": r"郁|滞|气结|痞|胀", "HYPER": r"亢|上升|上冲|上逆|上攻|上炎|眩|晕", "DRY": r"燥|枯",
+                "FOOD": r"宿食|食积|伤食|饮食不消|积滞", "WATER": r"水肿|水气|浮肿|肿满", "EXTERIOR": r"表|外感"}
+# The book's 21 categories and the disorders their formulas treat.
+CATEGORY_DISORDERS = {"补养": {"DEF"}, "发表": {"EXTERIOR"}, "表里": {"EXTERIOR"}, "理气": {"STAG", "HYPER"},
+                      "理血": {"STASIS", "BLOOD"}, "祛风": {"WIND"}, "祛寒": {"COLD"}, "清暑": {"HEAT"},
+                      "利湿": {"DAMP", "WATER"}, "润燥": {"DRY"}, "泻火": {"HEAT"}, "除痰": {"PHLEGM"},
+                      "消导": {"FOOD"}, "收涩": {"DEF"}}
+IND_PIECE = re.compile(r"[，。；、]")
+CATEGORY_BONUS = 0.75
+
+
+def concepts_zh(text):
+    return ({k for k, rx in ORGANS_ZH.items() if re.search(rx, text)}
+            | {k for k, rx in SUBSTANCES_ZH.items() if re.search(rx, text)}
+            | {k for k, rx in DISORDERS_ZH.items() if re.search(rx, text)})
+
+
+def yifang_entries(formulas):
+    """{formula_id: [(category, locator, [(printed piece, concepts)])]} from the 醫方集解 indications lines."""
+    out = {}
+    for fm in formulas:
+        for line in (fm.get("indications") or "").splitlines():
+            m = CLAUSE_LINE.match(line.strip())
+            if not m or m.group(1) != "醫方集解":
+                continue
+            where, printed = m.group(2), m.group(3)
+            pieces = [p for p in IND_PIECE.split(printed) if p]
+            category = T2S.convert(where.split("之", 1)[0])
+            out.setdefault(fm["formula_id"], []).append(
+                (category, f"醫方集解 {where}", [(p, concepts_zh(T2S.convert(p))) for p in pieces]))
+    return out
+
+
+def contradicts(want, have):
+    """A yang-deficiency pattern against 蒸熱 or 陰, a yin-deficiency one against 虛寒, heat against cold."""
+    def lacks(k, other):
+        return k in have and other not in have
+    if "YANG" in want and "YIN" not in want and lacks("YIN", "YANG"):
+        return True
+    if "YIN" in want and "YANG" not in want and lacks("YANG", "YIN"):
+        return True
+    if {"YANG", "DEF"} <= want and lacks("HEAT", "COLD"):
+        return True
+    if {"YIN", "DEF"} <= want and lacks("COLD", "HEAT"):
+        return True
+    if "HEAT" in want and "COLD" not in want and lacks("COLD", "HEAT"):
+        return True
+    return "COLD" in want and "HEAT" not in want and lacks("HEAT", "COLD")
+
+
+def indication_match(want, entries):
+    """Best match of the pattern's concepts in a formula's indications: (score, quote, locator, category, organ matched).
+
+    A piece, or two neighbouring pieces read together (治肝肾不足，真阴亏损), must name the pattern's
+    disorder and, when the pattern has an organ, that organ; a piece that names no organ at all counts
+    half. The category is returned when it treats the pattern's disorder and a piece matched."""
+    best = (0.0, None, None, None, False)
+    for category, where, pieces in entries:
+        cat = category if CATEGORY_DISORDERS.get(category, set()) & want else None
+        for i in range(len(pieces)):
+            for span in (1, 2):
+                window = pieces[i:i + span]
+                if len(window) < span:
+                    continue
+                have = set().union(*(c for _, c in window))
+                if contradicts(want, have):
+                    continue
+                s, organ = concept_score(want, have), True
+                if not s and not (have & ORGAN_KEYS) and want & have & DISORDER_KEYS:
+                    s, organ = 0.5 * concept_score(want - ORGAN_KEYS, have), False
+                s = s / (1 + 0.25 * (span - 1))     # two pieces must earn their keep
+                if s > best[0]:
+                    best = (round(s, 2), "，".join(p for p, _ in window), where, cat, organ)
+    return best
 
 
 def formula_findings(formulas, features):
@@ -305,6 +392,7 @@ def build_data():
     herb_ids = {h["herb_id"] for h in herbs}
     p_find = point_findings(points, features)
     f_find = formula_findings(formulas, features)
+    yf_entries = yifang_entries(formulas)
     point_clauses = {p["point_id"]: [(c, concepts(c, "action")) for c in clauses(p.get("actions"))] for p in points}
 
     usage = {}
@@ -361,22 +449,36 @@ def build_data():
         hs = [{"id": hid, "s": n, "a": hits} for n, hid, hits in hscored[:TOP_HERBS]]
         hscore = {hid: n for n, hid, _ in hscored[:3 * TOP_HERBS]}   # a formula counts only herbs near the top
 
-        # formulas: carried by herbs with those actions; clauses describing the findings add to it
+        # formulas: carried by herbs with those actions; Yifang Jijie indications that name the pattern's
+        # organ and disorder, and its category (補養之劑 for a deficiency), add to it; clauses describing
+        # the findings multiply it
+        want_zh = want | concepts_zh(T2S.convert(name_zh.removesuffix("证").removesuffix("證")))
         fscored = []
         for fm in formulas:
+            fid = fm["formula_id"]
             comp = [c["herb_id"] for c in fm.get("composition", []) if c.get("herb_id") in herb_ids]
-            if not comp:
-                continue
             carrying = [h for h in comp if h in hscore]
-            if len(carrying) < 2 and carrying != comp:
+            herb_part = 0.0
+            if comp and (len(carrying) >= 2 or carrying == comp):
+                herb_part = sum(hscore[h] for h in carrying) / math.sqrt(len(comp))
+            else:
+                carrying = []
+            ind, quote, where, cat, organ = indication_match(want_zh, yf_entries.get(fid, []))
+            if not herb_part and not ind:
                 continue
-            herb_part = sum(hscore[h] for h in carrying) / math.sqrt(len(comp))
-            shared = [x["f"] for x in f_find[fm["formula_id"]] if x["f"] in pattern_feats]
-            score = herb_part * (1 + 0.15 * min(len(shared), 5))
+            if not (organ or herb_part):
+                cat = None          # the category confirms a match; it does not make one
+            shared = [x["f"] for x in f_find[fid] if x["f"] in pattern_feats]
+            score = (herb_part + ind + (CATEGORY_BONUS if cat else 0)) * (1 + 0.15 * min(len(shared), 5))
             if score >= 1.5:
-                fscored.append((round(score, 2), fm["formula_id"], carrying, shared))
+                link = {"h": carrying, "f": shared}
+                if quote:
+                    link["q"] = {"ev": quote, "c": where}
+                if cat:
+                    link["cat"] = where
+                fscored.append((round(score, 2), fid, link))
         fscored.sort(key=lambda x: (-x[0], x[1]))
-        fms = [{"id": fid, "s": s, "h": carrying, "f": shared} for s, fid, carrying, shared in fscored[:TOP_FORMULAS]]
+        fms = [{"id": fid, "s": s, **link} for s, fid, link in fscored[:TOP_FORMULAS]]
 
         links[sid] = {"m": meth, "p": pts, "h": hs, "fm": fms}
 
@@ -385,6 +487,19 @@ def build_data():
     for l in links.values():
         for m in l["m"]:
             m["i"] = remap[m["i"]]
+
+    # Every Han-classic formula stays selectable; a Yifang Jijie-only formula is written only when a pattern links it.
+    linked = {f["id"] for l in links.values() for f in l["fm"]}
+    shown_formulas = {fm["formula_id"] for fm in formulas
+                      if fm["formula_id"] in linked or any(s["source_id"] != "WS-YFJJ" for s in fm.get("sources", []))}
+
+    def anchor(row):
+        """The words the source link of a Yifang Jijie composition opens at: the formula's first indication
+        piece (治一切陽虛气弱), which, unlike its name, is not repeated in other formulas' commentary."""
+        if not src(row, "composition").startswith("WS-YFJJ"):
+            return {}
+        entries = yf_entries.get(row["formula_id"])
+        return {"anchor": entries[0][2][0][0]} if entries and entries[0][2] else {}
 
     def src(row, field):
         for s in row.get("sources", []):
@@ -411,7 +526,8 @@ def build_data():
             "comp": [{"h": c.get("herb_id"), "d": c.get("dose_original", "")} for c in fm.get("composition", [])],
             "src": src(fm, "composition") or src(fm, "classical"), "ind_src": src(fm, "indications"),
             "find": f_find[fm["formula_id"]],
-        } for fm in formulas},
+            **anchor(fm),
+        } for fm in formulas if fm["formula_id"] in shown_formulas},
         "safety": [{"id": r["rule_id"], "cond": r["condition"], "ids": r["entity_ids"], "sev": r["severity"],
                     "note": r.get("note", ""), "src": src(r, "entity_ids"), "status": r.get("status", "draft")}
                    for r in rules],
