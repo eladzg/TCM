@@ -350,6 +350,101 @@ def build_syndromes(terms):
     return rows
 
 
+# ---------- GB/T 16751.2 patterns that WHO 2022 does not list ----------
+
+# GB section -> the middle part of the syndrome id, as for the WHO groups above. Section 5 is split by
+# organ system (5.1 heart and small intestine ... 5.6 combined zang-fu), 6.1.4 are the extra meridians.
+GB_GROUPS = {"2": "EP", "3": "ETI", "4": "QB", "5.1": "HT", "5.2": "LR", "5.3": "SP", "5.4": "LU", "5.5": "KI",
+             "5.6": "ZF", "5.7": "OTH", "5.8": "OTH", "5.9": "ESS", "5.10": "UT", "6.1.4": "EXM", "6": "MER",
+             "7": "SIX", "8": "SJ", "9": "WQY", "10": "OTH", "11": "OTH"}
+# Section 5.7 lists the five wheels of the eye, the ear, nose, throat, mouth and teeth; WHO has no such group.
+GB_CATEGORY = {"5.7": "Patterns of the eyes, ears, nose, throat, mouth and teeth"}
+# Readings pypinyin gets wrong in pattern names. Only the displayed pinyin uses them: ids keep
+# `to_id`, so a WHO id and a GB id are romanised the same way.
+TONE_FIXES = {"少阴": "shào yīn", "少阳": "shào yáng", "卫分": "wèi fèn", "气分": "qì fèn", "营分": "yíng fèn",
+              "阴分": "yīn fèn", "少腹": "shào fù", "血": "xuè", "龈": "yín", "咽": "yān", "痞塞": "pǐ sè",
+              "蒙塞": "méng sè", "蹻": "qiāo", "跷": "qiāo", "着": "zhuó", "假": "jiǎ", "中经": "zhòng jīng",
+              "中络": "zhòng luò", "中脏": "zhòng zàng", "中腑": "zhòng fǔ", "入中": "rù zhòng", "直中": "zhí zhòng",
+              "中风": "zhòng fēng", "中暑": "zhòng shǔ"}
+FOURTH_TONE = re.compile(r"[àèìòùǜ]")
+# Misspellings in the draft's English terms.
+GB_EN_TYPOS = {"amaging": "damaging", "withfluid": "with fluid", "pirmordial": "primordial",
+               "thorougfare": "thoroughfare", "ofblood": "of blood"}
+
+
+def tone_pinyin(name_zh):
+    """Lower-case pinyin with tone marks, one syllable per character, as WHO 2022 prints it."""
+    from pypinyin import Style, pinyin
+    key = herb_key(name_zh)
+    syllables = [s[0] for s in pinyin(key, style=Style.TONE, errors=lambda chars: [None] * len(chars))]
+    if len(syllables) != len(key):
+        return " ".join(s for s in syllables if s)
+    for phrase, reading in TONE_FIXES.items():
+        for m in re.finditer(phrase, key):
+            syllables[m.start():m.end()] = reading.split()
+    for i in range(len(syllables) - 1):     # 不 before a fourth tone is read bú (WHO: shèn bú nà qì)
+        if key[i] == "不" and syllables[i + 1] and FOURTH_TONE.search(syllables[i + 1]):
+            syllables[i] = "bú"
+    return " ".join(s for s in syllables if s)
+
+
+def gb_group(code):
+    parts = code.split(".")
+    for n in (3, 2, 1):
+        if ".".join(parts[:n]) in GB_GROUPS:
+            return ".".join(parts[:n])
+    return "11"
+
+
+def gb_name_en(en):
+    """GB's English term in the WHO form: 'syndrome/pattern of liver cold' -> 'Pattern of liver cold'."""
+    en = re.sub(r"\s+", " ", en or "").strip()
+    en = re.sub(r"\b[Ss]ynd\w*/patterns?\b", "pattern", en)
+    for typo, word in GB_EN_TYPOS.items():
+        en = re.sub(rf"\b{typo}\b", word, en)
+    return en[:1].upper() + en[1:]
+
+
+def build_gb_syndromes(who_rows):
+    """Draft rows for the GB/T 16751.2 patterns with findings whose names (or synonyms) WHO 2022 does not use.
+
+    The interview build links them to findings from the GB text, like the GB links of WHO patterns."""
+    path = STAGING / "GBT-16751-2" / "syndromes.jsonl"
+    if not path.exists():
+        return []
+    who_names = {r["name_zh"] for r in who_rows}
+    ids = {r["syndrome_id"] for r in who_rows}
+    categories = {r["syndrome_id"].split(".")[1]: r["category"] for r in who_rows}
+    categories["OTH"] = "Other patterns"
+    claimed, rows = set(), []
+    records = read_jsonl(path)
+    for r in records:                       # the GB entry each WHO name points to (first one, as the interview build reads it)
+        for name in [r["name_zh"]] + r["synonyms_zh"]:
+            if name in who_names and name not in claimed:
+                claimed.add(name)
+                r["_who"] = True
+    for r in records:
+        if r.get("_who") or not r["findings_main"] or who_names & set([r["name_zh"]] + r["synonyms_zh"]):
+            continue
+        section = gb_group(r["code"])
+        group = GB_GROUPS[section]
+        sid = base = to_id(f"SYN.{group}", r["name_zh"].removesuffix("证"))
+        n = 1
+        while sid in ids:                   # same pinyin, other characters (肝郁 / 肝瘀)
+            n += 1
+            sid = f"{base}_{n}"
+        ids.add(sid)
+        locator = f"{r['code']} ({r['name_zh']})"
+        row = {"syndrome_id": sid, "name_en": gb_name_en(r["name_en"]), "name_pinyin": tone_pinyin(r["name_zh"]),
+               "name_zh": r["name_zh"], "category": GB_CATEGORY.get(section, categories[group]),
+               "presentation": r["definition"], "aetiology": r["cause"]}
+        row = {k: v for k, v in row.items() if v}
+        row["status"] = "draft"
+        row["sources"] = [ref("GBT-16751-2", f, locator) for f in ("presentation", "aetiology") if f in row]
+        rows.append(row)
+    return rows
+
+
 def manifestation_kind(t):
     n = t["number"]
     if 634 <= n < 700:
@@ -388,6 +483,7 @@ def main():
     safety = build_safety(index, classical_points)
     terms = who_terms()
     syndromes, manifestations = build_syndromes(terms), build_manifestations(terms)
+    syndromes += build_gb_syndromes(syndromes)
     herbs = []
     for row in index.rows:
         row.pop("_bencao", None)

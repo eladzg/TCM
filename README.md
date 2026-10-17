@@ -67,6 +67,8 @@ A Hebrew intake interview that runs in the browser with no server and no LLM: op
 
 How it decides, for now: every derived link has the same placeholder weight (`defaults.weight` in the lexicon), and a pattern's score is the overlap between the patient's findings and the pattern's findings, minus half a point per finding the patient denied. Up to fifteen screening questions go to everyone (fewer when the free text already answered them); up to twelve more are chosen to split the leading candidates. Everything here is a draft: the Hebrew wording, the links and the weights need the clinician's review, and the red-flag screen is keyword matching, not the LLM Safety Monitor.
 
+The candidates also include the 1,311 GB/T 16751.2 patterns that WHO 2022 does not list (status `draft`, ids `SYN.<group>.<PINYIN>`, the Chinese name and GB text as the only source, English names only where the GB English is usable). Their links come from the GB text with the Chinese lexicon words, and their score is multiplied by 0.75 (`GB_ONLY_PRIOR`, the best top1 on the TCM-SD dev split). On the TCM-SD test split, top1/top10 go from 21.2%/51.1% (3,624 records, WHO patterns only) to 17.3%/39.3% on 5,049 records, 1,425 of them with a GB-only gold pattern that was unreachable before (11.7%/28.3% on those).
+
 ```
 python3 tools/interview/build_interview.py                        # after editing the lexicon or syndromes
 python3 tools/interview/build_interview.py --standalone out.html  # one self-contained file
