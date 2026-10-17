@@ -1,8 +1,9 @@
 // 3D body figure for the treatment plan: the "Male base muscular anatomy" model (Harshit Prajapati,
 // Sketchfab, CC BY 4.0) with the course of the channels used, arrows for their direction of flow, and
 // the chosen points (filled = acupuncture, ring = shiatsu), on both sides of the body.
-// Point positions come from app/interview/points3d.js (tools/treatment/build_points3d.py): the
-// schematic anchors of body_map.js placed on the model's surface. They are approximate; the exact
+// Point positions and the channel lines come from app/interview/points3d.js
+// (tools/treatment/build_points3d.py): the AcuAtlas location text placed on a cun grid measured on the
+// model, and the lines between the points laid over the skin. They are approximate; the exact
 // location is the AcuAtlas text shown with every point.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/+esm";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm";
@@ -10,6 +11,7 @@ import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/exampl
 import { CSS2DRenderer, CSS2DObject } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js/+esm";
 
 const P3 = window.TCM_POINTS3D || {};
+const PATHS = window.TCM_PATHS3D || null;   // {channel: [[[x, y, z], ...], ...]}, already off the skin
 const BM = window.TCMBodyMap;
 const LIFT = 0.0007;          // markers sit this far off the skin, along the normal
 let model = null;              // Promise of the loaded glTF scene, shared by every viewer
@@ -142,19 +144,22 @@ function create(container, opts) {
       const lineMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
       [1, -1].forEach((side) => {
         if (side < 0 && /^(CV|GV)$/.test(ch)) return;
-        runs(ch).forEach((run) => {
-          const pts = run.map((id) => vec(id, side)).filter(Boolean).map((v) => v.pos)
-            .filter((v, i, a) => i === 0 || v.distanceTo(a[i - 1]) > 1e-5);   // points that share a spot
+        const lines = PATHS && PATHS[ch]
+          ? PATHS[ch].map((pl) => pl.map((p) => new THREE.Vector3(side < 0 ? -p[0] : p[0], p[1], p[2])))
+          : runs(ch).map((run) => run.map((id) => vec(id, side)).filter(Boolean).map((v) => v.pos));
+        lines.forEach((raw) => {
+          const pts = raw.filter((v, i, a) => i === 0 || v.distanceTo(a[i - 1]) > 1e-5);   // points that share a spot
           if (pts.length < 2) return;
           const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
-          marks.add(new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 6), 0.00042, 6, false), lineMat));
-          // arrows along the flow (increasing point numbers)
-          const every = Math.max(2, Math.round(pts.length / 4));
-          for (let i = every; i < pts.length; i += every) {
-            const t = (i - 0.5) / (pts.length - 1);
+          const len = curve.getLength();
+          marks.add(new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2), 0.00042, 6, false), lineMat));
+          // arrows along the flow (increasing point numbers), about every 0.025 along the line
+          const n = Math.max(1, Math.round(len / 0.025));
+          for (let i = 0; i < n; i++) {
+            const t = (i + 0.5) / n;
             const cone = new THREE.Mesh(new THREE.ConeGeometry(0.0009, 0.0026, 10), lineMat);
-            cone.position.copy(curve.getPointAt(Math.min(1, t)));
-            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(Math.min(1, t)));
+            cone.position.copy(curve.getPointAt(t));
+            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(t));
             marks.add(cone);
           }
         });

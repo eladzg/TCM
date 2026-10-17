@@ -153,10 +153,17 @@ def test_committed_points3d_is_current():
     pytest.importorskip("numpy")
     import build_points3d
     text = (ROOT / "app" / "interview" / "points3d.js").read_text("utf-8")
-    committed = json.loads(text[text.index("=") + 1:].rstrip().rstrip(";"))
-    built = build_points3d.build()
+
+    def value(name):
+        return json.loads(text.split(f"window.{name} = ", 1)[1].split(";\n", 1)[0])
+
+    committed, committed_paths = value("TCM_POINTS3D"), value("TCM_PATHS3D")
+    built, paths, how = build_points3d.build_all()
     assert set(committed) == set(json.loads((ROOT / "app" / "interview" / "treatment_kb.js").read_text("utf-8").split("=", 1)[1].rstrip().rstrip(";"))["points"])
     assert committed == built
+    assert committed_paths == paths
+    # the most used points are placed from their AcuAtlas location text, not the schematic fallback
+    assert all(how[p] != "schematic" for p in ("LR3", "ST36", "SP6", "LI4", "PC6", "GB20", "BL23", "CV12", "GV20", "KI3"))
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
