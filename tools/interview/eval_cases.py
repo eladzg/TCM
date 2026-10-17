@@ -68,11 +68,16 @@ def extract(text, features):
 
 
 def who_index(syndromes, gb):
-    """Chinese name (WHO name or any GB synonym of the same GB entry) -> WHO syndrome id."""
+    """Chinese name (pattern name or any GB synonym of the same GB entry) -> syndrome id.
+
+    WHO names come first; a GB pattern WHO does not list never takes over a name a WHO pattern uses."""
     index = {}
     for s in syndromes:
-        index[s["name_zh"]] = s["syndrome_id"]
-        rec = gb.get(s["name_zh"])
+        if B.gb_code(s):
+            index.setdefault(s["name_zh"], s["syndrome_id"])
+        else:
+            index[s["name_zh"]] = s["syndrome_id"]
+        rec = B.gb_record(s, gb)
         if rec:
             for name in [rec["name_zh"]] + rec["synonyms_zh"]:
                 index.setdefault(name, s["syndrome_id"])

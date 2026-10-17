@@ -1,7 +1,7 @@
 """Estimate draft pattern-finding weights from TCM-SD clinical records, and test them.
 
-For every WHO pattern with at least MIN_RECORDS training records, and every lexicon feature,
-counts how often the records of that pattern report the finding versus records of all other
+For every pattern (WHO 2022, or GB/T 16751.2 where WHO has none) with at least MIN_RECORDS training
+records, and every lexicon feature, counts how often the records of that pattern report the finding versus records of all other
 patterns. The likelihood ratio LR = P(finding | pattern) / P(finding | other patterns) becomes the
 link's draft weight, log2(LR) clipped to [0.1, 3]: a finding three times more common in the
 pattern weighs about 1.6, one no more common than elsewhere weighs 0.1. Findings the text sources
@@ -68,13 +68,21 @@ def evaluate(records, kb_js=B.APP / "kb.js"):
     res = subprocess.run(["node", "-e", SCORER, str(kb_js), str(B.APP / "engine.js")],
                          input=json.dumps(records), capture_output=True, text=True, check=True)
     ranks = json.loads(res.stdout)
-    n = len(ranks)
+    gb_only = {s["syndrome_id"] for s in B.load(B.KB / "curation" / "syndromes.yaml") if B.gb_code(s)}
+    kb = json.loads(kb_js.read_text("utf-8").split("=", 1)[1].rstrip().rstrip(";"))
+    pool = sum(1 for s in kb["syndromes"] if len(s["links"]) >= 3)
 
-    def top(k, i):
-        return sum(1 for r in ranks if r[i] <= k) / n * 100
+    def top(k, i, sel):
+        return sum(1 for r in sel if r[i] <= k) / max(1, len(sel)) * 100
 
-    for i, label in ((0, "all 423 patterns"), (1, "patterns seen in the test records")):
-        print(f"  among {label}: top1 {top(1, i):.1f}%  top3 {top(3, i):.1f}%  top10 {top(10, i):.1f}%")
+    groups = [("all", ranks), ("WHO pattern", [r for r, x in zip(ranks, records) if x["gold"] not in gb_only]),
+              ("GB-only pattern", [r for r, x in zip(ranks, records) if x["gold"] in gb_only])]
+    for name, sel in groups:
+        if not sel:
+            continue
+        print(f" {name} ({len(sel)} records):")
+        for i, label in ((0, f"all {pool} candidate patterns"), (1, "patterns seen in the test records")):
+            print(f"  among {label}: top1 {top(1, i, sel):.1f}%  top3 {top(3, i, sel):.1f}%  top10 {top(10, i, sel):.1f}%")
 
 
 def main(argv=None):
@@ -87,7 +95,7 @@ def main(argv=None):
     stats = count(train)
     STATS.parent.mkdir(parents=True, exist_ok=True)
     STATS.write_text(json.dumps(stats, ensure_ascii=False, sort_keys=True, indent=1), encoding="utf-8")
-    print(f"{len(train)} training records, {len(stats['patterns'])} WHO patterns -> {STATS.relative_to(B.ROOT)}")
+    print(f"{len(train)} training records, {len(stats['patterns'])} patterns -> {STATS.relative_to(B.ROOT)}")
     if args.eval:
         test = tcmsd.prepared("test", features, index)
         print(f"{len(test)} test records:")
