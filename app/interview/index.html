@@ -87,6 +87,12 @@ h3 { font-size: 1rem; margin: 0; }
 .checks { display: flex; flex-wrap: wrap; gap: 6px; }
 .checks label.opt { font-size: .9rem; padding: 4px 9px; }
 .flags { display: grid; gap: 6px; }
+.scenario { border-radius: 8px; padding: 8px 12px; font-size: .92rem; border: 1px solid var(--line); }
+.scenario.ok { background: var(--jade-soft); }
+.scenario.near { background: var(--amber-soft); }
+.scenario.miss { background: var(--cinnabar-soft); }
+.scenario .hint { color: var(--muted); }
+#demo-case { max-width: 15em; }
 .flag { border-radius: 8px; padding: 8px 12px; font-size: .92rem; }
 .flag.red { background: var(--cinnabar-soft); color: var(--cinnabar); }
 .flag.amber { background: var(--amber-soft); color: var(--amber); }
@@ -196,6 +202,7 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
     </div>
     <div class="row">
       <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
+      <select id="demo-case" aria-label="מקרה לדוגמה"></select>
       <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
     </div>
   </header>
@@ -217,6 +224,7 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
 <script src="he_dict.js"></script>
 <script src="i18n.js"></script>
 <script src="engine.js"></script>
+<script src="demo_cases.js"></script>
 <script src="treatment_kb.js"></script>
 <script src="body_map.js"></script>
 <script src="points3d.js"></script>

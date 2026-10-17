@@ -157,3 +157,13 @@ def test_committed_points3d_is_current():
     built = build_points3d.build()
     assert set(committed) == set(json.loads((ROOT / "app" / "interview" / "treatment_kb.js").read_text("utf-8").split("=", 1)[1].rstrip().rstrip(";"))["points"])
     assert committed == built
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_sample_cases_rank_their_patterns():
+    script = ROOT / "tools" / "interview" / "eval_scenarios.js"
+    out = json.loads(subprocess.run(["node", str(script), "40"], capture_output=True, text=True, check=True).stdout)
+    cur = out["curated_summary"]
+    # every curated case puts one of its expected patterns in the five shown; the red-flag case stops
+    assert cur["top5"] == cur["n"] and cur["halt_missed"] == 0 and cur["halt_unexpected"] == 0
+    assert out["random_summary"]["top5"] >= 0.9 * out["random_summary"]["n"]

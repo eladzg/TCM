@@ -56,6 +56,7 @@
     state = E.newState({});
     current = null;
     objective = { tongue: null, pulse: null };
+    scenario = null;
     step = "intake";
     say("שלום, אני עוזר/ת האינטייק של הקליניקה. אשאל כמה שאלות לפני הפגישה, והמטפל/ת יעבור/תעבור על התשובות. אני לא נותן/ת אבחנה או טיפול.");
     var age = el("input", { type: "number", id: "age", min: "1", max: "120", inputmode: "numeric", style: "width:6em" });
@@ -360,6 +361,7 @@
     var no = findingsList.filter(function (f) { return f.value === "absent"; });
     var dq = rep.discriminating_questions[0];
     var children = [
+      scenarioBanner(),
       el("div", { class: "panel" }, [
         el("h2", { text: "הצעה למטפל" }),
         el("p", { class: "summary", text: rep.clinician_summary.text, style: "margin:0" }),
@@ -404,31 +406,63 @@
   document.getElementById("tab-patient").addEventListener("click", function () { showTab("patient"); });
   document.getElementById("tab-clin").addEventListener("click", function () { showTab("clin"); });
 
-  // Sample case from the architecture doc (section 4.4): a 41-year-old woman with temporal headaches.
-  document.getElementById("demo").addEventListener("click", function () {
+  // Sample cases (demo_cases.js): curated presentations, or a random case built from one pattern's
+  // links. The clinician view then shows which pattern the case was written for and where it ranked.
+  var D = window.TCMDemoCases;
+  var scenario = null;
+  var synById = {};
+  kb.syndromes.forEach(function (s) { synById[s.id] = s; });
+  var pick = document.getElementById("demo-case");
+  pick.appendChild(el("option", { value: "any", text: "מקרה מוכן אקראי" }));
+  pick.appendChild(el("option", { value: "random", text: "תרחיש אקראי מתבנית במאגר" }));
+  D.CASES.forEach(function (c) { pick.appendChild(el("option", { value: c.id, text: c.title })); });
+
+  function runDemo(c) {
     start();
     chat.textContent = "";
-    state.patient = { age: 41, sex: "F", pregnancy: "unknown" };
-    say("מקרה לדוגמה: אישה בת 41, סטטוס היריון לא נמסר.", "sys");
-    E.ingestMedications(state, "ציפרלקס");
-    say("ציפרלקס", "pt");
-    var text = "יש לי כאבי ראש פועמים ברקות, בעיקר כשאני בלחץ ולפני המחזור. אני עצבנית מאוד, יש לי טעם מר בפה ואני מתעוררת בלילה.";
-    say(text, "pt");
-    var r = E.ingestText(state, text, "chief_complaint");
-    showUnderstood(r.findings);
-    var truth = ["FT.DIZZY", "FT.RED_FACE", "FT.RESTLESS", "FT.FEELS_HOT", "FT.PMS", "FT.MENS_IRREGULAR", "FT.DRY_MOUTH"];
-    var q, guard = 0;
-    while ((q = E.nextQuestion(state)) && guard++ < 40) {
-      var v = truth.indexOf(q.feature.id) !== -1 || (state.answers[q.feature.id] && state.answers[q.feature.id].value === true);
-      say(q.feature.q_he, "sys");
-      say(v ? "כן" : "לא", "pt");
-      E.answerQuestion(state, q, v);
-    }
-    say("הראיון לדוגמה הסתיים. במקרה הזה המטפל/ת סימן/ה לשון אדומה וצדי לשון אדומים, ודופק מיתרי.");
-    objective = { tongue: ["TG.RED", "TG.RED_SIDES"], pulse: ["PL.WIRY"] };
+    scenario = c;
+    var p = c.patient;
+    say("מקרה לדוגמה: " + c.title + ". " + (p.sex === "F" ? "אישה" : "גבר") + " בן/בת " + p.age +
+        (p.sex === "F" ? (p.pregnancy === "yes" ? ", בהיריון" : p.pregnancy === "no" ? ", לא בהיריון" : ", סטטוס היריון לא נמסר") : "") + ".", "sys");
+    var obj = D.run(E, state, c, function (x, who) {
+      if (who === "understood") showUnderstood(x); else say(x, who);
+    });
+    if (obj.halted) { halt(); showTab("clin"); return; }
+    var seen = (obj.tongue || []).concat(obj.pulse || []).map(function (id) { return E.featById[id].label_he; });
+    say("הראיון לדוגמה הסתיים." + (seen.length ? " המטפל/ת סימן/ה בבדיקה: " + seen.join(", ") + "." : " לשון ודופק לא הוזנו."));
+    objective = { tongue: obj.tongue, pulse: obj.pulse };
     step = "done";
     showTab("clin");
+  }
+  document.getElementById("demo").addEventListener("click", function () {
+    var v = pick.value, c;
+    if (v === "random") c = D.random(kb, 1 + Math.floor(Math.random() * 99999));
+    else if (v === "any") c = D.CASES[Math.floor(Math.random() * D.CASES.length)];
+    else c = D.CASES.filter(function (x) { return x.id === v; })[0];
+    runDemo(c);
   });
+
+  // Banner over the clinician view: what the sample case was written for and where it ranked now.
+  function scenarioBanner() {
+    if (!scenario) return null;
+    var c = scenario;
+    if (c.halt) {
+      return el("div", { class: "scenario " + (step === "halted" ? "ok" : "miss") }, [
+        el("b", { text: "מקרה לדוגמה: " + c.title + ". " }),
+        step === "halted" ? "הצפוי: הראיון נעצר בגלל סימן אזהרה, וכך קרה." : "הצפוי: הראיון נעצר בגלל סימן אזהרה, אבל הוא לא נעצר."
+      ]);
+    }
+    var best = D.rankOf(E, state, c);
+    var names = c.expect.map(function (id) { var s = synById[id]; return s ? (s.he || s.en) : id; });
+    var cls = best && best.rank === 1 ? "ok" : best && best.rank <= 5 ? "near" : "miss";
+    var where = !best ? "לא קיבלה ציון" : best.rank === 1 ? "במקום הראשון" : "במקום " + best.rank + (best.rank > 5 ? ", מחוץ לחמש המוצגות" : "");
+    return el("div", { class: "scenario " + cls }, [
+      el("b", { text: (c.random ? c.title + ". " : "מקרה לדוגמה: " + c.title + ". ") }),
+      (c.random ? "נבנה מהתבנית: " : "התבנית הצפויה: ") + names.slice(0, c.random ? 1 : 3).join(" / ") + (names.length > 3 ? " ועוד" : "") + ". ",
+      "דורגה " + where + (best && c.expect.length > 1 ? " (" + (synById[best.id].he || synById[best.id].en) + ")" : "") + ".",
+      c.random ? el("span", { class: "hint", text: " תרחיש אקראי נבנה מהקישורים של התבנית עצמה, ולכן בודק את המנוע מול הנתונים שלו ולא מול שיפוט קליני." }) : null
+    ]);
+  }
 
   // Hooks for the voice interview (voice_ui.js): it drives the same state and views, with the
   // ElevenLabs agent in place of the typed composer.

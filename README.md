@@ -70,6 +70,14 @@ python3 tools/interview/build_interview.py                        # after editin
 python3 tools/interview/build_interview.py --standalone out.html  # one self-contained file
 ```
 
+### Sample cases
+
+The "מילוי מקרה לדוגמה" button runs a sample patient through the interview. `app/interview/demo_cases.js` holds 16 curated cases (textbook presentations written for the prototype, not real patients: liver yang, spleen qi, kidney yang and yin, wind-cold, damp-heat in the bladder, blood stasis in the uterus, a pregnancy case, a chest-pain case that must stop the interview, and more), each with the WHO 2022 patterns a clinician would accept. "תרחיש אקראי מתבנית במאגר" builds a case from one pattern's own links, so it checks the engine against its own data, not against clinical judgement. The clinician view then shows which pattern the case was written for and where it ranked.
+
+```
+node tools/interview/eval_scenarios.js 300   # rank of the expected pattern for every curated case and 300 random ones
+```
+
 ## Treatment plan step (`app/interview/treatment.js`)
 
 After the hypotheses, the clinician view shows a draft treatment plan for the leading pattern (or patterns the clinician ticks): treatment principle, acupuncture points, a herbal prescription and shiatsu points, a live safety check, and a follow-up recommendation. The clinician adds and removes points and herbs, sets technique, moxa and gram doses, approves or rejects each suggested link, and saves the plan (`treatment_plan.v1` JSON, kept in the browser and downloadable).
