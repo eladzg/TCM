@@ -88,6 +88,11 @@ console.log(JSON.stringify({{ startPoints, issues,
     assert rules["SAFE.PREG.DA_JI"] == "red"                  # pregnancy contraindication
     assert rules["DRAFT.ANTICOAGULANT.BLOOD_MOVING"] == "red"  # 丹參 with an anticoagulant
     assert "DOSE.MISSING.HERB.DA_JI" in rules and "DOSE.MISSING.HERB.GAN_CAO" not in rules
+    # PubMed literature: 丹參 with warfarin is shown (amber, with article links), and only for the drug
+    # classes on the medication list (no antidepressant here)
+    assert rules["PUBMED.ANTICOAGULANT.HERB.DAN_SHEN"] == "amber"
+    assert next(i for i in out["issues"] if i["rule"] == "PUBMED.ANTICOAGULANT.HERB.DAN_SHEN")["pubmed"]
+    assert not any(r.startswith("PUBMED.ANTIDEPRESSANT") for r in rules)
     assert out["bannedSuggested"] and not out["bannedChosen"]   # with a reported pregnancy, points a pregnancy rule names start unselected
 
 

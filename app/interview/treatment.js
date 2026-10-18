@@ -11,6 +11,13 @@
   var SECOND_PATTERN_SHARE = 0.6;    // a second selected pattern counts this much
   var DEFAULT_POINTS = 6, DEFAULT_SHIATSU = 5;
   var BLOOD_MOVING = /活血|破血|破宿血|逐瘀|散瘀|祛瘀|去瘀|化瘀|行血|破瘀|通经|通經/;   // DRAFT heuristic, no source: checked against anticoagulants
+  // PubMed safety topics (tools/ingest/pubmed.py): Hebrew name, and whether the topic needs a matching
+  // medication or background flag (otherwise: pregnancy status) before it is shown.
+  var PUBMED_TOPICS = {
+    anticoagulant: "נוגדי קרישה", antidiabetic: "תרופות לסוכרת", antidepressant: "נוגדי דיכאון",
+    immunosuppressant: "מדכאי חיסון", digoxin: "דיגוקסין", hepatotoxicity: "פגיעה בכבד",
+    nephrotoxicity: "פגיעה בכליות", pregnancy: "היריון"
+  };
   var NO_PRESSURE = /orbit|eyeball|canthus|nipple|umbilicus/i; // not offered for shiatsu pressure
   // Body region of a point, from the first matching word of its AcuAtlas location (order matters).
   var REGIONS = [
@@ -207,6 +214,22 @@
           push({ sev: "amber", ids: [], rule: "DRAFT.ALLERGY", src: "", note: "Allergy reported.",
                  he: "דווחה אלרגיה: לבדוק את הרכב המרשם מול האלרגיה" });
         }
+      });
+      // PubMed literature on a herb in the plan and a drug class on the medication list (or liver/kidney
+      // disease, or pregnancy). Evidence for the clinician to read, not a rule: amber, or info for pregnancy,
+      // whose classical rules above already decide the severity.
+      var ev = tx.evidence || { topics: {}, herbs: {} };
+      herbIds.forEach(function (id) {
+        var byTopic = ev.herbs[id] || {};
+        Object.keys(byTopic).forEach(function (topic) {
+          var need = ev.topics[topic];
+          var applies = need ? (constraints || []).indexOf(need) !== -1 : pregnancy === "yes" || pregnancy === "unknown";
+          if (!applies) return;
+          var hit = byTopic[topic];
+          push({ sev: topic === "pregnancy" ? "info" : "amber", ids: [id], rule: "PUBMED." + topic.toUpperCase() + "." + id,
+                 src: "PUBMED", note: "", pubmed: hit[1],
+                 he: "ספרות מחקרית: " + label(id) + " ו" + PUBMED_TOPICS[topic] + ", " + hit[0] + " מאמרים ב-PubMed. ראיות לקריאה, לא כלל" });
+        });
       });
       plan.herbs.forEach(function (h) {
         if (h.dose_g === "" || h.dose_g === null || h.dose_g === undefined) {
@@ -604,14 +627,15 @@
     var cautions = issues.filter(function (i) { return /^ACUATLAS/.test(i.rule); });
     var doses = issues.filter(function (i) { return /^DOSE/.test(i.rule); });
     var preg = ctx.state.patient.pregnancy;
-    p.appendChild(el("p", { class: "hint", text: "נבדק מול " + tx.safety.length + " כללי הבטיחות שבמאגר (היריון, שמונה-עשר הניגודים ותשע-עשרה הרתיעות בין צמחים, צמחים רעילים, נקודות אסורות לדיקור או למוקסה), מול רשימת התרופות ומול אזהרות הדיקור של AcuAtlas." +
+    p.appendChild(el("p", { class: "hint", text: "נבדק מול " + tx.safety.length + " כללי הבטיחות שבמאגר (היריון, שמונה-עשר הניגודים ותשע-עשרה הרתיעות בין צמחים, צמחים רעילים, נקודות אסורות לדיקור או למוקסה), מול רשימת התרופות, מול אזהרות הדיקור של AcuAtlas ומול מאמרים ב-PubMed על הצמחים שבמרשם." +
       (preg === "yes" ? " המטופלת דיווחה על היריון אפשרי." : preg === "unknown" ? " סטטוס ההיריון לא אושר, ולכן כל פריט שאסור בהיריון מסומן." : "") }));
     if (!shown.length) p.appendChild(el("div", { class: "flag info", text: "לא נמצאה התנגשות עם כללי הבטיחות שבמאגר." }));
     shown.forEach(function (i) {
       p.appendChild(el("div", { class: "flag " + i.sev, title: i.rule }, [i.he,
         i.note ? el("span", { class: "en", text: " · " + I.heOr(i.note) }) : null,
         i.note && I.he(i.note) ? zh(" " + i.note) : null,
-        i.src ? el("span", { class: "id", text: " · " + I.books(i.src) + " " }) : null, i.src ? srcLink(i.src) : null]));
+        i.src && !i.pubmed ? el("span", { class: "id", text: " · " + I.books(i.src) + " " }) : null, i.src && !i.pubmed ? srcLink(i.src) : null,
+        i.pubmed ? pubmedList(i.pubmed) : null]));
     });
     if (doses.length) p.appendChild(el("div", { class: "flag info", text: "לא נקבע מינון בגרם ל-" + doses.length + " צמחים. המינון הוא החלטה של המטפל, והמערכת לא מציעה אותו." }));
     if (cautions.length) {
@@ -619,6 +643,16 @@
         cautions.map(function (i) { return el("div", { class: "src" }, [el("b", { text: i.ids[0] + ": " }), i.note]); }))));
     }
     return p;
+  }
+
+  function pubmedList(pmids) {
+    var arts = (tx.evidence && tx.evidence.articles) || {};
+    return el("details", { class: "pubmed" }, [el("summary", { text: "המאמרים הרלוונטיים ביותר" })].concat(pmids.map(function (p) {
+      var a = arts[p] || ["", "", "", 0];
+      return el("div", { class: "src" }, [
+        el("a", { href: "https://pubmed.ncbi.nlm.nih.gov/" + p + "/", target: "_blank", rel: "noopener", text: a[0] || "PMID " + p }),
+        el("span", { class: "en", text: " · " + [a[2], a[1]].filter(Boolean).join(", ") + (a[3] ? " · סקירה" : "") })]);
+    })));
   }
 
   function pointRow(s, list, kind, issues) {
@@ -839,7 +873,7 @@
         return { n: x.n, kind: x.kind, focus_he: x.focus_he, focus_finding: x.finding, regions: x.regions, acupuncture: x.points, shiatsu: x.shiatsu, note_he: x.note_he };
       }) } : null,
       followup: { interval: plan.followup.interval, sessions: plan.followup.sessions === "" ? null : Number(plan.followup.sessions), notes_he: plan.followup.notes_he },
-      safety_check: issues.map(function (i) { return { severity: i.sev, rule_id: i.rule, entity_ids: i.ids, message_he: i.he, source: i.src || null }; }),
+      safety_check: issues.map(function (i) { return { severity: i.sev, rule_id: i.rule, entity_ids: i.ids, message_he: i.he, source: i.src || null, pubmed_ids: i.pubmed || [] }; }),
       link_decisions: Object.keys(plan.decisions).map(function (k) {
         var parts = k.split("|");
         return { syndrome_id: parts[0], kind: parts[1], target_id: parts[2], decision: plan.decisions[k] };

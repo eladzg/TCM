@@ -9,6 +9,8 @@ came from, and writes app/interview/treatment_kb.js (window.TCM_TX):
             ("subdues Liver yang" for Hyperactivity of liver yang), plus points whose AcuAtlas
             indications or Zhenjiu Dacheng 主 text list the pattern's findings
   herbs     Bencao Beiyao herbs whose actions name the method ("平肝", "補氣")
+  evidence  PubMed articles on each herb's interactions with screened drug classes, liver and kidney
+            toxicity and pregnancy (kb/staging/PUBMED, built by tools/ingest/pubmed.py)
   formulas  Shanghan Lun / Jingui Yaolue / Yifang Jijie formulas whose herbs carry those actions, Yifang
             Jijie formulas whose indications (治...) name the pattern's organ and disorder (with a bonus
             when the book's category, e.g. 補養之劑, treats that disorder), and whose clauses or
@@ -532,6 +534,26 @@ def build_data():
                     "note": r.get("note", ""), "src": src(r, "entity_ids"), "status": r.get("status", "draft")}
                    for r in rules],
         "links": links,
+        "evidence": pubmed_evidence(),
+    }
+
+
+def pubmed_evidence(per_topic=3):
+    """PubMed articles per herb and safety topic (kb/staging/PUBMED, from tools/ingest/pubmed.py), cut to
+    what the safety panel shows: the hit count and the first few articles' title, year and journal."""
+    path = KB / "staging" / "PUBMED" / "herb_evidence.json"
+    if not path.exists():
+        return {"topics": {}, "herbs": {}, "articles": {}}
+    ev = json.loads(path.read_text(encoding="utf-8"))
+    herbs = {hid: {t: [r["count"], r["pmids"][:per_topic]] for t, r in h["topics"].items()}
+             for hid, h in ev["herbs"].items() if h["topics"]}
+    used = {p for h in herbs.values() for _, pmids in h.values() for p in pmids}
+    return {
+        "retrieved": ev["retrieved"],
+        "topics": {t: (v["constraint"] or "").lower() for t, v in ev["topics"].items()},
+        "herbs": herbs,
+        "articles": {p: [a["title"], a["year"], a["journal"], int("Review" in a["types"] or "Systematic Review" in a["types"])]
+                     for p, a in ev["articles"].items() if p in used},
     }
 
 
