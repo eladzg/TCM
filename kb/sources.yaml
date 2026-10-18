@@ -40,6 +40,12 @@
   license_class: non_commercial
   url: https://pmc.ncbi.nlm.nih.gov/articles/PMC6323958
 
+- source_id: PUBMED
+  title: "PubMed (NCBI E-utilities): literature on herb safety, searched per herb by tools/ingest/pubmed.py"
+  license: "NLM: citation data free to use; abstracts may be under publisher copyright, so only titles, journal, year and PMID are stored"
+  license_class: attribution
+  url: https://pubmed.ncbi.nlm.nih.gov/
+
 - source_id: WIKIPEDIA-ACUPOINTS
   title: "Wikipedia: List of acupuncture points"
   license: CC BY-SA 4.0
