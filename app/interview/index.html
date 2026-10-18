@@ -145,6 +145,20 @@ pre.json { direction: ltr; text-align: left; max-height: 360px; overflow: auto; 
 .txrow.on { border-color: var(--jade); background: color-mix(in srgb, var(--jade-soft) 45%, var(--surface)); }
 .txrow.risk-red { border-color: var(--cinnabar); box-shadow: inset 4px 0 0 var(--cinnabar); }
 .txrow.risk-amber { box-shadow: inset 4px 0 0 var(--amber); }
+.txrow.risk-red, table.herbs tr.risk-red td { background: color-mix(in srgb, var(--cinnabar-soft) 45%, var(--surface)); }
+.txrow.risk-amber, table.herbs tr.risk-amber td { background: color-mix(in srgb, var(--amber-soft) 45%, var(--surface)); }
+.txrow.risk-note { box-shadow: inset 4px 0 0 var(--line); }
+.warnlink { font-size: .8rem; text-decoration: none; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.warnlink.red { color: var(--cinnabar); background: var(--cinnabar-soft); }
+.warnlink.amber { color: var(--amber); background: var(--amber-soft); }
+.warnlink.note { color: var(--muted); background: var(--paper); border: 1px solid var(--line); }
+.warnlink:hover, .warnlink:focus-visible { text-decoration: underline; }
+.flash { animation: warnflash 1.6s ease-out; }
+@keyframes warnflash { 0%, 30% { outline: 2px solid var(--cinnabar); outline-offset: 2px; } 100% { outline: 2px solid transparent; outline-offset: 2px; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 2px solid var(--cinnabar); } }
+.bm-warn { fill: #d0302a; stroke: var(--surface); stroke-width: .6; }
+.warn-dot { color: #d0302a; }
+.b3d-warn { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #d0302a; margin-inline-start: 3px; vertical-align: middle; box-shadow: 0 0 0 1px #fff; }
 .txname { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: baseline; cursor: pointer; }
 .txhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
 .txhead .row { gap: 8px; }

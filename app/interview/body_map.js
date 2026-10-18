@@ -141,6 +141,7 @@
         var dot = s("g", {}, [s("title", {}, [(opts.label ? opts.label(id) : id) + (isAcu && isPress ? " · דיקור ושיאצו" : isAcu ? " · דיקור" : " · שיאצו")])]);
         if (isPress) dot.appendChild(s("circle", { cx: p.x, cy: p.y, r: "4.6", fill: "none", stroke: COLOR[ch], "stroke-width": "1.4", "stroke-dasharray": isAcu ? "" : "2 1.4" }));
         if (isAcu) dot.appendChild(s("circle", { cx: p.x, cy: p.y, r: "2.8", fill: COLOR[ch] }));
+        if ((opts.warn || []).indexOf(id) !== -1) dot.appendChild(s("circle", { cx: p.x + 3.6, cy: p.y - 3.6, r: "1.7", class: "bm-warn" }));
         dot.appendChild(s("text", { x: p.x - 6, y: p.y + 3, "text-anchor": "end", class: "bm-label", fill: COLOR[ch] }, [id]));
         g.appendChild(dot);
       });

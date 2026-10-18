@@ -134,7 +134,7 @@ function create(container, opts) {
   }
 
   function show(sel) {
-    const acu = sel.acu || [], press = sel.shiatsu || [];
+    const acu = sel.acu || [], press = sel.shiatsu || [], warn = sel.warn || [];
     const ids = acu.concat(press.filter((id) => acu.indexOf(id) === -1)).filter((id) => P3[id]);
     clear();
     tags.length = 0;
@@ -176,12 +176,23 @@ function create(container, opts) {
         g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v.n);
         if (isAcu) g.add(new THREE.Mesh(new THREE.SphereGeometry(0.0015, 16, 12), new THREE.MeshBasicMaterial({ color })));
         if (isPress) g.add(new THREE.Mesh(new THREE.TorusGeometry(0.0024, 0.00045, 8, 24), new THREE.MeshBasicMaterial({ color })));
+        if (warn.indexOf(id) !== -1) {   // a warning in the safety check: a small red dot beside the marker
+          const w = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 12, 10), new THREE.MeshBasicMaterial({ color: 0xd0302a }));
+          w.position.set(0.0024, 0.0024, 0.0004);
+          g.add(w);
+        }
         {
           const el = document.createElement("span");
           el.className = "b3d-label";
           el.style.color = "#" + color.getHexString();
           el.textContent = id;
-          el.title = (opts.label ? opts.label(id) : id) + (isAcu && isPress ? " · דיקור ושיאצו" : isAcu ? " · דיקור" : " · שיאצו");
+          if (warn.indexOf(id) !== -1) {   // the red dot also on the label, so it shows at any zoom
+            const dot = document.createElement("i");
+            dot.className = "b3d-warn";
+            el.appendChild(dot);
+          }
+          el.title = (opts.label ? opts.label(id) : id) + (isAcu && isPress ? " · דיקור ושיאצו" : isAcu ? " · דיקור" : " · שיאצו") +
+            (warn.indexOf(id) !== -1 ? " · יש אזהרה בבדיקת הבטיחות" : "");
           const lab = new CSS2DObject(el);
           lab.position.set(0, 0, 0.002);
           g.add(lab);

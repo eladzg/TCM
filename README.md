@@ -95,7 +95,7 @@ After the hypotheses, the clinician view shows a draft treatment plan for the le
 | Herbs | 本草備要 entries whose opening actions name the method ("平肝", "補脾") |
 | Base formula | 傷寒論 / 金匱要略 / 醫方集解 formulas (469) carried by those herbs; 醫方集解 formulas whose indications name the pattern's organ and disorder (治脾胃虛弱 for spleen qi deficiency, quoted with its source), with a bonus when the book's category treats it (補養之劑 for a deficiency); clauses and indications describing the findings add to it. 367 of the 423 patterns get a formula (296 with the Han classics alone); liver yang rising still gets none |
 
-The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pregnancy, 十八反/十九畏, toxic herbs, 禁針/禁灸 points), the AcuAtlas needling cautions, and the medication answers. Rules for anticoagulants, implanted devices, organ disease and allergy are draft heuristics without a source and say so. No gram dose is ever suggested; formulas show only their classical doses (三兩).
+The safety check runs the 150 draft rules in `kb/curation/safety_rules.yaml` (pregnancy, 十八反/十九畏, toxic herbs, 禁針/禁灸 points), the AcuAtlas needling cautions, and the medication answers. Rules for anticoagulants, implanted devices, organ disease and allergy are draft heuristics without a source and say so. Every point and herb with a finding is tinted (red or amber by severity, grey for AcuAtlas cautions and literature notes) and carries a "⚠ אזהרה" link that scrolls to its line in the safety check; on the 2D and 3D figures such points get a small red dot. No gram dose is ever suggested; formulas show only their classical doses (三兩).
 
 ```
 python3 tools/treatment/build_treatment.py   # after editing the KB or the lexicon, before build_interview.py --page

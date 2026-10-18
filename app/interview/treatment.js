@@ -496,7 +496,7 @@
 
     // 7. the plan's points on the figure (acupuncture and shiatsu together)
     var planMap = mapBlock("plan", plan.points.map(function (x) { return x.id; }), plan.shiatsu.map(function (x) { return x.id; }), true,
-                           "הנקודות של התכנית על הדמות (דיקור ושיאצו)");
+                           "הנקודות של התכנית על הדמות (דיקור ושיאצו)", warnedIds(issues));
     if (planMap) body.appendChild(el("div", { class: "panel" }, [planMap]));
 
     // 8. series of sessions
@@ -512,32 +512,34 @@
   var viewers = {};      // slot -> 3D viewer, kept across redraws (one WebGL context each)
   var openMaps = {};     // slot -> whether its block is open, kept across redraws
 
-  function legend(all) {
+  function legend(all, warn) {
     return el("div", { class: "bm-legend" }, BM.channels(all).map(function (c) {
       return el("span", {}, [el("i", { style: "background:" + c.color }), c.ch + " " + c.he]);
-    }).concat([el("span", {}, [el("b", { text: "●" }), " דיקור"]), el("span", {}, [el("b", { text: "◯" }), " שיאצו"])]));
+    }).concat([el("span", {}, [el("b", { text: "●" }), " דיקור"]), el("span", {}, [el("b", { text: "◯" }), " שיאצו"]),
+      warn && warn.length ? el("span", {}, [el("b", { class: "warn-dot", text: "●" }), " יש אזהרה בבדיקת הבטיחות"]) : null]));
   }
 
   // The points of a list on the 3D figure (when WebGL and the model are available), with the 2D figure
   // as a fallback and for print. slot names the viewer; open is the default state of the block.
-  function mapBlock(slot, acu, press, open, title) {
+  function mapBlock(slot, acu, press, open, title, warn) {
+    warn = warn || [];
     if (!BM || !acu.length && !press.length) return null;
     var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
-    var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, label: T.label })]);
+    var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, warn: warn, label: T.label })]);
     var B3 = root.TCMBody3D;
     var body = [];
     if (B3 && B3.available) {
       var host3 = el("div", { class: "b3d-host" });
       if (!viewers[slot]) viewers[slot] = B3.create(host3, { label: T.label });
       else host3.appendChild(viewers[slot].element);
-      viewers[slot].show({ acu: acu, shiatsu: press });
-      body.push(host3, legend(all),
+      viewers[slot].show({ acu: acu, shiatsu: press, warn: warn });
+      body.push(host3, legend(all, warn),
         el("p", { class: "hint", text: "גוררים כדי לסובב ומגלגלים כדי להתקרב. הקווים מראים את מהלך המרידיאנים בשני צדי הגוף, והחצים את כיוון הזרימה (לפי סדר מספרי הנקודות). מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
         el("p", { class: "hint credit" }, ["דמות: ", el("a", { href: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66", target: "_blank", rel: "noopener", text: "Male base muscular anatomy" }),
           " מאת Harshit Prajapati, ברישיון ", el("a", { href: "https://creativecommons.org/licenses/by/4.0/", target: "_blank", rel: "noopener", text: "CC BY 4.0" })]),
         el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
     } else {
-      body.push(flat, legend(all),
+      body.push(flat, legend(all, warn),
         el("p", { class: "hint", text: "תרשים סכמטי: הקווים מראים את מהלך המרידיאן והחץ את כיוון הזרימה בו (לפי סדר מספרי הנקודות). מיקום הנקודה משוער לאורך הקו; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas). המרידיאנים מצוירים בצד אחד של הגוף, והנקודות הן דו־צדדיות למעט אלה שבקו האמצע (CV, GV)." }));
     }
     var isOpen = slot in openMaps ? openMaps[slot] : !!open;
@@ -585,7 +587,9 @@
     }
     var view = Math.min(plan.series.view || 0, plan.series.sessions.length - 1);
     var shown = plan.series.sessions[view];
-    p.appendChild(mapBlock("series", shown.points, shown.shiatsu, true, "מפגש " + shown.n + " על הדמות: " + shown.focus_he));
+    var shownIssues = T.checkSafety({ points: shown.points.map(function (id) { return { id: id, moxa: false }; }),
+                                      shiatsu: shown.shiatsu.map(function (id) { return { id: id }; }), herbs: [] }, ctx.state.patient, constraints());
+    p.appendChild(mapBlock("series", shown.points, shown.shiatsu, true, "מפגש " + shown.n + " על הדמות: " + shown.focus_he, warnedIds(shownIssues)));
     var list = el("ol", { class: "sessions" });
     plan.series.sessions.forEach(function (s, k) {
       // the session's own points through the same safety rules (they can differ from the chosen ones)
@@ -621,6 +625,34 @@
     return s.indexOf("red") !== -1 ? "red" : s.indexOf("amber") !== -1 ? "amber" : "";
   }
 
+  // Warnings that concern one point or herb: every safety finding except the reminder that no gram
+  // dose is set. They link to the finding's line in the safety check (anchor warn-<index>).
+  function warningsFor(issues, id) {
+    return issues.filter(function (i) { return i.ids.indexOf(id) !== -1 && !/^DOSE/.test(i.rule); });
+  }
+  function warnedIds(issues) {
+    var out = [];
+    issues.forEach(function (i) { if (!/^DOSE/.test(i.rule)) i.ids.forEach(function (id) { if (out.indexOf(id) === -1) out.push(id); }); });
+    return out;
+  }
+  function riskClass(issues, id) {
+    return sevOf(issues, id) || (warningsFor(issues, id).length ? "note" : "");
+  }
+  function warnLink(issues, id) {
+    var w = warningsFor(issues, id);
+    if (!w.length) return null;
+    var target = "warn-" + issues.indexOf(w[0]);
+    return el("a", { class: "warnlink " + (sevOf(issues, id) || "note"), href: "#" + target, title: w.map(function (i) { return i.he; }).join(" · "),
+      text: "⚠ " + (w.length > 1 ? w.length + " אזהרות" : "אזהרה"), onclick: function (e) {
+        e.preventDefault();
+        var t = document.getElementById(target);
+        if (!t) return;
+        for (var d = t.parentElement; d; d = d.parentElement) if (d.tagName === "DETAILS") d.open = true;
+        t.scrollIntoView({ behavior: "smooth", block: "center" });
+        t.classList.remove("flash"); void t.offsetWidth; t.classList.add("flash");
+      } });
+  }
+
   function safetyPanel(issues) {
     var p = el("div", { class: "panel", id: "tx-safety" }, [el("h3", { text: "בדיקת בטיחות" })]);
     var shown = issues.filter(function (i) { return i.sev !== "info" || !/^DOSE|^ACUATLAS/.test(i.rule); });
@@ -631,7 +663,7 @@
       (preg === "yes" ? " המטופלת דיווחה על היריון אפשרי." : preg === "unknown" ? " סטטוס ההיריון לא אושר, ולכן כל פריט שאסור בהיריון מסומן." : "") }));
     if (!shown.length) p.appendChild(el("div", { class: "flag info", text: "לא נמצאה התנגשות עם כללי הבטיחות שבמאגר." }));
     shown.forEach(function (i) {
-      p.appendChild(el("div", { class: "flag " + i.sev, title: i.rule }, [i.he,
+      p.appendChild(el("div", { class: "flag " + i.sev, title: i.rule, id: "warn-" + issues.indexOf(i) }, [i.he,
         i.note ? el("span", { class: "en", text: " · " + I.heOr(i.note) }) : null,
         i.note && I.he(i.note) ? zh(" " + i.note) : null,
         i.src && !i.pubmed ? el("span", { class: "id", text: " · " + I.books(i.src) + " " }) : null, i.src && !i.pubmed ? srcLink(i.src) : null,
@@ -640,7 +672,7 @@
     if (doses.length) p.appendChild(el("div", { class: "flag info", text: "לא נקבע מינון בגרם ל-" + doses.length + " צמחים. המינון הוא החלטה של המטפל, והמערכת לא מציעה אותו." }));
     if (cautions.length) {
       p.appendChild(el("details", {}, [el("summary", { text: "אזהרות דיקור לנקודות שנבחרו (" + cautions.length + ")" })].concat(
-        cautions.map(function (i) { return el("div", { class: "src" }, [el("b", { text: i.ids[0] + ": " }), i.note]); }))));
+        cautions.map(function (i) { return el("div", { class: "src", id: "warn-" + issues.indexOf(i) }, [el("b", { text: i.ids[0] + ": " }), i.note]); }))));
     }
     return p;
   }
@@ -658,7 +690,7 @@
   function pointRow(s, list, kind, issues) {
     var pt = tx.points[s.id];
     var item = list.filter(function (x) { return x.id === s.id; })[0];
-    var sev = sevOf(issues, s.id);
+    var sev = riskClass(issues, s.id);
     var from = s.from || [];
     var actions = [].concat.apply([], from.map(function (f) { return f.actions; }));
     var finds = [].concat.apply([], from.map(function (f) { return f.findings; }));
@@ -683,6 +715,7 @@
         " ", el("b", { text: s.id }), " ", I.heOr(pt.zh) + " ", zh(pt.zh + " " + pt.py), " ", el("span", { class: "en", text: pt.en })
       ]),
       el("span", { class: "row" }, [
+        warnLink(issues, s.id),
         s.score !== undefined ? el("span", { class: "id", text: "ציון " + s.score.toFixed(1) }) : el("span", { class: "id", text: "נוספה ידנית" }),
         s.from ? decisionButtons(kind === "points" ? "point" : "shiatsu", s.id) : null])
     ]));
@@ -812,9 +845,9 @@
     var tb = el("tbody");
     plan.herbs.forEach(function (h) {
       var herb = tx.herbs[h.id] || { zh: h.id, py: "" };
-      var sev = sevOf(issues, h.id);
+      var sev = riskClass(issues, h.id);
       tb.appendChild(el("tr", { class: sev ? "risk-" + sev : "" }, [
-        el("td", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py)]),
+        el("td", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py), " ", warnLink(issues, h.id)]),
         el("td", {}, h.dose_original ? [I.heOr(h.dose_original), " ", zh(h.dose_original)] : []),
         el("td", {}, [el("input", { type: "number", min: "0", step: "0.5", inputmode: "decimal", class: "gram", "aria-label": "גרם " + herb.zh, value: h.dose_g,
           oninput: function (e) { h.dose_g = e.target.value === "" ? "" : Number(e.target.value); plan.dirty = true; },
