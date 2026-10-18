@@ -2,6 +2,8 @@
 (function () {
   "use strict";
   var kb = window.TCM_KB;
+  var I = window.TCMI18n;
+  kb.syndromes.forEach(function (s) { if (!s.he) s.he = I.he(s.zh) || null; });   // draft Hebrew names
   var E = window.TCMEngine.createEngine(kb);
   var state;
   var current = null;     // the question waiting for an answer
@@ -49,10 +51,12 @@
 
   // ---- steps ----
   function start() {
+    if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
     chat.textContent = "";
     state = E.newState({});
     current = null;
     objective = { tongue: null, pulse: null };
+    scenario = null;
     step = "intake";
     say("שלום, אני עוזר/ת האינטייק של הקליניקה. אשאל כמה שאלות לפני הפגישה, והמטפל/ת יעבור/תעבור על התשובות. אני לא נותן/ת אבחנה או טיפול.");
     var age = el("input", { type: "number", id: "age", min: "1", max: "120", inputmode: "numeric", style: "width:6em" });
@@ -283,6 +287,12 @@
     PLACEHOLDER_WEIGHTS: "הקישורים בין תסמינים לתבניות נגזרו אוטומטית מ-WHO 2022 ומהתקן GB/T 16751.2. למשקלות יש טיוטה מרשומות TCM-SD רק בתבניות שיש להן מספיק נתונים. הדירוג הוא הצעה בלבד."
   };
 
+  function gbToggle() {
+    var box = el("input", { type: "checkbox", id: "gb-patterns", onchange: function (e) { state.gbPatterns = e.target.checked; renderClinician(); } });
+    box.checked = state.gbPatterns !== false;
+    return box;
+  }
+
   function renderClinician() {
     if (!state) return;
     E.setObjective(state, "tongue", objective.tongue);
@@ -301,7 +311,8 @@
       var s = E.featById;
       var card = el("article", { class: "dx" + (d.rank === 1 ? " primary" : "") }, [
         el("div", { class: "dx-head" }, [
-          el("div", { class: "dx-name" }, [d.rank + ". " + d.names.en, " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin })]),
+          el("div", { class: "dx-name" }, [d.rank + ". " + (d.names.he || d.names.en || d.names.zh), " ", el("span", { class: "zh", text: d.names.zh + " " + d.names.pinyin }),
+            d.names.he && d.names.en ? el("span", { class: "en", text: " " + d.names.en }) : null]),
           el("span", { class: "score", text: "התאמה " + d.graph_score.toFixed(2) + " · ביטחון " + (d.confidence === "moderate" ? "בינוני" : "נמוך") })
         ]),
         el("div", { class: "bar" }, [el("i", { style: "width:" + Math.round(Math.min(1, d.graph_score) * 100) + "%" })]),
@@ -309,7 +320,8 @@
       ]);
       card.appendChild(el("h3", { text: "תומך (" + d.supporting.length + ")" }));
       card.appendChild(evList(d.supporting, function (x) {
-        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.matched_manifestation_en }),
+        var m = x.matched_manifestation_en || "";
+        return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: I.he(m) ? "“" + I.he(m) + "” " : m }), I.he(m) ? el("span", { class: "zh", text: m }) : null,
           " ", el("span", { class: "id", text: x.sources.join("+") + (x.records ? " · " + x.records + " · משקל " + x.weight : "") }),
           " ", answerButtons(x.feature_id, true)]);
       }));
@@ -322,15 +334,21 @@
       if (d.missing_key_manifestations.length) {
         var det = el("details", { open: "" }, [el("summary", { text: "לא נשאל / לא נבדק (" + d.missing_key_manifestations.length + "): סמנו כן/לא כדי לדייק" })]);
         det.appendChild(evList(d.missing_key_manifestations, function (x) {
-          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: x.manifestation_en }), " ",
+          var m = x.manifestation_en || "";
+          return el("li", {}, [s[x.feature_id].label_he + " ", el("span", { class: "en", text: I.he(m) ? "“" + I.he(m) + "” " : m }), I.he(m) ? el("span", { class: "zh", text: m }) : null, " ",
             answerButtons(x.feature_id, undefined)]);
         }));
         card.appendChild(det);
       }
-      var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + d.supporting[0].evidence_ref + ")" }),
-        el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : ""])]);
+      var src = el("details", {}, [el("summary", { text: "הטקסט במקור (" + I.books(d.supporting[0].evidence_ref) + ")" }),
+        // a GB/T 16751.2 pattern that WHO 2022 does not list has only the GB text below
+        d.source_text.presentation ? el("div", { class: "src" }, [d.source_text.presentation, d.source_text.tongue ? " " + d.source_text.tongue : "", d.source_text.pulse ? " " + d.source_text.pulse : "", " ",
+          el("a", { class: "srclink", href: I.source("WHO-ISTTCM-2022").url, target: "_blank", rel: "noopener", text: "מקור" })]) : null]);
       if (d.source_text.gb_zh) {
-        src.appendChild(el("div", { class: "src zh" }, ["GB/T 16751.2 " + d.source_text.gb_code + ": " + d.source_text.gb_zh]));
+        var gbLink = I.source("GBT-16751-2");
+        src.appendChild(el("div", { class: "src he" }, ["התקן הסיני GB/T 16751.2, סעיף " + d.source_text.gb_code + ": " + I.heOr(d.source_text.gb_zh) + " ",
+          el("a", { class: "srclink", href: gbLink.url, target: "_blank", rel: "noopener", text: "מקור" })]));
+        src.appendChild(el("div", { class: "src zh" }, [d.source_text.gb_zh]));
       }
       card.appendChild(src);
       return card;
@@ -350,6 +368,7 @@
     var no = findingsList.filter(function (f) { return f.value === "absent"; });
     var dq = rep.discriminating_questions[0];
     var children = [
+      scenarioBanner(),
       el("div", { class: "panel" }, [
         el("h2", { text: "הצעה למטפל" }),
         el("p", { class: "summary", text: rep.clinician_summary.text, style: "margin:0" }),
@@ -369,12 +388,20 @@
             .concat(no.map(function (f) { return el("span", { class: "chip neg", text: f.label_he }); }))),
         state.patient.medications ? el("p", { style: "margin:0;font-size:.9rem", text: "תרופות ורקע: " + state.patient.medications }) : null
       ]),
-      el("h2", { text: "תבניות אפשריות" })
+      el("div", { class: "row" }, [el("h2", { text: "תבניות אפשריות" }),
+        el("label", { class: "hint", title: "1,311 תבניות מהתקן הסיני GB/T 16751.2 שאינן ברשימת WHO 2022. הן מקבלות משקל נמוך יותר בדירוג." }, [
+          gbToggle(),
+          " כולל תבניות מהתקן הסיני"])])
     ];
     if (!dxs.length) children.push(el("p", { class: "empty", text: "עוד אין מספיק ממצאים. השלימו את הראיון בלשונית 'ראיון המטופל', או לחצו על 'מילוי מקרה לדוגמה'." }));
     children = children.concat(dxs);
+    if (window.TCMTreatmentUI) {
+      var txSection = el("section", { id: "tx", class: "txwrap" });
+      children.push(txSection);
+    }
     children.push(el("details", {}, [el("summary", { text: "DiagnosticReport (JSON)" }), el("div", { class: "row", style: "margin:8px 0" }, [copy]), pre]));
     children.forEach(function (c) { if (c) clin.appendChild(c); });
+    if (txSection) window.TCMTreatmentUI.render(txSection, { report: rep, state: state, featById: E.featById });
   }
 
   // ---- tabs and demo ----
@@ -389,31 +416,63 @@
   document.getElementById("tab-patient").addEventListener("click", function () { showTab("patient"); });
   document.getElementById("tab-clin").addEventListener("click", function () { showTab("clin"); });
 
-  // Sample case from the architecture doc (section 4.4): a 41-year-old woman with temporal headaches.
-  document.getElementById("demo").addEventListener("click", function () {
+  // Sample cases (demo_cases.js): curated presentations, or a random case built from one pattern's
+  // links. The clinician view then shows which pattern the case was written for and where it ranked.
+  var D = window.TCMDemoCases;
+  var scenario = null;
+  var synById = {};
+  kb.syndromes.forEach(function (s) { synById[s.id] = s; });
+  var pick = document.getElementById("demo-case");
+  pick.appendChild(el("option", { value: "any", text: "מקרה מוכן אקראי" }));
+  pick.appendChild(el("option", { value: "random", text: "תרחיש אקראי מתבנית במאגר" }));
+  D.CASES.forEach(function (c) { pick.appendChild(el("option", { value: c.id, text: c.title })); });
+
+  function runDemo(c) {
     start();
     chat.textContent = "";
-    state.patient = { age: 41, sex: "F", pregnancy: "unknown" };
-    say("מקרה לדוגמה: אישה בת 41, סטטוס היריון לא נמסר.", "sys");
-    E.ingestMedications(state, "ציפרלקס");
-    say("ציפרלקס", "pt");
-    var text = "יש לי כאבי ראש פועמים ברקות, בעיקר כשאני בלחץ ולפני המחזור. אני עצבנית מאוד, יש לי טעם מר בפה ואני מתעוררת בלילה.";
-    say(text, "pt");
-    var r = E.ingestText(state, text, "chief_complaint");
-    showUnderstood(r.findings);
-    var truth = ["FT.DIZZY", "FT.RED_FACE", "FT.RESTLESS", "FT.FEELS_HOT", "FT.PMS", "FT.MENS_IRREGULAR", "FT.DRY_MOUTH"];
-    var q, guard = 0;
-    while ((q = E.nextQuestion(state)) && guard++ < 40) {
-      var v = truth.indexOf(q.feature.id) !== -1 || (state.answers[q.feature.id] && state.answers[q.feature.id].value === true);
-      say(q.feature.q_he, "sys");
-      say(v ? "כן" : "לא", "pt");
-      E.answerQuestion(state, q, v);
-    }
-    say("הראיון לדוגמה הסתיים. במקרה הזה המטפל/ת סימן/ה לשון אדומה וצדי לשון אדומים, ודופק מיתרי.");
-    objective = { tongue: ["TG.RED", "TG.RED_SIDES"], pulse: ["PL.WIRY"] };
+    scenario = c;
+    var p = c.patient;
+    say("מקרה לדוגמה: " + c.title + ". " + (p.sex === "F" ? "אישה" : "גבר") + " בן/בת " + p.age +
+        (p.sex === "F" ? (p.pregnancy === "yes" ? ", בהיריון" : p.pregnancy === "no" ? ", לא בהיריון" : ", סטטוס היריון לא נמסר") : "") + ".", "sys");
+    var obj = D.run(E, state, c, function (x, who) {
+      if (who === "understood") showUnderstood(x); else say(x, who);
+    });
+    if (obj.halted) { halt(); showTab("clin"); return; }
+    var seen = (obj.tongue || []).concat(obj.pulse || []).map(function (id) { return E.featById[id].label_he; });
+    say("הראיון לדוגמה הסתיים." + (seen.length ? " המטפל/ת סימן/ה בבדיקה: " + seen.join(", ") + "." : " לשון ודופק לא הוזנו."));
+    objective = { tongue: obj.tongue, pulse: obj.pulse };
     step = "done";
     showTab("clin");
+  }
+  document.getElementById("demo").addEventListener("click", function () {
+    var v = pick.value, c;
+    if (v === "random") c = D.random(kb, 1 + Math.floor(Math.random() * 99999));
+    else if (v === "any") c = D.CASES[Math.floor(Math.random() * D.CASES.length)];
+    else c = D.CASES.filter(function (x) { return x.id === v; })[0];
+    runDemo(c);
   });
+
+  // Banner over the clinician view: what the sample case was written for and where it ranked now.
+  function scenarioBanner() {
+    if (!scenario) return null;
+    var c = scenario;
+    if (c.halt) {
+      return el("div", { class: "scenario " + (step === "halted" ? "ok" : "miss") }, [
+        el("b", { text: "מקרה לדוגמה: " + c.title + ". " }),
+        step === "halted" ? "הצפוי: הראיון נעצר בגלל סימן אזהרה, וכך קרה." : "הצפוי: הראיון נעצר בגלל סימן אזהרה, אבל הוא לא נעצר."
+      ]);
+    }
+    var best = D.rankOf(E, state, c);
+    var names = c.expect.map(function (id) { var s = synById[id]; return s ? (s.he || s.en) : id; });
+    var cls = best && best.rank === 1 ? "ok" : best && best.rank <= 5 ? "near" : "miss";
+    var where = !best ? "לא קיבלה ציון" : best.rank === 1 ? "במקום הראשון" : "במקום " + best.rank + (best.rank > 5 ? ", מחוץ לחמש המוצגות" : "");
+    return el("div", { class: "scenario " + cls }, [
+      el("b", { text: (c.random ? c.title + ". " : "מקרה לדוגמה: " + c.title + ". ") }),
+      (c.random ? "נבנה מהתבנית: " : "התבנית הצפויה: ") + names.slice(0, c.random ? 1 : 3).join(" / ") + (names.length > 3 ? " ועוד" : "") + ". ",
+      "דורגה " + where + (best && c.expect.length > 1 ? " (" + (synById[best.id].he || synById[best.id].en) + ")" : "") + ".",
+      c.random ? el("span", { class: "hint", text: " תרחיש אקראי נבנה מהקישורים של התבנית עצמה, ולכן בודק את המנוע מול הנתונים שלו ולא מול שיפוט קליני." }) : null
+    ]);
+  }
 
   // Hooks for the voice interview (voice_ui.js): it drives the same state and views, with the
   // ElevenLabs agent in place of the typed composer.
@@ -421,6 +480,7 @@
     kb: kb,
     engine: E,
     beginVoice: function () {
+      if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
       chat.textContent = "";
       state = E.newState({});
       current = null;

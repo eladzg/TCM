@@ -31,8 +31,11 @@ red_flag_terms:
 # Category C words in the medication / background answers.
 constraint_terms:
 - {code: ANTICOAGULANT, terms: ["קומדין", "coumadin", "וורפרין", "warfarin", "אליקוויס", "eliquis", "קסרלטו", "xarelto", "פרדקסה", "pradaxa", "פלביקס", "plavix", "אספירין", "aspirin", "קרטיה", "micropirin", "מיקרופירין", "קלקסן", "clexane", "הפרין"], gloss_en: "anticoagulant or antiplatelet drug"}
+- {code: ANTIDIABETIC, terms: ["מטפורמין", "metformin", "גלוקופאג", "glucophage", "גלוקומין", "glucomin", "ג'נומט", "janumet", "סולפונילאוריאה", "גליבנקלמיד", "glibenclamide", "גליקלזיד", "gliclazide", "דיאמיקרון", "diamicron", "אינסולין", "insulin"], gloss_en: "antidiabetic drug"}
+- {code: ANTIDEPRESSANT, terms: ["ציפרלקס", "cipralex", "אסציטלופרם", "escitalopram", "ציפרמיל", "cipramil", "ציטלופרם", "citalopram", "לוסטרל", "lustral", "סרטרלין", "sertraline", "פרוזק", "prozac", "פלואוקסטין", "fluoxetine", "סרוקסט", "seroxat", "פרוקסטין", "paroxetine", "אפקסור", "efexor", "ונלפקסין", "venlafaxine", "נוגד דיכאון", "נוגדי דיכאון"], gloss_en: "antidepressant (SSRI/SNRI)"}
+- {code: DIGOXIN, terms: ["דיגוקסין", "digoxin", "לנוקסין", "lanoxin"], gloss_en: "digoxin"}
 - {code: DEVICE, terms: ["קוצב", "pacemaker", "דפיברילטור"], gloss_en: "implanted electrical device"}
 - {code: EPILEPSY, terms: ["אפילפסיה", "פרכוסים"], gloss_en: "epilepsy"}
-- {code: IMMUNO, terms: ["כימותרפיה", "השתלה", "מדכאי חיסון", "סטרואידים"], gloss_en: "immunosuppression or chemotherapy"}
+- {code: IMMUNO, terms: ["כימותרפיה", "השתלה", "מדכאי חיסון", "סטרואידים", "ציקלוספורין", "cyclosporine", "סנדימון", "sandimmun", "נאורל", "neoral", "טקרולימוס", "tacrolimus", "פרוגרף", "prograf", "אדבגרף", "advagraf"], gloss_en: "immunosuppression or chemotherapy"}
 - {code: ORGAN, terms: ["מחלת כבד", "מחלת כליות", "דיאליזה", "כבד שומני"], gloss_en: "liver or kidney disease"}
 - {code: ALLERGY, terms: ["אלרגיה", "אלרגי", "אלרגית"], gloss_en: "allergy"}
