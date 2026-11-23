@@ -181,7 +181,8 @@
       var yes = Object.keys(state.answers).filter(function (k) { return state.answers[k].value === true; });
       var yesWeight = yes.length;
       // state.gbPatterns === false leaves out the GB/T 16751.2 patterns WHO 2022 does not list.
-      var pool = state.gbPatterns === false ? syndromes.filter(function (s) { return s.prior === undefined; }) : syndromes;
+      // A pattern the clinician rejected in the approval tab (status "rejected", build_interview.py) is never ranked.
+      var pool = syndromes.filter(function (s) { return s.status !== "rejected" && (state.gbPatterns !== false || s.prior === undefined); });
       var ranked = pool.map(function (s) {
         var P = 0, D = 0, L = 0, supporting = [], contradicting = [], missing = [];
         s.links.forEach(function (l) {

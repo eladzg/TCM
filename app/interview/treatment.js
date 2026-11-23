@@ -56,19 +56,19 @@
         var share = n === 0 ? 1 : SECOND_PATTERN_SHARE;
         l.m.forEach(function (m) {
           if (!methods.some(function (x) { return x.i === m.i; })) {
-            methods.push({ i: m.i, s: m.s, sid: sid, method: tx.methods[m.i] });
+            methods.push({ i: m.i, s: m.s, sid: sid, method: tx.methods[m.i], ok: !!m.ok });
           }
         });
         l.p.forEach(function (p) {
           var pt = tx.points[p.id];
-          addScore(points, p.id, p.s * share, { sid: sid, actions: p.a.map(function (i) { return pt.act[i]; }), findings: p.f });
+          addScore(points, p.id, p.s * share, { sid: sid, actions: p.a.map(function (i) { return pt.act[i]; }), findings: p.f, ok: !!p.ok });
         });
         l.h.forEach(function (h) {
           var herb = tx.herbs[h.id];
-          addScore(herbs, h.id, h.s * share, { sid: sid, actions: h.a.map(function (i) { return herb.act[i]; }) });
+          addScore(herbs, h.id, h.s * share, { sid: sid, actions: h.a.map(function (i) { return herb.act[i]; }), ok: !!h.ok });
         });
         l.fm.forEach(function (f) {
-          addScore(formulas, f.id, f.s * share, { sid: sid, herbs: f.h, findings: f.f, ind: f.q || null, cat: f.cat || null });
+          addScore(formulas, f.id, f.s * share, { sid: sid, herbs: f.h, findings: f.f, ind: f.q || null, cat: f.cat || null, ok: !!f.ok });
         });
       });
       Object.keys(points).forEach(function (id) {
@@ -470,7 +470,7 @@
             if (e.target.checked) plan.methods.push(m.i);
             touch();
           } }), " ", el("b", { text: I.heOr(m.method.zh) }), " ", zh(m.method.zh), " ", el("span", { class: "en", text: m.method.en })]),
-          " ", el("span", { class: "id", text: "WHO 2022 #" + m.method.no + " · התאמה " + m.s }), " ", srcLink("WHO-ISTTCM-2022"),
+          " ", el("span", { class: "id", text: "WHO 2022 #" + m.method.no + " · התאמה " + m.s }), " ", srcLink("WHO-ISTTCM-2022"), approvedMark(m.ok),
           " ", decisionButtons("method", "WHO" + m.method.no),
           el("div", { class: "src", text: m.method.def })
         ]);
@@ -687,6 +687,12 @@
     })));
   }
 
+  // A suggestion the clinician approved in the clinic server's approval tab (build_treatment.py marks it `ok`).
+  function approvedMark(s) {
+    var ok = s === true || !!(s && s.from && s.from.some(function (f) { return f.ok; }));
+    return ok ? el("span", { class: "approved", title: "אושר במסך האישור הקליני", text: "✓ מאושר" }) : null;
+  }
+
   function pointRow(s, list, kind, issues) {
     var pt = tx.points[s.id];
     var item = list.filter(function (x) { return x.id === s.id; })[0];
@@ -715,7 +721,7 @@
         " ", el("b", { text: s.id }), " ", I.heOr(pt.zh) + " ", zh(pt.zh + " " + pt.py), " ", el("span", { class: "en", text: pt.en })
       ]),
       el("span", { class: "row" }, [
-        warnLink(issues, s.id),
+        warnLink(issues, s.id), approvedMark(s),
         s.score !== undefined ? el("span", { class: "id", text: "ציון " + s.score.toFixed(1) }) : el("span", { class: "id", text: "נוספה ידנית" }),
         s.from ? decisionButtons(kind === "points" ? "point" : "shiatsu", s.id) : null])
     ]));
@@ -811,7 +817,7 @@
       var f = tx.formulas[id];
       return el("label", { class: "opt" }, [
         el("input", { type: "radio", name: "tx-formula", checked: plan.formula_id === id, onchange: function () { T.setFormula(plan, id); touch(); } }),
-        I.heOr(f.zh) + " ", zh(f.zh + " " + f.py), s ? el("span", { class: "id", text: " · " + s.score.toFixed(1) }) : null
+        I.heOr(f.zh) + " ", zh(f.zh + " " + f.py), s ? el("span", { class: "id", text: " · " + s.score.toFixed(1) }) : null, approvedMark(s)
       ]);
     }
     plan.sugg.formulas.forEach(function (s) { fr.appendChild(formulaOption(s.id, s)); });
@@ -865,7 +871,7 @@
         var herb = tx.herbs[s.id];
         var acts = [].concat.apply([], s.from.map(function (x) { return x.actions; }));
         var inPlan = plan.herbs.some(function (h) { return h.id === s.id; });
-        return el("li", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py), " ",
+        return el("li", {}, [el("b", { text: I.heOr(herb.zh) }), " ", zh(herb.zh + " " + herb.py), " ", approvedMark(s),
           quote(acts.join("，"), herb.src, I.books(herb.src).replace(/ \(.*$/, ""), acts),
           " ",
           inPlan ? el("span", { class: "id", text: "במרשם" }) : el("button", { class: "mini", type: "button", text: "הוספה למרשם", onclick: function () {

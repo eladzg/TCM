@@ -21,6 +21,11 @@ browser (app/interview/treatment.js) from the per-point and per-formula findings
 
 Nothing here is a clinical decision: every link is a draft for the clinician to approve or reject,
 and no gram dose is ever produced (formulas carry only their classical doses, e.g. 三兩).
+The clinician's decisions (kb/approvals/decisions.json, from the clinic server's approval tab) are laid
+over the draft: an approved suggestion is marked `ok` and kept even when the heuristics no longer
+find it, a rejected one moves to the pattern's `x` list, one the clinician added ranks first. Safety
+rules are never switched off: an approved rule is marked approved, a disputed one keeps firing and
+carries the clinician's note.
 
 Usage:
     python3 tools/treatment/build_treatment.py
@@ -484,6 +489,10 @@ def build_data():
 
         links[sid] = {"m": meth, "p": pts, "h": hs, "fm": fms}
 
+    decisions, _ = bi.approvals.load_export(bi.DECISIONS)
+    tx_summary = apply_tx_decisions(links, decisions, methods, {p["point_id"] for p in points}, herb_ids,
+                                    {fm["formula_id"] for fm in formulas})
+
     used_methods = sorted({m["i"] for l in links.values() for m in l["m"]})
     remap = {old: new for new, old in enumerate(used_methods)}
     for l in links.values():
@@ -530,12 +539,65 @@ def build_data():
             "find": f_find[fm["formula_id"]],
             **anchor(fm),
         } for fm in formulas if fm["formula_id"] in shown_formulas},
-        "safety": [{"id": r["rule_id"], "cond": r["condition"], "ids": r["entity_ids"], "sev": r["severity"],
-                    "note": r.get("note", ""), "src": src(r, "entity_ids"), "status": r.get("status", "draft")}
-                   for r in rules],
+        "safety": [safety_row(r, src(r, "entity_ids"), decisions, tx_summary) for r in rules],
         "links": links,
         "evidence": pubmed_evidence(),
+        "approvals": tx_summary,
     }
+
+
+TX_LIST = {"point": "p", "herb": "h", "formula": "fm", "method": "m"}
+
+
+def apply_tx_decisions(links, decisions, methods, point_ids, herb_ids, formula_ids):
+    """Approve / reject / add per pattern suggestion (keys tx:<pattern>|<point|herb|formula|method>|<id>;
+    a method is named by its WHO number). Runs before the method indexes are renumbered."""
+    by_no = {str(m["no"]): i for i, m in enumerate(methods)}
+    known = {"point": point_ids, "herb": herb_ids, "formula": formula_ids, "method": set(by_no)}
+    applied, orphans = 0, []
+    for key, row in sorted(decisions.items(), key=lambda kv: kv[1]["seq"]):
+        if bi.approvals.key_type(key) != "tx":
+            continue
+        sid, kind, item = key.split(":", 1)[1].split("|")
+        l = links.get(sid)
+        if l is None or item not in known[kind]:
+            orphans.append(key)
+            continue
+        lst = l[TX_LIST[kind]]
+        if kind == "method":
+            entry = next((m for m in lst if str(methods[m["i"]]["no"]) == item), None)
+        else:
+            entry = next((x for x in lst if x["id"] == item), None)
+        if row["action"] == "reject":
+            if entry:
+                lst.remove(entry)
+            l.setdefault("x", []).append({"t": kind, "id": item, "by": bi.approvals.stamp(row)})
+        else:   # approve keeps it even when the heuristics stop finding it; add puts it first
+            if not entry:
+                top = max((x["s"] for x in lst), default=1.0)
+                if kind == "method":
+                    entry = {"i": by_no[item], "s": top}
+                else:
+                    entry = {"id": item, "s": top, "a": [], **({"h": [], "f": []} if kind == "formula" else {"f": []} if kind == "point" else {})}
+                lst.insert(0, entry)
+                entry["add" if row["action"] == "add" else "pin"] = 1
+            entry["ok"] = bi.approvals.stamp(row)
+        applied += 1
+    return {"applied": applied, "orphans": orphans}
+
+
+def safety_row(r, source, decisions, summary):
+    out = {"id": r["rule_id"], "cond": r["condition"], "ids": r["entity_ids"], "sev": r["severity"],
+           "note": r.get("note", ""), "src": source, "status": r.get("status", "draft")}
+    row = decisions.get("safety:" + r["rule_id"])
+    if row:
+        summary["applied"] += 1
+        if row["action"] == "approve":
+            out["status"] = "approved"
+            out["ok"] = bi.approvals.stamp(row)
+        else:   # dispute: the rule keeps firing; the clinician's note goes with it
+            out["disputed"] = {**bi.approvals.stamp(row), "note": row["note"]}
+    return out
 
 
 def pubmed_evidence(per_topic=3):
@@ -566,6 +628,9 @@ def main(argv=None):
     print(f"{sum(1 for l in links if l['m'])} patterns with a WHO method, "
           f"{sum(1 for l in links if l['p'])} with points, {sum(1 for l in links if l['h'])} with herbs, "
           f"{sum(1 for l in links if l['fm'])} with formulas -> {OUT} ({OUT.stat().st_size // 1024} KB)")
+    a = data["approvals"]
+    if a["applied"] or a["orphans"]:
+        print(f"clinician decisions applied: {a['applied']}; naming nothing in the draft: {len(a['orphans'])}")
 
 
 if __name__ == "__main__":
