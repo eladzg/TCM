@@ -3,7 +3,9 @@
   "use strict";
   var kb = window.TCM_KB;
   var I = window.TCMI18n;
-  kb.syndromes.forEach(function (s) { if (!s.he) s.he = I.he(s.zh) || null; });   // draft Hebrew names
+  // patient.html runs the same interview with no clinician view, and sends the answers to the server.
+  var PATIENT = window.TCM_MODE === "patient";
+  if (I) kb.syndromes.forEach(function (s) { if (!s.he) s.he = I.he(s.zh) || null; });   // draft Hebrew names
   var E = window.TCMEngine.createEngine(kb);
   var state;
   var current = null;     // the question waiting for an answer
@@ -46,12 +48,14 @@
   function halt() {
     say(kb.safety.emergency_template_he, "alert");
     step = "halted";
+    if (PATIENT) return window.TCMPatient.submit(state, { say: say, el: el, panel: panel });
     renderClinician();
   }
 
   // ---- steps ----
   function start() {
     if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
+    if (recordId) { recordId = null; window.dispatchEvent(new Event("tcm:record-closed")); }
     chat.textContent = "";
     state = E.newState({});
     current = null;
@@ -212,6 +216,7 @@
         if (r.halted) return halt();
         showUnderstood(r.findings);
       }
+      if (PATIENT) return window.TCMPatient.submit(state, { say: say, el: el, panel: panel });
       say("הראיון הסתיים. הסיכום מחכה למטפל/ת בלשונית 'סיכום למטפל'.");
       renderClinician();
     }, true);
@@ -294,10 +299,10 @@
   }
 
   function renderClinician() {
-    if (!state) return;
+    if (!state || PATIENT) return;
     E.setObjective(state, "tongue", objective.tongue);
     E.setObjective(state, "pulse", objective.pulse);
-    var rep = E.report(state, { session_id: "proto_session" });
+    var rep = E.report(state, { session_id: recordId || "proto_session" });
     clin.textContent = "";
     var flagBox = el("div", { class: "flags" }, rep.flags.map(function (f) {
       var he = FLAG_HE[f.code] || "";
@@ -405,7 +410,9 @@
   }
 
   // ---- tabs and demo ----
+  var recordId = null;    // the server record open in the clinician view (records.js), if any
   function showTab(which) {
+    if (PATIENT) return;
     document.getElementById("tab-patient").setAttribute("aria-selected", which === "patient");
     document.getElementById("tab-clin").setAttribute("aria-selected", which === "clin");
     document.getElementById("view-patient").hidden = which !== "patient";
@@ -413,6 +420,7 @@
     if (which === "clin") renderClinician();
     window.scrollTo(0, 0);
   }
+  if (PATIENT) { start(); return; }
   document.getElementById("tab-patient").addEventListener("click", function () { showTab("patient"); });
   document.getElementById("tab-clin").addEventListener("click", function () { showTab("clin"); });
 
@@ -495,7 +503,32 @@
     halt: halt,
     renderClinician: renderClinician,
     showTab: showTab,
-    restart: start
+    restart: start,
+    // records.js: open a saved record in the clinician view, and read back what to save.
+    loadRecord: function (rid, saved, obj) {
+      if (window.TCMTreatmentUI) window.TCMTreatmentUI.reset();
+      chat.textContent = "";
+      state = E.newState({});
+      Object.keys(saved || {}).forEach(function (k) { state[k] = saved[k]; });
+      ["tongue", "pulse"].forEach(function (k) {
+        Object.keys(state.answers).forEach(function (fid) { if (E.featById[fid] && E.featById[fid].kind === k) delete state.answers[fid]; });
+      });
+      objective = { tongue: (obj && obj.tongue) || null, pulse: (obj && obj.pulse) || null };
+      current = null;
+      scenario = null;
+      recordId = rid;
+      step = state.halted ? "halted" : "done";
+      (state.transcript || []).forEach(function (t) { say(t.text, t.role === "patient" ? "pt" : "sys"); });
+      if (state.halted) say(kb.safety.emergency_template_he, "alert");
+      showTab("clin");
+    },
+    closeRecord: function () { recordId = null; start(); renderClinician(); },
+    recordId: function () { return recordId; },
+    snapshot: function () {
+      renderClinician();
+      return { state: JSON.parse(JSON.stringify(state)), objective: JSON.parse(JSON.stringify(objective)),
+               report: E.report(state, { session_id: recordId }) };
+    }
   };
 
   start();

@@ -2,3 +2,4 @@ build/
 data/raw/
 __pycache__/
 .pytest_cache/
+data/server/

@@ -125,6 +125,40 @@ The translations are drafts written with Claude and wait for clinician review. T
 python3 tools/treatment/build_he.py          # after editing kb/translations/he or rebuilding the KB files
 ```
 
+## Clinic server and patient records (`server/`)
+
+A small server the clinic runs itself: Python, FastAPI and one SQLite file, with no outside service. It splits the interview into a patient side and a clinician side and keeps every record encrypted.
+
+| Side | Page | What it can do |
+| --- | --- | --- |
+| Patient | `/app/patient.html#<link token>` | Fill the interview and send it, once. The token opens exactly one record, can only send, never reads anything back (not even the record id), and closes on submit or after 7 days. The page shows no hypotheses, loads no web fonts or other third-party files, and drops the token from the address bar. A red flag still stops the interview and sends what was answered. |
+| Clinician | `/app/index.html`, tab "תיקים" | Sign in; create a record and copy its patient link; open a submitted record into the existing clinician view; save the review (state, tongue, pulse), the `diagnostic_report.v1` and the `treatment_plan.v1` to the record; set its status; delete it. |
+
+On GitHub Pages or a file opened from disk there is no `/api/health`, so the page stays the static prototype it was.
+
+How records are kept:
+
+- Every record has a random id (`R-7K3QX9MD`). The clinical documents hold no name: the interview never asks for one.
+- The clinician may attach a name, phone and note to a record. They are encrypted under a separate key (`identity.key`) in their own table, never leave in an export, and are the only link from a record to a person.
+- Clinical documents are AES-256-GCM blobs under `data.key`, bound to their record, kind and version (a blob moved to another row fails to open). Only ids, timestamps and status are in the clear. Deleted rows are overwritten (`secure_delete`).
+- Documents are append-only versions (intake, review, report, plan), so every saved plan stays.
+- An audit table records who opened, saved, exported or deleted which record, and when, with no clinical content.
+- Clinicians sign in with a username and a scrypt-hashed password; the session cookie is HttpOnly and SameSite=Strict, five failed sign-ins lock the name for five minutes, and every write needs an `X-TCM` header, which a cross-site form cannot send.
+- `manage export` (or `GET /api/export`) gives a de-identified copy for the agreement check and the test set: identity dropped, free text dropped (transcript, quotes, medications, clinician notes), age in ten-year bands, and a fresh random id per record that is stored nowhere.
+
+```
+pip install -r server/requirements.txt
+python3 -m server.manage init                       # data/server/records.db and data/server/keys/{data,identity}.key
+python3 -m server.manage add-clinician dana         # asks for the password (10+ characters)
+uvicorn server.app:app --host 127.0.0.1 --port 8000
+python3 -m server.manage export > export.json       # de-identified
+python3 -m server.manage audit [R-...]
+```
+
+`TCM_DATA_DIR`, `TCM_KEY_DIR`, `TCM_TOKEN_DAYS`, `TCM_SESSION_HOURS` and `TCM_DATA_KEY` / `TCM_IDENTITY_KEY` (base64, in place of the key files) change the defaults. To reach it from other devices, put it behind HTTPS (for example Caddy as a reverse proxy) and set `TCM_SECURE_COOKIE=1`; a patient link must be HTTPS. Back up the database and the keys to different places: the database alone cannot be read, and without `data.key` neither can the clinic. A replaced key can stay in the key folder as `data.<anything>.old.key` so older rows still open.
+
+Not done yet: the patient's answers are sent once, at the end (closing the page mid-way loses them); a saved treatment plan is stored and versioned but not loaded back into the plan editor; there is no clinician approval screen for the knowledge base yet.
+
 ## Run
 
 ```
