@@ -102,10 +102,12 @@ function dotTexture() {
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ALL_KEY = "tcm-b3d-all";
 
-// opts: label(id) -> name for tooltips; height(width) -> stage height; hero: the opening screen's figure
-// (every channel always on, the choice not remembered).
+// opts: label(id) -> name for tooltips; height(width) -> stage height; dist(aspect) -> the camera's resting
+// distance; onframe(viewer) -> called after every drawn frame; hero: the opening screen's figure (every
+// channel always on, the choice not remembered, and it turns back to face the viewer when left alone).
 function create(container, opts) {
   opts = opts || {};
+  const api = {};   // the viewer's handle, filled in below
   const wrap = document.createElement("div");
   wrap.className = "b3d";
   const stage = document.createElement("div");
@@ -159,7 +161,8 @@ function create(container, opts) {
 
   // ---- motion ----
   let visible = true, raf = 0;   // the render loop's state (below)
-  let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0;
+  let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0, lastDrag = 0;
+  const homeDist = () => (opts.dist ? opts.dist(camera.aspect || 1) : 0.42);
   renderer.domElement.addEventListener("pointerdown", (e) => {
     drag = { x: e.clientX, y: e.clientY }; vy = vp = 0; goalYaw = null;
     try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) { /* not needed */ }
@@ -172,7 +175,7 @@ function create(container, opts) {
     vy = dx * 0.0055; vp = dy * 0.0035; yaw += vy; pit += vp;
     request();
   });
-  const endDrag = () => { if (drag) { drag = null; request(); } };
+  const endDrag = () => { if (drag) { drag = null; lastDrag = performance.now(); request(); } };
   renderer.domElement.addEventListener("pointerup", endDrag);
   renderer.domElement.addEventListener("pointercancel", endDrag);
   window.addEventListener("pointermove", (e) => {
@@ -192,12 +195,17 @@ function create(container, opts) {
       if (Math.abs(vy) > 1e-4 || Math.abs(vp) > 1e-4 || Math.abs(pit) > 1e-3) moving = true;
     }
     pit = Math.max(-0.5, Math.min(0.5, pit));
+    if (opts.hero && !drag && goalYaw === null && lastDrag && now - lastDrag > 2500) {
+      const front = 2 * Math.PI * Math.round(yaw / (2 * Math.PI));
+      if (Math.abs(front - yaw) > 0.01) goalYaw = front;
+      lastDrag = 0;
+    }
     if (goalYaw !== null) {
       yaw += (goalYaw - yaw) * 0.06;
       if (Math.abs(goalYaw - yaw) < 0.001) { yaw = goalYaw; goalYaw = null; } else moving = true;
     }
     if (camHome > 0) {
-      const home = new THREE.Vector3(0, CENTRE + 0.01, 0.42);
+      const home = new THREE.Vector3(0, CENTRE + 0.01, homeDist());
       camera.position.lerp(home, 0.08); controls.target.lerp(target, 0.08);
       if (camera.position.distanceTo(home) < 0.001) camHome = 0;
     }
@@ -240,6 +248,7 @@ function create(container, opts) {
     const w = stage.clientWidth || 600, h = opts.height ? Math.round(opts.height(w)) : Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (opts.dist) { camera.position.set(0, CENTRE + 0.01, homeDist()); controls.target.copy(target); }
     request();
   }
 
@@ -254,6 +263,7 @@ function create(container, opts) {
     });
     renderer.render(scene, camera);
     labels.render(scene, camera);
+    if (opts.onframe) opts.onframe(api);
   }
 
   // The loop runs while the figure is on screen and something moves (or it breathes); otherwise it sleeps.
@@ -322,7 +332,7 @@ function create(container, opts) {
   });
   renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; });
 
-  const ready = loadModel().then((m) => {
+  const ready = api.ready = loadModel().then((m) => {
     const body = m.clone();
     inner.add(body);
     inner.updateMatrixWorld(true);
@@ -344,6 +354,16 @@ function create(container, opts) {
     stage.textContent = "לא הצלחתי לטעון את הדמות התלת־ממדית. התרשים הדו־ממדי למטה מראה את אותן נקודות.";
     stage.className = "b3d-stage hint";
   });
+
+  // Where a point sits on the screen now, in the stage's pixels (for menus anchored to the body).
+  const sp = new THREE.Vector3();
+  function screen(id, side) {
+    const v = vec(id, side || 1);
+    if (!v) return null;
+    sp.copy(v.pos).applyMatrix4(inner.matrixWorld).project(camera);
+    return { x: (sp.x + 1) / 2 * renderer.domElement.clientWidth, y: (1 - sp.y) / 2 * renderer.domElement.clientHeight };
+  }
+  Object.assign(api, { show: (sel) => show(sel), element: wrap, screen, stage });
 
   function clear() {
     marks.children.slice().forEach((c) => {
@@ -421,7 +441,7 @@ function create(container, opts) {
     ready.then(request);
   }
 
-  return { show, ready, element: wrap };
+  return api;
 }
 
 window.TCMBody3D = { available: webgl() && !!window.TCMBodyMap && Object.keys(P3).length > 0, create };
