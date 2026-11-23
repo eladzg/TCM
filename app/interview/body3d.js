@@ -102,6 +102,8 @@ function dotTexture() {
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ALL_KEY = "tcm-b3d-all";
 
+// opts: label(id) -> name for tooltips; height(width) -> stage height; hero: the opening screen's figure
+// (every channel always on, the choice not remembered).
 function create(container, opts) {
   opts = opts || {};
   const wrap = document.createElement("div");
@@ -222,12 +224,12 @@ function create(container, opts) {
     bar.appendChild(b);
   });
   let showAll = true;
-  try { showAll = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* storage off */ }
+  if (!opts.hero) try { showAll = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* storage off */ }
   const allBtn = document.createElement("button");
   allBtn.type = "button"; allBtn.className = "mini"; allBtn.textContent = "כל המרידיאנים והנקודות";
   const setAll = (on) => {
     showAll = on; allLayer.visible = on; allBtn.setAttribute("aria-pressed", String(on));
-    try { localStorage.setItem(ALL_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
+    if (!opts.hero) try { localStorage.setItem(ALL_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
     request();
   };
   allBtn.addEventListener("click", () => setAll(!showAll));
@@ -235,7 +237,7 @@ function create(container, opts) {
   setAll(showAll);
 
   function size() {
-    const w = stage.clientWidth || 600, h = Math.round(Math.min(640, Math.max(380, w * 1.0)));
+    const w = stage.clientWidth || 600, h = opts.height ? Math.round(opts.height(w)) : Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     request();
