@@ -280,102 +280,96 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
-/* ---- the opening screen ---- */
+/* ---- the opening screen: the body fills the screen, the system's menu sits along it ---- */
 #intro[hidden] { display: none; }
-body.intro-on .wrap { max-width: 1440px; }
+body.intro-on { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+body.intro-on .wrap { max-width: none; }
 body.intro-on .wrap > :not(#intro) { display: none; }
-.intro { position: relative; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; padding-block: 18px 14px; transition: opacity .35s ease, transform .35s ease; }
-.intro.leaving { opacity: 0; transform: translateY(-14px); }
-.intro::before, .intro::after { content: ""; position: absolute; pointer-events: none; background: color-mix(in srgb, var(--ink) 9%, transparent); }
-.intro::before { top: 0; bottom: 0; left: 50%; width: 1px; }
-.intro::after { left: 0; right: 0; top: 58%; height: 1px; }
-.intro > * { position: relative; z-index: 1; min-width: 0; }
-.intro-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.intro-name { font-size: 1.15rem; font-weight: 500; }
-.intro-steps { list-style: none; margin: 0; padding: 5px; display: flex; gap: 2px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); overflow-x: auto; max-width: 100%; scrollbar-width: none; }
-.intro-steps li { flex: none; padding: 7px 16px; border-radius: 999px; font-size: .92rem; color: var(--muted); }
-.intro-steps li:first-child { background: var(--jade); color: var(--jade-ink); font-weight: 500; }
-.intro-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; gap: 12px 24px; }
-.intro-title { font-weight: 300; font-size: clamp(2.8rem, 6vw, 5.6rem); line-height: .98; letter-spacing: -.025em; margin: 0;
-  background: linear-gradient(160deg, var(--ink) 30%, color-mix(in srgb, var(--jade) 75%, var(--ink))); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.intro-lead { font-size: 1.08rem; color: var(--muted); max-width: 30ch; margin: 18px 0 22px; }
-.intro-feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.intro-feats li { display: flex; align-items: center; gap: 12px; font-size: 1.02rem; }
-.intro-feats i { flex: none; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, var(--jade-ink) 0 2.5px, var(--jade) 3.5px 7px, color-mix(in srgb, var(--jade) 30%, transparent) 8px);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--jade) 35%, transparent); }
-.intro-fig { min-height: 360px; }
+.intro { position: relative; height: 100svh; min-height: 560px; overflow: hidden; transition: opacity .35s ease, transform .35s ease; }
+.intro.leaving { opacity: 0; transform: scale(.985); }
+.intro-fig { position: absolute; inset: 0; }
+.intro-fig .b3d, .intro-fig .b3d-stage { height: 100%; }
 .intro-fig .b3d-bar { display: none; }
-.intro-fig .b3d-stage { background: radial-gradient(45% 50% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 22%, transparent), transparent 72%); }
-.intro-stats { display: grid; gap: 4px; padding: 18px 22px; border-radius: 26px; background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); justify-self: end; min-width: 11em; }
-.intro-stats div { display: grid; padding: 8px 0; border-bottom: 1px solid var(--edge); }
-.intro-stats div:last-child { border-bottom: 0; }
-.intro-stats b { font-weight: 300; font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.intro-stats span { color: var(--muted); font-size: .88rem; }
-.intro-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 18px; padding-top: 6px; }
-.intro-go { font: inherit; font-size: 1.15rem; font-weight: 500; cursor: pointer; border: 0; border-radius: 999px; padding: 18px 46px; min-height: 60px;
-  background: var(--jade); color: var(--jade-ink);
-  box-shadow: 0 0 0 8px color-mix(in srgb, var(--jade) 20%, transparent), 0 0 0 16px color-mix(in srgb, var(--jade) 8%, transparent), 0 12px 40px color-mix(in srgb, var(--jade) 25%, transparent);
-  transition: box-shadow .3s ease, transform .2s ease; }
-.intro-go:hover { box-shadow: 0 0 0 11px color-mix(in srgb, var(--jade) 22%, transparent), 0 0 0 22px color-mix(in srgb, var(--jade) 9%, transparent), 0 12px 44px color-mix(in srgb, var(--jade) 30%, transparent); }
-.intro-go:active { transform: scale(.98); }
-.intro-credit { margin: 0; font-size: .78rem; color: var(--muted); text-align: start; }
+.intro-fig .b3d-stage { border-radius: 0; background: radial-gradient(38% 52% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 20%, transparent), transparent 75%); }
+.intro-lines, .intro-rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.intro-lines line { stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1; }
+.intro-lines line.on { stroke: var(--jade); }
+.intro-rings i { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: radial-gradient(circle, var(--jade-ink) 0 2.5px, var(--jade) 3.5px 6px, color-mix(in srgb, var(--jade) 25%, transparent) 7px);
+  border: 1px solid color-mix(in srgb, var(--jade) 60%, transparent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--jade) 12%, transparent), 0 0 18px color-mix(in srgb, var(--jade) 45%, transparent); }
+.intro-rings i.on { animation: ringpulse 1.6s ease-out infinite; }
+@keyframes ringpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--jade) 50%, transparent), 0 0 18px var(--jade); } 100% { box-shadow: 0 0 0 18px transparent, 0 0 18px var(--jade); } }
+.intro-head { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(22px, 3vw) 0; pointer-events: none; }
+.intro-head > * { pointer-events: auto; }
+.intro-title { font-weight: 300; font-size: clamp(1.6rem, 2.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.015em; margin: 0; }
+.intro-lead { margin: 6px 0 0; color: var(--muted); font-size: .95rem; max-width: 34ch; }
+.intro-menu { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.im { position: absolute; left: 0; top: 0; pointer-events: auto; font: inherit; color: var(--ink); text-align: start; cursor: pointer; display: grid; gap: 1px;
+  padding: 10px 20px; min-height: 52px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge);
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+  visibility: hidden; transition: background .2s, border-color .2s, box-shadow .2s; white-space: nowrap; }
+.im b { font-weight: 500; font-size: 1.05rem; }
+.im span { font-size: .82rem; color: var(--muted); }
+.im:hover, .im:focus-visible, .im.on { border-color: color-mix(in srgb, var(--jade) 70%, transparent); background: color-mix(in srgb, var(--jade) 14%, var(--glass)); }
+.im.primary { background: var(--jade); color: var(--jade-ink); border-color: var(--jade); box-shadow: 0 0 0 7px color-mix(in srgb, var(--jade) 18%, transparent), 0 10px 34px color-mix(in srgb, var(--jade) 28%, transparent); }
+.im.primary span { color: color-mix(in srgb, var(--jade-ink) 75%, transparent); }
+.im.primary:hover, .im.primary:focus-visible { box-shadow: 0 0 0 10px color-mix(in srgb, var(--jade) 22%, transparent), 0 10px 38px color-mix(in srgb, var(--jade) 32%, transparent); }
+.im[hidden] { display: none; }
+.intro-foot { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 4px 18px;
+  padding: 0 max(22px, 3vw) max(14px, env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+.intro-foot > * { pointer-events: auto; margin: 0; }
+.intro-stats { font-size: .9rem; color: var(--muted); }
+.intro-stats b { color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+.intro-credit { font-size: .76rem; color: var(--muted); }
 .intro-credit a { color: inherit; }
 header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
-@media (max-width: 900px) {
-  .intro { min-height: 0; }
-  .intro::before, .intro::after { display: none; }
-  .intro-main { grid-template-columns: minmax(0, 1fr); }
-  .intro-copy { order: 1; } .intro-fig { order: 2; } .intro-stats { order: 3; }
-  .intro-title { font-size: clamp(2.4rem, 11vw, 3.6rem); }
-  .intro-lead { max-width: none; }
-  .intro-stats { justify-self: stretch; grid-template-columns: repeat(auto-fit, minmax(7em, 1fr)); gap: 0 12px; }
-  .intro-stats div { border-bottom: 0; }
-  .intro-cta { position: sticky; bottom: 10px; z-index: 3; padding: 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-  .intro-go { padding: 14px 30px; min-height: 52px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--jade) 20%, transparent); }
+/* Without WebGL the menu is a plain column under the title. */
+.intro.flat { height: auto; min-height: 100svh; display: grid; align-content: center; justify-items: center; padding: 140px 16px 90px; }
+.intro.flat .intro-menu { position: static; display: grid; gap: 10px; width: min(420px, 100%); }
+.intro.flat .im { position: static; visibility: visible; transform: none !important; white-space: normal; max-width: none; width: 100%; }
+.intro.flat .intro-lines, .intro.flat .intro-rings { display: none; }
+@media (max-width: 700px) {
+  .intro-lead { display: none; }
+  .intro-head .draft { display: none; }
+  .im { padding: 8px 14px; min-height: 46px; max-width: 46vw; white-space: normal; }
+  .im span { display: none; }
+  .im b { font-size: .95rem; }
+  .intro-foot { justify-content: center; text-align: center; }
+  .intro-stats { font-size: .8rem; }
 }
-@media (prefers-reduced-motion: reduce) { .intro, .intro-go { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .intro, .im { transition: none; } .intro-rings i.on { animation: none; } }
 </style>
 </head>
 <body>
 <div class="wrap" dir="rtl" lang="he">
   <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
-    <div class="intro-top">
+    <div class="intro-fig" id="intro-fig"></div>
+    <svg class="intro-lines" id="intro-lines" aria-hidden="true"></svg>
+    <div class="intro-rings" id="intro-rings" aria-hidden="true"></div>
+    <div class="intro-head">
       <div class="brand">
         <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
-        <span class="intro-name">יועץ קליני</span>
+        <div>
+          <h2 id="intro-title" class="intro-title">יועץ קליני לרפואה סינית</h2>
+          <p class="intro-lead">ראיון, תבניות, תכנית טיפול ובטיחות. המערכת מציעה, המטפל מחליט.</p>
+        </div>
       </div>
-      <ol class="intro-steps" aria-label="מהלך העבודה">
-        <li>ראיון</li><li>ממצאים</li><li>אבחנה</li><li>תוכנית</li><li>בטיחות</li><li>אישור</li>
-      </ol>
       <span class="draft">אב-טיפוס · טיוטה</span>
     </div>
-    <div class="intro-main">
-      <div class="intro-copy">
-        <h2 id="intro-title" class="intro-title">יועץ קליני<br>לרפואה סינית</h2>
-        <p class="intro-lead">ראיון מטופל בעברית, הצעת תבניות, תכנית טיפול ובדיקת בטיחות. המערכת מציעה, המטפל מחליט.</p>
-        <ul class="intro-feats">
-          <li><i aria-hidden="true"></i>ראיון מטופל בעברית, בכתב</li>
-          <li><i aria-hidden="true"></i>תבניות לפי WHO 2022 ו-GB/T 16751.2</li>
-          <li><i aria-hidden="true"></i>דיקור, שיאצו וצמחים, עם מקור לכל הצעה</li>
-          <li><i aria-hidden="true"></i>בדיקת בטיחות ואישור של המטפל</li>
-        </ul>
-      </div>
-      <div class="intro-fig" id="intro-fig" aria-label="דמות הגוף עם כל המרידיאנים והנקודות"></div>
-      <aside class="intro-stats" aria-label="מה יש במאגר">
-        <div><b id="st-points">361</b><span>נקודות דיקור</span></div>
-        <div><b>14</b><span>מרידיאנים</span></div>
-        <div><b id="st-patterns">1,734</b><span>תבניות</span></div>
-        <div><b id="st-formulas">329</b><span>נוסחאות צמחים</span></div>
-        <div><b id="st-safety">150</b><span>כללי בטיחות</span></div>
-      </aside>
+    <nav class="intro-menu" id="intro-menu" aria-label="אפשרויות המערכת">
+      <button type="button" class="im primary" data-at="GV20" data-side="r" data-go="start"><b>התחלת ראיון</b><span>שאלון המטופל, בעברית</span></button>
+      <button type="button" class="im" data-at="CV17" data-side="l" data-go="demo"><b>מקרה לדוגמה</b><span>כל המהלך על מטופל לדוגמה</span></button>
+      <button type="button" class="im" data-at="CV12" data-side="r" data-go="summary"><b>סיכום למטפל</b><span>ממצאים, לשון ודופק, תבניות</span></button>
+      <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
+      <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
+      <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="r" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
+    </nav>
+    <div class="intro-foot">
+      <p class="intro-stats"><b id="st-points">361</b> נקודות · <b>14</b> מרידיאנים · <b id="st-patterns">1,734</b> תבניות · <b id="st-formulas">329</b> נוסחאות · <b id="st-safety">150</b> כללי בטיחות</p>
+      <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
     </div>
-    <div class="intro-cta">
-      <button class="intro-go" id="intro-start" type="button"><span>התחלת ראיון</span></button>
-      <button class="btn ghost" id="intro-demo" type="button">מקרה לדוגמה</button>
-      <button class="btn ghost" id="intro-records" type="button" hidden>תיקים</button>
-    </div>
-    <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
   </section>
   <header class="top">
     <div class="brand">
@@ -4262,9 +4256,10 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
 
 </script>
 <script>
-// The opening screen: the glass body with every channel, the work's six stations, the numbers in the
-// knowledge base, and the way in (start an interview, a sample case, or the records when the clinic
-// server answers). It shows once per browser session; the brand in the header brings it back.
+// The opening screen: the glass body fills the screen, every channel on it, and the system's menu sits
+// along the body: each option is a glass pill tied by a hairline to a glowing ring on an acupuncture
+// point (the start at the crown, the summary at the chest, the plan at the middle, and so on down).
+// It shows once per browser session; the brand in the header brings it back.
 (function () {
   "use strict";
   var intro = document.getElementById("intro");
@@ -4277,17 +4272,83 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
   set("st-formulas", window.TCM_TX && window.TCM_TX.formulas ? window.TCM_TX.formulas.length : 0);
   set("st-safety", window.TCM_TX && window.TCM_TX.safety ? window.TCM_TX.safety.length : 0);
 
-  var viewer = null;
+  var menu = document.getElementById("intro-menu");
+  var items = Array.prototype.slice.call(menu.querySelectorAll(".im"));
+  var ringsBox = document.getElementById("intro-rings");
+  var lines = document.getElementById("intro-lines");
+  var SVG = "http://www.w3.org/2000/svg";
+  items.forEach(function (b) {
+    b._ring = document.createElement("i");
+    ringsBox.appendChild(b._ring);
+    b._line = document.createElementNS(SVG, "line");
+    lines.appendChild(b._line);
+    var on = function (v) { b.classList.toggle("on", v); b._ring.classList.toggle("on", v); b._line.classList.toggle("on", v); };
+    b.addEventListener("pointerenter", function () { on(true); });
+    b.addEventListener("pointerleave", function () { on(false); });
+    b.addEventListener("focus", function () { on(true); });
+    b.addEventListener("blur", function () { on(false); });
+  });
+  items[0]._ring.classList.add("on");
+
+  // Place the pills beside their points. Wide screens: a column on each side of the body, at a steady
+  // distance from it; phones: pinned to the screen's edges. Pills on one side never overlap.
+  function place(v) {
+    var W = intro.clientWidth, H = intro.clientHeight;
+    if (!W || !H) return;
+    var phone = W < 700, gap = phone ? 8 : 14, top = phone ? 92 : 110, bottom = H - (phone ? 70 : 64);
+    lines.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var cols = { r: [], l: [] };
+    items.forEach(function (b) {
+      if (b.hidden) { b._ring.style.display = "none"; b._line.style.display = "none"; return; }
+      var side = b.getAttribute("data-side") === "l" ? "l" : "r";
+      var p = v.screen(b.getAttribute("data-at"), 1);
+      if (b.getAttribute("data-mirror")) {
+        var q = v.screen(b.getAttribute("data-at"), -1);
+        if (q && p && ((side === "r") ? q.x > p.x : q.x < p.x)) p = q;
+      }
+      if (!p) return;
+      cols[side].push({ b: b, p: p, h: b.offsetHeight, w: b.offsetWidth });
+    });
+    ["r", "l"].forEach(function (side) {
+      var list = cols[side].sort(function (a, c) { return a.p.y - c.p.y; });
+      var y = top;
+      list.forEach(function (it) { it.y = Math.max(y, Math.min(it.p.y - it.h / 2, bottom - it.h)); y = it.y + it.h + gap; });
+      // If the column ran off the bottom, push it back up.
+      for (var i = list.length - 1, lim = bottom; i >= 0; i--) { var it = list[i]; if (it.y + it.h > lim) it.y = lim - it.h; lim = it.y - gap; }
+      list.forEach(function (it) {
+        var off = phone ? 0 : Math.max(150, Math.min(W * 0.2, 360));
+        var x = side === "r"
+          ? (phone ? W - 10 - it.w : Math.min(W - 18 - it.w, it.p.x + off))
+          : (phone ? 10 : Math.max(18, it.p.x - off - it.w));
+        it.b.style.transform = "translate(" + Math.round(x) + "px," + Math.round(it.y) + "px)";
+        it.b.style.visibility = "visible";
+        var ex = side === "r" ? x : x + it.w, ey = it.y + it.h / 2;
+        it.b._ring.style.display = ""; it.b._line.style.display = "";
+        it.b._ring.style.transform = "translate(" + it.p.x.toFixed(1) + "px," + it.p.y.toFixed(1) + "px)";
+        var L = it.b._line;
+        L.setAttribute("x1", it.p.x.toFixed(1)); L.setAttribute("y1", it.p.y.toFixed(1));
+        L.setAttribute("x2", ex.toFixed(1)); L.setAttribute("y2", ey.toFixed(1));
+      });
+    });
+  }
+
+  var viewer = null, flatTimer = 0;
+  function flat() { intro.classList.add("flat"); }
   function figure() {
     var B3 = window.TCMBody3D, host = document.getElementById("intro-fig");
-    if (viewer || !B3 || !B3.available || !host || intro.hidden) return;
+    if (viewer || intro.hidden || !host) return;
+    if (!B3) { if (!flatTimer) flatTimer = setTimeout(function () { if (!viewer) flat(); }, 6000); return; }
+    if (!B3.available) return flat();
     var T = window.TCMTreatment;
     viewer = B3.create(host, {
       hero: true,
       label: T && T.label ? T.label : null,
-      height: function (w) { return w < 700 ? Math.max(340, Math.min(window.innerHeight * 0.55, 520)) : Math.max(380, Math.min(window.innerHeight * 0.72, 760)); }
+      height: function () { return intro.clientHeight; },
+      dist: function (aspect) { return aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385; },
+      onframe: place
     });
     viewer.show({ acu: [], shiatsu: [], warn: [] });
+    if (viewer.ready && viewer.ready.catch) viewer.ready.catch(flat);
   }
 
   function open() {
@@ -4310,13 +4371,31 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
     setTimeout(done, 380);
   }
   var click = function (id) { var b = document.getElementById(id); if (b) b.click(); };
-  document.getElementById("intro-start").addEventListener("click", function () { close(function () { click("tab-patient"); }); });
-  document.getElementById("intro-demo").addEventListener("click", function () { close(function () { click("demo"); }); });
-  var rec = document.getElementById("intro-records");
-  rec.addEventListener("click", function () { close(function () { click("tab-records"); }); });
-  // The records tab exists only with the clinic server (records.js adds it); show the shortcut then.
-  var watch = new MutationObserver(function () { if (document.getElementById("tab-records")) { rec.hidden = false; watch.disconnect(); } });
-  watch.observe(document.querySelector("nav.tabs"), { childList: true });
+  var themeLabel = document.getElementById("intro-theme");
+  function syncTheme() { if (themeLabel) themeLabel.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "מצב כהה" : "מצב בהיר"; }
+  syncTheme();
+  var go = {
+    start: function () { close(function () { click("tab-patient"); }); },
+    demo: function () { close(function () { click("demo"); }); },
+    summary: function () { close(function () { click("tab-clin"); }); },
+    plan: function () { close(function () { click("tab-clin"); var t = document.getElementById("tx"); if (t) setTimeout(function () { t.scrollIntoView({ block: "start" }); }, 60); }); },
+    records: function () { close(function () { click("tab-records"); }); },
+    approvals: function () { close(function () { click("tab-approvals"); }); },
+    theme: function () { click("theme-toggle"); syncTheme(); }
+  };
+  items.forEach(function (b) { b.addEventListener("click", function () { var f = go[b.getAttribute("data-go")]; if (f) f(); }); });
+
+  // Records and approvals exist only with the clinic server (their scripts add the tabs); show them then.
+  var nav = document.querySelector("nav.tabs");
+  function server() {
+    items.forEach(function (b) {
+      var g = b.getAttribute("data-go");
+      if ((g === "records" || g === "approvals") && document.getElementById("tab-" + g)) b.hidden = false;
+    });
+    if (viewer && viewer.ready) place(viewer);
+  }
+  if (nav) new MutationObserver(server).observe(nav, { childList: true });
+  server();
 
   // The brand in the header goes back to the opening screen.
   var brand = document.querySelector("header.top .brand");
@@ -4440,10 +4519,12 @@ function dotTexture() {
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ALL_KEY = "tcm-b3d-all";
 
-// opts: label(id) -> name for tooltips; height(width) -> stage height; hero: the opening screen's figure
-// (every channel always on, the choice not remembered).
+// opts: label(id) -> name for tooltips; height(width) -> stage height; dist(aspect) -> the camera's resting
+// distance; onframe(viewer) -> called after every drawn frame; hero: the opening screen's figure (every
+// channel always on, the choice not remembered, and it turns back to face the viewer when left alone).
 function create(container, opts) {
   opts = opts || {};
+  const api = {};   // the viewer's handle, filled in below
   const wrap = document.createElement("div");
   wrap.className = "b3d";
   const stage = document.createElement("div");
@@ -4497,7 +4578,8 @@ function create(container, opts) {
 
   // ---- motion ----
   let visible = true, raf = 0;   // the render loop's state (below)
-  let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0;
+  let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0, lastDrag = 0;
+  const homeDist = () => (opts.dist ? opts.dist(camera.aspect || 1) : 0.42);
   renderer.domElement.addEventListener("pointerdown", (e) => {
     drag = { x: e.clientX, y: e.clientY }; vy = vp = 0; goalYaw = null;
     try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) { /* not needed */ }
@@ -4510,7 +4592,7 @@ function create(container, opts) {
     vy = dx * 0.0055; vp = dy * 0.0035; yaw += vy; pit += vp;
     request();
   });
-  const endDrag = () => { if (drag) { drag = null; request(); } };
+  const endDrag = () => { if (drag) { drag = null; lastDrag = performance.now(); request(); } };
   renderer.domElement.addEventListener("pointerup", endDrag);
   renderer.domElement.addEventListener("pointercancel", endDrag);
   window.addEventListener("pointermove", (e) => {
@@ -4530,12 +4612,17 @@ function create(container, opts) {
       if (Math.abs(vy) > 1e-4 || Math.abs(vp) > 1e-4 || Math.abs(pit) > 1e-3) moving = true;
     }
     pit = Math.max(-0.5, Math.min(0.5, pit));
+    if (opts.hero && !drag && goalYaw === null && lastDrag && now - lastDrag > 2500) {
+      const front = 2 * Math.PI * Math.round(yaw / (2 * Math.PI));
+      if (Math.abs(front - yaw) > 0.01) goalYaw = front;
+      lastDrag = 0;
+    }
     if (goalYaw !== null) {
       yaw += (goalYaw - yaw) * 0.06;
       if (Math.abs(goalYaw - yaw) < 0.001) { yaw = goalYaw; goalYaw = null; } else moving = true;
     }
     if (camHome > 0) {
-      const home = new THREE.Vector3(0, CENTRE + 0.01, 0.42);
+      const home = new THREE.Vector3(0, CENTRE + 0.01, homeDist());
       camera.position.lerp(home, 0.08); controls.target.lerp(target, 0.08);
       if (camera.position.distanceTo(home) < 0.001) camHome = 0;
     }
@@ -4578,6 +4665,7 @@ function create(container, opts) {
     const w = stage.clientWidth || 600, h = opts.height ? Math.round(opts.height(w)) : Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (opts.dist) { camera.position.set(0, CENTRE + 0.01, homeDist()); controls.target.copy(target); }
     request();
   }
 
@@ -4592,6 +4680,7 @@ function create(container, opts) {
     });
     renderer.render(scene, camera);
     labels.render(scene, camera);
+    if (opts.onframe) opts.onframe(api);
   }
 
   // The loop runs while the figure is on screen and something moves (or it breathes); otherwise it sleeps.
@@ -4660,7 +4749,7 @@ function create(container, opts) {
   });
   renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; });
 
-  const ready = loadModel().then((m) => {
+  const ready = api.ready = loadModel().then((m) => {
     const body = m.clone();
     inner.add(body);
     inner.updateMatrixWorld(true);
@@ -4682,6 +4771,16 @@ function create(container, opts) {
     stage.textContent = "לא הצלחתי לטעון את הדמות התלת־ממדית. התרשים הדו־ממדי למטה מראה את אותן נקודות.";
     stage.className = "b3d-stage hint";
   });
+
+  // Where a point sits on the screen now, in the stage's pixels (for menus anchored to the body).
+  const sp = new THREE.Vector3();
+  function screen(id, side) {
+    const v = vec(id, side || 1);
+    if (!v) return null;
+    sp.copy(v.pos).applyMatrix4(inner.matrixWorld).project(camera);
+    return { x: (sp.x + 1) / 2 * renderer.domElement.clientWidth, y: (1 - sp.y) / 2 * renderer.domElement.clientHeight };
+  }
+  Object.assign(api, { show: (sel) => show(sel), element: wrap, screen, stage });
 
   function clear() {
     marks.children.slice().forEach((c) => {
@@ -4759,7 +4858,7 @@ function create(container, opts) {
     ready.then(request);
   }
 
-  return { show, ready, element: wrap };
+  return api;
 }
 
 window.TCMBody3D = { available: webgl() && !!window.TCMBodyMap && Object.keys(P3).length > 0, create };
