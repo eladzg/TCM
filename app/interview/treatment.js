@@ -960,6 +960,12 @@
       el("button", { class: "btn", type: "button", text: "שמירת התכנית", onclick: function () {
         var d = doc();
         if (reds.length && !root.confirm("יש " + reds.length + " התראות בטיחות אדומות. לשמור בכל זאת?")) return;
+        // A record opened from the clinic server (records.js): the plan goes to that record, encrypted.
+        if (root.TCMRecords && root.TCMRecords.active()) {
+          status.textContent = "שומר בתיק…";
+          root.TCMRecords.savePlan(d).then(function (msg) { status.textContent = msg; }, function (e) { status.textContent = "השמירה בתיק נכשלה: " + e.message; });
+          return;
+        }
         var saved = loadSaved();
         saved.unshift(d);
         try { root.localStorage.setItem(STORE, JSON.stringify(saved.slice(0, 50))); status.textContent = "נשמר בדפדפן הזה (" + Math.min(saved.length, 50) + " תכניות). להעברה למערכת אחרת הורידו JSON."; }
