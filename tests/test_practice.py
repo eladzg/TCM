@@ -325,3 +325,11 @@ def test_today_and_timeline(env):
     assert {"record", "appointment"} <= {i["type"] for i in items}
     assert c.get("/api/pm/today").status_code == 200
     assert TestClient(app).get("/api/pm/today").status_code == 401
+
+
+def test_pages_served(env):
+    app, _, c = env
+    assert "practice.js" in c.get("/app/index.html").text
+    assert c.get("/app/practice.js").status_code == 200
+    page = c.get("/app/forms.html").text
+    assert "forms.js" in page and "googleapis" not in page   # the patient page makes no third-party requests

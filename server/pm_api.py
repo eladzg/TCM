@@ -348,13 +348,13 @@ def install(app, store, settings, clinician, body, patient_token):
     @app.get("/api/pm/gcal/callback")
     def gcal_callback(code: str = "", state: str = "", error: str = "", actor: str = Depends(clinician)):
         if error:
-            return RedirectResponse("/app/index.html#pm-settings")
+            return RedirectResponse("/app/index.html#pm-admin")
         try:
             gc.callback(code, state)
             jobs.tick(force_gcal=True)
         except Invalid as e:
             raise HTTPException(422, str(e))
-        return RedirectResponse("/app/index.html#pm-settings")
+        return RedirectResponse("/app/index.html#pm-admin")
 
     @app.post("/api/pm/gcal/sync")
     def gcal_sync(actor: str = Depends(clinician)):

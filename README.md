@@ -183,6 +183,24 @@ python3 tools/treatment/build_treatment.py         # treatment suggestions and s
 
 The builds check the exported chain and stop if a row was changed; they print how many decisions applied, how many name an item the draft no longer has, and which links' draft changed since the clinician decided (still applied, and flagged in the tab). The export can also be downloaded from the tab.
 
+## Practice management (`server/practice.py`, tabs "היום", "יומן", "ניהול" and the patient card)
+
+Server-only, like the records tab. Setup of WhatsApp, Google Calendar and backups: [docs/practice-setup.md](docs/practice-setup.md) (Hebrew).
+
+| Piece | Where | What it does |
+| --- | --- | --- |
+| Calendar | `practice.py`, `gcal.py` | Visits with type, length, status (booked, confirmed, change requested, done, no-show, cancelled). Google Calendar stays the main calendar: its events are read in (titles under the identity key) and linked to a record by a private extended property; visits the system creates go to a separate "קליניקה" calendar with a neutral title |
+| Working days | `hebcal.py` | Israeli holidays computed locally from the Hebrew calendar, plus the clinic's own days off and working weekdays |
+| Treatment series | `practice.py` | 7 or 14 sessions, once or twice a week, moved off non-working days, plus a check-up two weeks after |
+| Visit notes and standing alerts | `practice.py`, `records.js` | Versioned notes (a correction is a new version, nothing is deleted); active alerts join the record's category C flags (or set pregnancy) when the clinical summary opens, so the treatment safety check sees them |
+| MYMOP, consent | `practice.py`, `forms.html` | Scores 0-6 with the patient's own problem names (encrypted); consent to treatment, privacy and WhatsApp signed on screen or through a one-time patient link |
+| Payments | `practice.py` | Price list, packages, payments with the external receipt number; receipts stay in the clinician's invoicing software |
+| WhatsApp | `whatsapp.py` | Six logistic templates, a closed-dictionary check that blocks clinical words, wa.me links by hand, a reminder queue sent in working hours through the Cloud API (only with WhatsApp consent), and a signed webhook for replies |
+| Today, timeline, statistics | `practice.py` | What needs doing today; everything that happened in a record; counts per month |
+| Backups | `backup.py` | Daily encrypted backup under a third key, `restore-check` |
+
+Every free text (notes, alert wording, MYMOP problem names, signatures, patient replies) is AES-GCM under the data key; a Google event title or an unknown sender's number is under the identity key. The de-identified export adds MYMOP scores and visit counts, never text.
+
 ## Run
 
 ```

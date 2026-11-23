@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>טפסים לפני הטיפול</title>
+<style>
+/* Patient side: consent forms and the MYMOP questionnaire from a one-time link. No web fonts or other third-party requests. */
+/* Layout: one calm reading column in the earth and moss colours of the clinic app; it follows the device's light or dark setting. */
+:root {
+  color-scheme: dark;
+  --paper: #1a1812; --surface: #26221a; --surface-2: #2e2a20; --ink: #f0eadc; --muted: #b9ae97; --line: #3d372a;
+  --jade: #b9cf9c; --jade-ink: #1d2216; --jade-soft: #303624; --patient: #343a26;
+  --cinnabar: #f0957f; --cinnabar-soft: #3d2620; --amber: #e6c27a; --amber-soft: #3a301b;
+  --edge: rgba(255, 246, 224, .12); --glow-1: #3b3626; --glow-2: #263020;
+  --font-display: "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+  --font-body: "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --paper: #f3efe6; --surface: #fffdf8; --surface-2: #f8f4ea; --ink: #2a2619; --muted: #6b6352; --line: #ddd5c4;
+    --jade: #4f6b3a; --jade-ink: #fffdf8; --jade-soft: #e6ebd9; --patient: #ebe7d6;
+    --cinnabar: #b5432c; --cinnabar-soft: #f6e3dc; --amber: #8a5a00; --amber-soft: #f4ead2;
+    --edge: rgba(80, 70, 40, .14); --glow-1: #e6e2cf; --glow-2: #e9eedd;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
+.draft { display: inline-block; font-size: .75rem; letter-spacing: .04em; color: var(--amber); background: var(--amber-soft); border-radius: 4px; padding: 1px 8px; font-weight: 600; }
+nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { color: var(--jade); border-bottom-color: var(--jade); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+
+/* chat */
+.chat { display: grid; gap: 10px; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
+.msg.sys { background: var(--surface); border: 1px solid var(--line); justify-self: start; border-start-start-radius: 4px; }
+.msg.pt { background: var(--patient); justify-self: end; border-start-end-radius: 4px; }
+.msg.alert { background: var(--cinnabar-soft); color: var(--cinnabar); border: 1px solid var(--cinnabar); font-weight: 600; justify-self: stretch; max-width: none; }
+.msg .meta { display: block; font-size: .78rem; color: var(--muted); margin-top: 4px; }
+.understood { display: flex; flex-wrap: wrap; gap: 6px; justify-self: end; max-width: 88%; }
+.chip { font-size: .8rem; border-radius: 999px; padding: 2px 10px; background: var(--jade-soft); color: var(--jade); }
+.chip.neg { background: var(--surface); color: var(--muted); border: 1px dashed var(--line); text-decoration: line-through; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+label.opt { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+label.opt:has(input:checked) { border-color: var(--jade); background: var(--jade-soft); }
+input[type="number"], textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea { width: 100%; min-height: 72px; resize: vertical; }
+.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 8px 16px; border: 1px solid var(--jade); background: var(--jade); color: var(--surface); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--jade); }
+.btn.no { border-color: var(--muted); background: transparent; color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.answers { display: flex; flex-wrap: wrap; gap: 8px; }
+.progress { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.composer { display: grid; gap: 8px; }
+@media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
+.closed { text-align: center; padding: 32px 14px; }
+/* earth and moss */
+body { background-image: radial-gradient(90% 60% at 80% -10%, var(--glow-1), transparent 70%), radial-gradient(70% 50% at 10% 0%, var(--glow-2), transparent 70%); background-attachment: fixed; line-height: 1.6; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand svg { flex: none; width: 40px; height: 40px; color: var(--jade); }
+h1 { font-weight: 300; font-size: clamp(1.6rem, 5vw, 2.1rem); line-height: 1.15; }
+.msg { border-radius: 20px; padding: 11px 16px; }
+.msg.sys { background: var(--surface); border-color: var(--edge); }
+.panel { border-radius: 22px; border-color: var(--edge); padding: 18px; }
+.btn { border-radius: 999px; min-height: 44px; padding: 9px 20px; font-weight: 500; color: var(--jade-ink); }
+.btn.ghost { color: var(--jade); }
+label.opt { border-radius: 999px; padding: 8px 14px; min-height: 44px; background: var(--surface-2); }
+input[type="number"], textarea { background: var(--surface-2); border-radius: 12px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: var(--jade); }
+
+.form { display: grid; gap: 14px; }
+.form h2 { font-weight: 400; font-size: 1.3rem; margin: 0; }
+.form ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.field { display: grid; gap: 6px; }
+input[type="text"] { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
+.scale { display: flex; flex-wrap: wrap; gap: 6px; }
+.scale label.opt { min-width: 44px; justify-content: center; }
+.ends { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); }
+canvas.pad { width: 100%; height: 170px; background: #fffdf8; border-radius: 14px; border: 1px solid var(--line); touch-action: none; }
+.note { font-size: .88rem; color: var(--muted); margin: 0; }
+.error { color: var(--cinnabar); }
+</style>
+</head>
+<body>
+<div class="wrap" dir="rtl" lang="he">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+      <div>
+        <h1>טפסים לפני הטיפול</h1>
+        <p class="sub">התשובות נשלחות רק למטפל/ת שלך בקליניקה, ונשמרות מוצפנות.</p>
+      </div>
+    </div>
+  </header>
+  <main id="forms" class="form" aria-live="polite"></main>
+</div>
+<script src="forms.js"></script>
+</body>
+</html>
