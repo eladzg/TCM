@@ -534,7 +534,7 @@
       else host3.appendChild(viewers[slot].element);
       viewers[slot].show({ acu: acu, shiatsu: press, warn: warn });
       body.push(host3, legend(all, warn),
-        el("p", { class: "hint", text: "גוררים כדי לסובב ומגלגלים כדי להתקרב. הקווים מראים את מהלך המרידיאנים בשני צדי הגוף, והחצים את כיוון הזרימה (לפי סדר מספרי הנקודות). מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
+        el("p", { class: "hint", text: "גוררים לכל כיוון כדי לסובב ומגלגלים כדי להתקרב. המרידיאנים של הנקודות שנבחרו מודגשים בשני צדי הגוף, והחצים מראים את כיוון הזרימה (לפי סדר מספרי הנקודות). כל שאר המרידיאנים והנקודות מוצגים בעמעום, וריחוף על נקודה מציג את שמה. מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
         el("p", { class: "hint credit" }, ["דמות: ", el("a", { href: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66", target: "_blank", rel: "noopener", text: "Male base muscular anatomy" }),
           " מאת Harshit Prajapati, ברישיון ", el("a", { href: "https://creativecommons.org/licenses/by/4.0/", target: "_blank", rel: "noopener", text: "CC BY 4.0" })]),
         el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));

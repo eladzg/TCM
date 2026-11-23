@@ -5,56 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ראיון אינטייק TCM</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<script>try { if (localStorage.getItem("tcm-theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one reading column; a chat for the patient, a worksheet for the clinician, switched by two tabs. */
+/* Design: "the journey" in earth and moss. A calm warm-dark ground (light linen on request), sage as the
+   one accent, glass bars for navigation, quiet solid panels for dense clinical content, and the body as
+   glass with a soft halo. Red and amber stay reserved for safety and draft marks.
+   Layout: a sticky glass bar (brand, the four stations of the work as pills, sample case, theme);
+   the patient chat in one reading column; the clinician summary wide, with its own section rail. */
 :root {
-  --paper: #f4f6f5;
-  --surface: #ffffff;
-  --ink: #1d2a28;
-  --muted: #5b6b68;
-  --line: #d6dfdc;
-  --jade: #2b6a5c;
-  --jade-soft: #e2efeb;
-  --patient: #eef1f8;
-  --cinnabar: #b23a2a;
-  --cinnabar-soft: #f8e6e2;
-  --amber: #8a5a00;
-  --amber-soft: #f6ecd6;
-  --font-display: "Frank Ruhl Libre", "David Libre", Georgia, serif;
-  --font-body: "Assistant", "Segoe UI", Arial, sans-serif;
+  color-scheme: dark;
+  --paper: #1a1812; --surface: #26221a; --surface-2: #2e2a20; --ink: #f0eadc; --muted: #b9ae97; --line: #3d372a;
+  --jade: #b9cf9c; --jade-ink: #1d2216; --jade-soft: #303624; --patient: #343a26;
+  --cinnabar: #f0957f; --cinnabar-soft: #3d2620; --amber: #e6c27a; --amber-soft: #3a301b;
+  --glass: rgba(46, 42, 30, .62); --edge: rgba(255, 246, 224, .12);
+  --glow-1: #3b3626; --glow-2: #263020;
+  --b3d-glass: #6d7f55; --b3d-rim: #f3e7cc; --b3d-halo: #a9bb88;
+  --font-display: "Heebo", "Segoe UI", Arial, sans-serif;
+  --font-body: "Heebo", "Segoe UI", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-    --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-    --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-  --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-  --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --paper: #f3efe6; --surface: #fffdf8; --surface-2: #f8f4ea; --ink: #2a2619; --muted: #6b6352; --line: #ddd5c4;
+  --jade: #4f6b3a; --jade-ink: #fffdf8; --jade-soft: #e6ebd9; --patient: #ebe7d6;
+  --cinnabar: #b5432c; --cinnabar-soft: #f6e3dc; --amber: #8a5a00; --amber-soft: #f4ead2;
+  --glass: rgba(255, 252, 244, .7); --edge: rgba(80, 70, 40, .14);
+  --glow-1: #e6e2cf; --glow-2: #e9eedd;
+  --b3d-glass: #8a9a70; --b3d-rim: #4f6b3a; --b3d-halo: #9fb07c;
 }
 * { box-sizing: border-box; }
+html { scroll-padding-top: 140px; }
 body {
-  margin: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  margin: 0; color: var(--ink); background: var(--paper);
+  background-image: radial-gradient(90% 60% at 80% -10%, var(--glow-1), transparent 70%), radial-gradient(70% 50% at 10% 0%, var(--glow-2), transparent 70%);
+  background-attachment: fixed;
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6; font-weight: 400;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 48px;
+  padding-block: 0 56px;
 }
-.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
-header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; margin: 0; text-wrap: balance; }
-.sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
-.draft { display: inline-block; font-size: .75rem; letter-spacing: .04em; color: var(--amber); background: var(--amber-soft); border-radius: 4px; padding: 1px 8px; font-weight: 600; }
-nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
-nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; }
-nav.tabs button[aria-selected="true"] { color: var(--jade); border-bottom-color: var(--jade); }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+.wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
+h1 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.7rem, 3.2vw, 2.3rem); line-height: 1.1; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .9rem; margin: 4px 0 0; max-width: 62ch; }
+.draft { display: inline-block; font-size: .75rem; color: var(--amber); background: var(--amber-soft); border-radius: 999px; padding: 1px 10px; font-weight: 500; }
+nav.tabs { position: sticky; top: 10px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; justify-self: center; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); max-width: 100%; }
+nav.tabs button { font: inherit; font-weight: 500; background: none; border: 0; color: var(--muted); padding: 9px 18px; min-height: 42px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
+nav.tabs button:hover { color: var(--ink); background: color-mix(in srgb, var(--jade) 12%, transparent); }
+nav.tabs button[aria-selected="true"] { color: var(--jade-ink); background: var(--jade); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+a { color: var(--jade); }
+.theme-btn { font: inherit; font-size: .9rem; border: 1px solid var(--edge); background: var(--glass); color: var(--ink); border-radius: 999px; min-height: 40px; padding: 6px 14px; cursor: pointer; }
+.rail { position: sticky; top: 72px; z-index: 4; display: flex; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 999px; justify-self: center; max-width: 100%;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); scrollbar-width: none; }
+.rail a { flex: none; text-decoration: none; color: var(--muted); font-size: .88rem; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.rail a:hover { color: var(--ink); }
+.rail a[aria-current="true"] { color: var(--ink); background: var(--jade-soft); }
+.rail[hidden] { display: none; }
 
 /* chat */
 .chat { display: grid; gap: 10px; }
@@ -206,19 +220,83 @@ table.herbs tr.risk-amber td:first-child { box-shadow: inset -4px 0 0 var(--ambe
 input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
 .flag .en { direction: ltr; unicode-bidi: isolate; }
 @media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
+/* ---- earth and moss: components ---- */
+h2 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.4rem, 2.2vw, 1.75rem); line-height: 1.15; letter-spacing: -.01em; }
+h3 { font-weight: 500; }
+.panel, .dx { background: var(--surface); border: 1px solid var(--edge); border-radius: 22px; padding: 18px 20px; box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 10px 30px rgba(0, 0, 0, .12); }
+.dx.primary { border-color: color-mix(in srgb, var(--jade) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--jade) 25%, transparent), 0 12px 36px color-mix(in srgb, var(--jade) 14%, transparent); }
+.dx-name { font-weight: 500; font-size: 1.1rem; }
+.bar { height: 6px; background: var(--jade-soft); border-radius: 3px; }
+.msg { border-radius: 20px; padding: 11px 16px; line-height: 1.6; }
+.msg.sys { background: var(--surface); border: 1px solid var(--edge); }
+.msg.pt { background: var(--patient); color: var(--ink); }
+.msg.alert { border-radius: 16px; }
+.chip { border-radius: 999px; }
+.btn { border-radius: 999px; min-height: 44px; padding: 9px 20px; font-weight: 500; background: var(--jade); color: var(--jade-ink); border-color: var(--jade); transition: filter .15s, background .15s; }
+.btn:hover:not(:disabled) { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--jade); }
+.btn.no { border-color: var(--line); background: transparent; color: var(--ink); }
+label.opt { border-radius: 999px; padding: 7px 14px; border-color: var(--line); background: var(--surface-2); min-height: 40px; transition: border-color .15s, background .15s; }
+label.opt:hover { border-color: color-mix(in srgb, var(--jade) 50%, var(--line)); }
+input[type="number"], input[type="text"], input[type="password"], input[type="search"], textarea, select, input.gram, input[type="text"].note {
+  font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+select { min-height: 42px; padding: 6px 12px; }
+.mini { background: var(--surface-2); border-color: var(--line); min-height: 30px; padding: 2px 12px; }
+.mini[aria-pressed="true"] { background: var(--jade-soft); border-color: var(--jade); color: var(--ink); }
+.ep span { border-radius: 999px; padding: 4px 14px; border-color: var(--line); background: var(--surface-2); }
+.src, pre.json { background: var(--paper); border-radius: 12px; }
+.scenario, .flag { border-radius: 14px; }
+.txrow { border-radius: 16px; border-color: var(--line); background: var(--surface-2); }
+details > summary { padding: 4px 0; }
+table.herbs th, table.herbs td { border-color: var(--line); }
+li.session { border-radius: 16px; background: var(--surface-2); }
+.voicebar { border-radius: 999px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.wrap .recbar { top: 72px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+/* The clinician summary: wide, with the pattern cards in pairs. */
+#view-clin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.wrap > *, #view-clin > *, .panel > *, .dx > *, .txwrap > *, .tx > * { min-width: 0; }
+#view-clin[hidden], .rail[hidden] { display: none; }
+@media (min-width: 1000px) {
+  #view-clin { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-clin > * { grid-column: 1 / -1; }
+  #view-clin > .dx { grid-column: auto; }
+}
+/* The body: glass on a soft glow, labels as small pills in the channel's colour. */
+.b3d-stage { background: radial-gradient(60% 55% at 50% 45%, color-mix(in srgb, var(--b3d-halo) 16%, transparent), transparent 70%); border-radius: 22px; }
+.b3d-stage canvas { cursor: grab; }
+.b3d-stage canvas:active { cursor: grabbing; }
+.b3d-label { font: 500 11px var(--font-mono); color: var(--ink); padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--ch, var(--line)); transform: translateY(-14px); }
+.b3d-tip { position: absolute; left: 0; top: 0; transform: translate(14px, -50%); pointer-events: none; white-space: nowrap; font-size: .82rem; padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--ink); border: 1px solid var(--edge); box-shadow: 0 4px 14px rgba(0, 0, 0, .2); }
+.b3d-tip[hidden] { display: none; }
+.b3d-bar { justify-content: center; }
+.bm-body { fill: var(--surface-2); stroke: var(--muted); }
+@media (max-width: 640px) {
+  header.top { padding-top: 14px; }
+  .brand svg { width: 36px; height: 36px; }
+  nav.tabs { top: 6px; border-radius: 22px; justify-content: center; }
+  nav.tabs button { padding: 7px 12px; font-size: .92rem; min-height: 40px; }
+  .rail { top: 62px; }
+  .panel, .dx { padding: 14px 15px; border-radius: 18px; }
+  .wrap .recbar { top: 112px; }
+}
+@media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap" dir="rtl" lang="he">
   <header class="top">
-    <div>
+    <div class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
+      <div>
       <h1>ראיון אינטייק TCM</h1>
       <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
+      </div>
     </div>
     <div class="row">
       <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
       <select id="demo-case" aria-label="מקרה לדוגמה"></select>
       <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
+      <button class="theme-btn" id="theme-toggle" type="button" aria-pressed="false">מצב בהיר</button>
     </div>
   </header>
   <nav class="tabs" role="tablist">
@@ -987,8 +1065,11 @@ window.TCM_TX = {"schema_version":"treatment_kb.v1","kb_version":"kb_v0","method
 
   var NAME_HE = { LU: "ריאה", LI: "מעי גס", ST: "קיבה", SP: "טחול", HT: "לב", SI: "מעי דק", BL: "שלפוחית השתן", KI: "כליה",
                   PC: "קרום הלב", TE: "המחמם המשולש", GB: "כיס המרה", LR: "כבד", CV: "מרידיאן ההיריון (רן)", GV: "המרידיאן השולט (דו)" };
-  var COLOR = { LU: "#7a8a99", LI: "#8c6d3f", ST: "#c27c0e", SP: "#a8862b", HT: "#c0392b", SI: "#d35400", BL: "#2c6e9b", KI: "#1f4e79",
-                PC: "#a93266", TE: "#8e44ad", GB: "#2e8b57", LR: "#1e7a46", CV: "#6f6f6f", GV: "#8a8a8a" };
+  // Grouped by the five phases, in earthy mid-tones that read on the light and the dark theme:
+  // metal (LU, LI) stone, earth (ST, SP) ochre, fire (HT, SI, PC, TE) terracotta to rose, water (BL, KI)
+  // slate blue, wood (GB, LR) leaf green; the midline vessels (CV, GV) in bark and heather.
+  var COLOR = { LU: "#9c9a86", LI: "#b09f7c", ST: "#c9a227", SP: "#a8842f", HT: "#c4583e", SI: "#d9774a", BL: "#4f8fa8", KI: "#3a6f8f",
+                PC: "#b5546b", TE: "#cf8f45", GB: "#6fa14f", LR: "#4f8a3c", CV: "#a07c9a", GV: "#8a6e4b" };
 
   // Left half of the body outline, top (neck) to crotch; mirrored for the right half.
   var HALF = [[92, 58], [92, 70], [64, 78], [56, 90], [50, 125], [40, 160], [30, 226], [22, 244], [21, 262], [26, 273], [37, 272], [40, 250], [42, 232],
@@ -1654,7 +1735,7 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
       else host3.appendChild(viewers[slot].element);
       viewers[slot].show({ acu: acu, shiatsu: press, warn: warn });
       body.push(host3, legend(all, warn),
-        el("p", { class: "hint", text: "גוררים כדי לסובב ומגלגלים כדי להתקרב. הקווים מראים את מהלך המרידיאנים בשני צדי הגוף, והחצים את כיוון הזרימה (לפי סדר מספרי הנקודות). מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
+        el("p", { class: "hint", text: "גוררים לכל כיוון כדי לסובב ומגלגלים כדי להתקרב. המרידיאנים של הנקודות שנבחרו מודגשים בשני צדי הגוף, והחצים מראים את כיוון הזרימה (לפי סדר מספרי הנקודות). כל שאר המרידיאנים והנקודות מוצגים בעמעום, וריחוף על נקודה מציג את שמה. מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
         el("p", { class: "hint credit" }, ["דמות: ", el("a", { href: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66", target: "_blank", rel: "noopener", text: "Male base muscular anatomy" }),
           " מאת Harshit Prajapati, ברישיון ", el("a", { href: "https://creativecommons.org/licenses/by/4.0/", target: "_blank", rel: "noopener", text: "CC BY 4.0" })]),
         el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
@@ -3988,14 +4069,117 @@ startBtn.addEventListener("click", () => { endBtn.hidden = false; start(); });
 endBtn.addEventListener("click", () => { if (conversation) conversation.endSession(); else ended(); });
 
 </script>
+<script>
+// Page chrome for the "earth and moss" design: the light/dark switch (remembered in this browser) and the
+// section rail of the clinician summary (a row of pills that follows the reader down the page).
+// It only reads the page; the interview, the summary and the plan are drawn by app.js and treatment.js.
+(function () {
+  "use strict";
+  var KEY = "tcm-theme";
+  var root = document.documentElement;
+  var btn = document.getElementById("theme-toggle");
+  function setTheme(t) {
+    if (t === "light") root.setAttribute("data-theme", "light"); else root.removeAttribute("data-theme");
+    if (btn) {
+      btn.setAttribute("aria-pressed", String(t === "light"));
+      btn.textContent = t === "light" ? "מצב כהה" : "מצב בהיר";
+    }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* storage off */ }
+  setTheme(saved === "light" ? "light" : "dark");
+  if (btn) btn.addEventListener("click", function () {
+    var t = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    setTheme(t);
+    try { localStorage.setItem(KEY, t); } catch (e) { /* storage off */ }
+  });
+
+  // ---- the section rail of the clinician summary ----
+  var clin = document.getElementById("view-clin");
+  var nav = document.querySelector("nav.tabs");
+  if (!clin || !nav) return;
+  var rail = document.createElement("nav");
+  rail.className = "rail";
+  rail.setAttribute("aria-label", "חלקי הסיכום");
+  rail.hidden = true;
+  nav.parentNode.insertBefore(rail, nav.nextSibling);
+
+  function short(text) {
+    text = text.replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+    var words = text.split(" ");
+    return words.length > 3 ? words.slice(0, 3).join(" ") : text;
+  }
+  // The sections: the summary's own blocks that carry a heading, then the blocks of the treatment plan.
+  function sections() {
+    var out = [];
+    Array.prototype.forEach.call(clin.children, function (c) {
+      if (c.classList.contains("dx") || c.tagName === "DETAILS") return;
+      if (c.id === "tx") {
+        out.push({ node: c, text: "תכנית טיפול" });
+        Array.prototype.forEach.call(c.querySelectorAll(".panel > h3:first-child, .panel > .txhead h3, details > summary"), function (h) {
+          var host = h.closest(".panel, details");
+          if (host && host.parentNode && host.closest("#tx") === c && !host.parentNode.closest("details") && h.textContent.trim())
+            out.push({ node: host, text: short(h.textContent) });
+        });
+        return;
+      }
+      var h = c.querySelector("h2, h3");
+      if (c.classList.contains("grid2")) out.push({ node: c, text: "לשון ודופק" });
+      else if (h && h.textContent.trim()) out.push({ node: c, text: short(h.textContent) });
+    });
+    var seen = {};
+    return out.filter(function (s) { if (seen[s.text]) return false; seen[s.text] = 1; return true; }).slice(0, 14);
+  }
+  var links = [], ticking = false;
+  // The pill of the last section whose top has passed the upper part of the screen.
+  function mark() {
+    ticking = false;
+    if (rail.hidden || !links.length) return;
+    var cur = links[0];
+    links.forEach(function (l) { if (l.node.getBoundingClientRect().top < window.innerHeight * 0.35) cur = l; });
+    links.forEach(function (l) { l.a.setAttribute("aria-current", String(l === cur)); });
+    if (rail.scrollWidth > rail.clientWidth && cur !== mark.last) cur.a.scrollIntoView({ block: "nearest", inline: "center" });
+    mark.last = cur;
+  }
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(mark); } }, { passive: true });
+  function build() {
+    rail.textContent = "";
+    var list = clin.hidden ? [] : sections();
+    rail.hidden = list.length < 3;
+    if (rail.hidden) return;
+    links = list.map(function (s, i) {
+      if (!s.node.id) s.node.id = "sec-" + i;
+      var a = document.createElement("a");
+      a.href = "#" + s.node.id;
+      a.textContent = s.text;
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        s.node.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      });
+      rail.appendChild(a);
+      return { a: a, node: s.node };
+    });
+    mark();
+  }
+  var t = 0;
+  function later() { clearTimeout(t); t = setTimeout(build, 120); }
+  new MutationObserver(later).observe(clin, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  later();
+})();
+
+</script>
 <script type="module">
 // 3D body figure for the treatment plan: the "Male base muscular anatomy" model (Harshit Prajapati,
-// Sketchfab, CC BY 4.0) with the course of the channels used, arrows for their direction of flow, and
-// the chosen points (filled = acupuncture, ring = shiatsu), on both sides of the body.
+// Sketchfab, CC BY 4.0) drawn as glass with a soft halo. All 14 channels and all 361 points show faintly
+// on both sides of the body; the channels of the chosen points are drawn bright with arrows for their
+// direction of flow, and the chosen points are marked (filled = acupuncture, ring = shiatsu).
 // Point positions and the channel lines come from app/interview/points3d.js
 // (tools/treatment/build_points3d.py): the AcuAtlas location text placed on a cun grid measured on the
 // model, and the lines between the points laid over the skin. They are approximate; the exact
 // location is the AcuAtlas text shown with every point.
+// Motion: the figure turns in a rig around its own centre. Dragging spins it with inertia in any
+// direction, a tilt springs back to upright, and when nothing happens it breathes slowly and leans a
+// little toward the pointer. Reduced motion turns the breathing and the lean off.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/+esm";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js/+esm";
@@ -4005,6 +4189,7 @@ const P3 = window.TCM_POINTS3D || {};
 const PATHS = window.TCM_PATHS3D || null;   // {channel: [[[x, y, z], ...], ...]}, already off the skin
 const BM = window.TCMBodyMap;
 const LIFT = 0.0007;          // markers sit this far off the skin, along the normal
+const CENTRE = -0.075;        // height of the body's middle: the rig turns around it
 let model = null;              // Promise of the loaded glTF scene, shared by every viewer
 
 function loadModel() {
@@ -4042,6 +4227,51 @@ function runs(ch) {
 }
 
 function channelOf(id) { const m = /^([A-Z]+)\d+$/.exec(id); return m ? m[1] : null; }
+const chColor = (ch) => new THREE.Color(BM.channels([ch + "1"])[0].color);
+
+// The channel's lines on one side of the body, as arrays of Vector3.
+function channelLines(ch, side) {
+  const lines = PATHS && PATHS[ch]
+    ? PATHS[ch].map((pl) => pl.map((p) => new THREE.Vector3(side < 0 ? -p[0] : p[0], p[1], p[2])))
+    : runs(ch).map((run) => run.map((id) => vec(id, side)).filter(Boolean).map((v) => v.pos));
+  return lines.map((raw) => raw.filter((v, i, a) => i === 0 || v.distanceTo(a[i - 1]) > 1e-5)).filter((pts) => pts.length > 1);
+}
+
+// Theme colours come from CSS custom properties, so the figure follows the page's light or dark theme.
+function cssColor(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  try { return new THREE.Color(v || fallback); } catch (e) { return new THREE.Color(fallback); }
+}
+
+const VS = "varying vec3 vN;varying vec3 vV;uniform float grow;" +
+  "void main(){vec4 mv=modelViewMatrix*vec4(position+normal*grow,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}";
+function glassMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { grow: { value: 0 }, c: { value: new THREE.Color(0x6d7f55) }, rim: { value: new THREE.Color(0xf3e7cc) } },
+    vertexShader: VS,
+    fragmentShader: "varying vec3 vN;varying vec3 vV;uniform vec3 c;uniform vec3 rim;" +
+      "void main(){float f=pow(1.-abs(dot(vN,vV)),2.4);gl_FragColor=vec4(mix(c*.8,rim,f),.1+f*.6);}",
+    transparent: true, depthWrite: false
+  });
+}
+function haloMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { grow: { value: 0 }, c: { value: new THREE.Color(0xa9bb88) }, k: { value: 0.32 } },
+    vertexShader: VS,
+    fragmentShader: "varying vec3 vN;varying vec3 vV;uniform vec3 c;uniform float k;" +
+      "void main(){float d=clamp(-dot(vN,vV),0.,1.);gl_FragColor=vec4(c,pow(d,1.8)*k);}",
+    side: THREE.BackSide, transparent: true, depthWrite: false
+  });
+}
+function dotTexture() {
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.3, "rgba(255,255,255,.9)"); g.addColorStop(0.55, "rgba(255,255,255,.3)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ALL_KEY = "tcm-b3d-all";
 
 function create(container, opts) {
   opts = opts || {};
@@ -4061,33 +4291,100 @@ function create(container, opts) {
   const labels = new CSS2DRenderer();
   labels.domElement.className = "b3d-labels";
   stage.appendChild(labels.domElement);
+  const tip = document.createElement("div");
+  tip.className = "b3d-tip";
+  tip.hidden = true;
+  stage.appendChild(tip);
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 2.0));
-  const key = new THREE.DirectionalLight(0xffffff, 1.4);
-  key.position.set(0.5, 1, 1.2);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.8);
-  rim.position.set(-0.6, 0.4, -1);
-  scene.add(rim);
+  const rig = new THREE.Group(), inner = new THREE.Group();
+  rig.position.set(0, CENTRE, 0); inner.position.set(0, -CENTRE, 0);
+  rig.add(inner); scene.add(rig);
   const marks = new THREE.Group();
-  scene.add(marks);
+  inner.add(marks);
+  const allLayer = new THREE.Group();     // every channel and point, faint
+  inner.add(allLayer);
+
+  const glass = glassMaterial(), halo = haloMaterial(), occ = new THREE.MeshBasicMaterial({ colorWrite: false });
+  function applyTheme() {
+    glass.uniforms.c.value = cssColor("--b3d-glass", "#6d7f55");
+    glass.uniforms.rim.value = cssColor("--b3d-rim", "#f3e7cc");
+    halo.uniforms.c.value = cssColor("--b3d-halo", "#a9bb88");
+    request();
+  }
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.005, 5);
-  const target = new THREE.Vector3(0, -0.075, 0);
+  const target = new THREE.Vector3(0, CENTRE, 0);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.copy(target);
   controls.enablePan = false;
+  controls.enableRotate = false;      // turning is the rig's (below); the controls only zoom
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.zoomSpeed = 0.6;
   controls.minDistance = 0.08;
   controls.maxDistance = 0.8;
+  camera.position.set(0, CENTRE + 0.01, 0.42);
 
-  const VIEWS = { front: [0, 0, 1], back: [0, 0, -1], right: [-1, 0, 0.15], left: [1, 0, 0.15] };
-  function look(v, dist) {
-    const d = VIEWS[v];
-    camera.position.set(target.x + d[0] * (dist || 0.42), target.y + 0.01, target.z + d[2] * (dist || 0.42));
-    controls.target.copy(target);
-    controls.update();
-    render();
+  // ---- motion ----
+  let visible = true, raf = 0;   // the render loop's state (below)
+  let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0;
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    drag = { x: e.clientX, y: e.clientY }; vy = vp = 0; goalYaw = null;
+    try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) { /* not needed */ }
+    request();
+  });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY;
+    vy = dx * 0.0055; vp = dy * 0.0035; yaw += vy; pit += vp;
+    request();
+  });
+  const endDrag = () => { if (drag) { drag = null; request(); } };
+  renderer.domElement.addEventListener("pointerup", endDrag);
+  renderer.domElement.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointermove", (e) => {
+    const r = stage.getBoundingClientRect();
+    if (!r.width) return;
+    mx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    my = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+  }, { passive: true });
+  controls.addEventListener("change", request);
+
+  // Returns true while something still moves, so the loop knows whether to keep going.
+  function step(now) {
+    let moving = !!drag || camHome > 0;
+    if (!drag) {
+      yaw += vy; pit += vp; vy *= 0.955; vp *= 0.9;
+      pit += (0 - pit) * 0.012;
+      if (Math.abs(vy) > 1e-4 || Math.abs(vp) > 1e-4 || Math.abs(pit) > 1e-3) moving = true;
+    }
+    pit = Math.max(-0.5, Math.min(0.5, pit));
+    if (goalYaw !== null) {
+      yaw += (goalYaw - yaw) * 0.06;
+      if (Math.abs(goalYaw - yaw) < 0.001) { yaw = goalYaw; goalYaw = null; } else moving = true;
+    }
+    if (camHome > 0) {
+      const home = new THREE.Vector3(0, CENTRE + 0.01, 0.42);
+      camera.position.lerp(home, 0.08); controls.target.lerp(target, 0.08);
+      if (camera.position.distanceTo(home) < 0.001) camHome = 0;
+    }
+    const still = reduced();
+    sx += ((still ? 0 : mx * 0.05) - sx) * 0.025;
+    sy += ((still ? 0 : my * 0.03) - sy) * 0.025;
+    const sway = still ? 0 : Math.sin(now * 0.00035) * 0.015;
+    rig.rotation.set(pit + sy, yaw + sx + sway, 0);
+    rig.position.y = CENTRE + (still ? 0 : Math.sin(now * 0.0008) * 0.0004);
+    return moving || !still;
+  }
+
+  const VIEWS = { front: 0, back: Math.PI, right: Math.PI / 2, left: -Math.PI / 2 };
+  function look(v) {
+    const a = VIEWS[v];
+    goalYaw = a + 2 * Math.PI * Math.round((yaw - a) / (2 * Math.PI));
+    vy = vp = 0; camHome = 1;
+    request();
   }
   [["front", "מלפנים"], ["back", "מאחור"], ["right", "צד ימין"], ["left", "צד שמאל"]].forEach(([v, he]) => {
     const b = document.createElement("button");
@@ -4095,24 +4392,124 @@ function create(container, opts) {
     b.addEventListener("click", () => look(v));
     bar.appendChild(b);
   });
+  let showAll = true;
+  try { showAll = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* storage off */ }
+  const allBtn = document.createElement("button");
+  allBtn.type = "button"; allBtn.className = "mini"; allBtn.textContent = "כל המרידיאנים והנקודות";
+  const setAll = (on) => {
+    showAll = on; allLayer.visible = on; allBtn.setAttribute("aria-pressed", String(on));
+    try { localStorage.setItem(ALL_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
+    request();
+  };
+  allBtn.addEventListener("click", () => setAll(!showAll));
+  bar.appendChild(allBtn);
+  setAll(showAll);
 
   function size() {
-    const w = stage.clientWidth || 600, h = Math.round(Math.min(560, Math.max(360, w * 0.9)));
+    const w = stage.clientWidth || 600, h = Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
-    render();
+    request();
   }
-  const tags = [];   // {el, pos, n}: a label shows only while its point faces the camera
-  const toCam = new THREE.Vector3();
+
+  const tags = [];   // {el, pos, n} in the body's own frame: a label shows only while its point faces the camera
+  const toCam = new THREE.Vector3(), wp = new THREE.Vector3(), wn = new THREE.Vector3();
   function render() {
-    tags.forEach((t) => { t.el.style.visibility = toCam.subVectors(camera.position, t.pos).dot(t.n) > 0 ? "visible" : "hidden"; });
+    rig.updateMatrixWorld(true);
+    tags.forEach((t) => {
+      wp.copy(t.pos).applyMatrix4(inner.matrixWorld);
+      wn.copy(t.n).applyQuaternion(rig.quaternion);
+      t.el.style.visibility = toCam.subVectors(camera.position, wp).dot(wn) > 0 ? "visible" : "hidden";
+    });
     renderer.render(scene, camera);
     labels.render(scene, camera);
   }
-  controls.addEventListener("change", render);
-  new ResizeObserver(size).observe(stage);
 
-  const ready = loadModel().then((m) => { scene.add(m.clone()); size(); look("front"); }, () => {
+  // The loop runs while the figure is on screen and something moves (or it breathes); otherwise it sleeps.
+  function loop(now) {
+    raf = 0;
+    controls.update();
+    const more = step(now);
+    render();
+    if (visible && !document.hidden && more) raf = requestAnimationFrame(loop);
+  }
+  function request() { if (!raf && visible) raf = requestAnimationFrame(loop); }
+  new IntersectionObserver((es) => { visible = es[0].isIntersecting; request(); }).observe(stage);
+  document.addEventListener("visibilitychange", request);
+  window.addEventListener("pointermove", () => { if (!reduced()) request(); }, { passive: true });
+  new ResizeObserver(size).observe(stage);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+
+  // ---- every channel and point, faint; a hovered point names itself ----
+  let allPts = null; const ptsInfo = [];
+  function buildAll() {
+    Object.keys(BM.CH).forEach((ch) => {
+      const color = chColor(ch);
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false });
+      (ch === "CV" || ch === "GV" ? [1] : [1, -1]).forEach((side) => {
+        channelLines(ch, side).forEach((pts) => {
+          const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+          const t = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 3), 0.00017, 5, false), mat);
+          t.renderOrder = 3; allLayer.add(t);
+        });
+      });
+    });
+    const pos = [], col = [];
+    Object.keys(P3).forEach((id) => {
+      const ch = channelOf(id); if (!ch || !BM.CH[ch]) return;
+      const c = chColor(ch);
+      (ch === "CV" || ch === "GV" ? [1] : [1, -1]).forEach((side) => {
+        const v = vec(id, side);
+        v.pos.addScaledVector(v.n, 0.0003);
+        pos.push(v.pos.x, v.pos.y, v.pos.z); col.push(c.r, c.g, c.b);
+        ptsInfo.push({ id, n: v.n });
+      });
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    allPts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.0055, map: dotTexture(), vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
+    allPts.renderOrder = 4; allLayer.add(allPts);
+  }
+  const ray = new THREE.Raycaster(); ray.params.Points.threshold = 0.0016;
+  const mouse = new THREE.Vector2();
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (drag || !allPts || !showAll) { tip.hidden = true; return; }
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(mouse, camera);
+    const hit = ray.intersectObject(allPts)
+      .filter((h) => ray.ray.direction.dot(wn.copy(ptsInfo[h.index].n).applyQuaternion(rig.quaternion)) < 0)
+      .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
+    if (!hit) { tip.hidden = true; return; }
+    const id = ptsInfo[hit.index].id;
+    const name = opts.label ? opts.label(id) : id;
+    tip.textContent = name && name !== id ? id + " · " + name : id;
+    tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px";
+    tip.hidden = false;
+  });
+  renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; });
+
+  const ready = loadModel().then((m) => {
+    const body = m.clone();
+    inner.add(body);
+    inner.updateMatrixWorld(true);
+    const meshes = [];
+    body.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    meshes.forEach((o) => {
+      o.material = glass; o.renderOrder = 1;
+      const hide = new THREE.Mesh(o.geometry, occ); hide.renderOrder = 0; o.add(hide);   // depth only: hides what is behind the skin
+      if (/body/i.test(o.name)) {
+        const ws = new THREE.Vector3(); o.getWorldScale(ws);
+        const h = new THREE.Mesh(o.geometry, halo); h.renderOrder = 2; o.add(h);
+        halo.uniforms.grow.value = 0.0045 / (ws.x || 1);
+      }
+    });
+    buildAll();
+    allLayer.visible = showAll;
+    applyTheme(); size();
+  }, () => {
     stage.textContent = "לא הצלחתי לטעון את הדמות התלת־ממדית. התרשים הדו־ממדי למטה מראה את אותן נקודות.";
     stage.className = "b3d-stage hint";
   });
@@ -4131,19 +4528,15 @@ function create(container, opts) {
     tags.length = 0;
     const chans = [...new Set(ids.map(channelOf))];
     chans.forEach((ch) => {
-      const color = new THREE.Color(BM.channels([ch + "1"])[0].color);
-      const lineMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+      const color = chColor(ch);
+      const lineMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, toneMapped: false });
       [1, -1].forEach((side) => {
         if (side < 0 && /^(CV|GV)$/.test(ch)) return;
-        const lines = PATHS && PATHS[ch]
-          ? PATHS[ch].map((pl) => pl.map((p) => new THREE.Vector3(side < 0 ? -p[0] : p[0], p[1], p[2])))
-          : runs(ch).map((run) => run.map((id) => vec(id, side)).filter(Boolean).map((v) => v.pos));
-        lines.forEach((raw) => {
-          const pts = raw.filter((v, i, a) => i === 0 || v.distanceTo(a[i - 1]) > 1e-5);   // points that share a spot
-          if (pts.length < 2) return;
+        channelLines(ch, side).forEach((pts) => {
           const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
           const len = curve.getLength();
-          marks.add(new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2), 0.00042, 6, false), lineMat));
+          const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 2), 0.0004, 6, false), lineMat);
+          tube.renderOrder = 5; marks.add(tube);
           // arrows along the flow (increasing point numbers), about every 0.025 along the line
           const n = Math.max(1, Math.round(len / 0.025));
           for (let i = 0; i < n; i++) {
@@ -4151,13 +4544,13 @@ function create(container, opts) {
             const cone = new THREE.Mesh(new THREE.ConeGeometry(0.0009, 0.0026, 10), lineMat);
             cone.position.copy(curve.getPointAt(t));
             cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(t));
-            marks.add(cone);
+            cone.renderOrder = 5; marks.add(cone);
           }
         });
       });
     });
     ids.forEach((id) => {
-      const color = new THREE.Color(BM.channels([id])[0].color);
+      const color = chColor(channelOf(id));
       const isAcu = acu.indexOf(id) !== -1, isPress = press.indexOf(id) !== -1;
       [1, -1].forEach((side) => {
         if (side < 0 && /^(CV|GV)/.test(id)) return;
@@ -4165,17 +4558,19 @@ function create(container, opts) {
         const g = new THREE.Group();
         g.position.copy(v.pos);
         g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v.n);
-        if (isAcu) g.add(new THREE.Mesh(new THREE.SphereGeometry(0.0015, 16, 12), new THREE.MeshBasicMaterial({ color })));
-        if (isPress) g.add(new THREE.Mesh(new THREE.TorusGeometry(0.0024, 0.00045, 8, 24), new THREE.MeshBasicMaterial({ color })));
+        const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false });
+        if (isAcu) g.add(new THREE.Mesh(new THREE.SphereGeometry(0.0015, 16, 12), mat));
+        if (isPress) g.add(new THREE.Mesh(new THREE.TorusGeometry(0.0024, 0.00045, 8, 24), mat));
         if (warn.indexOf(id) !== -1) {   // a warning in the safety check: a small red dot beside the marker
-          const w = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 12, 10), new THREE.MeshBasicMaterial({ color: 0xd0302a }));
+          const w = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 12, 10), new THREE.MeshBasicMaterial({ color: 0xd0302a, toneMapped: false }));
           w.position.set(0.0024, 0.0024, 0.0004);
           g.add(w);
         }
+        g.traverse((o) => { o.renderOrder = 6; });
         {
           const el = document.createElement("span");
           el.className = "b3d-label";
-          el.style.color = "#" + color.getHexString();
+          el.style.setProperty("--ch", "#" + color.getHexString());
           el.textContent = id;
           if (warn.indexOf(id) !== -1) {   // the red dot also on the label, so it shows at any zoom
             const dot = document.createElement("i");
@@ -4192,7 +4587,7 @@ function create(container, opts) {
         marks.add(g);
       });
     });
-    ready.then(render);
+    ready.then(request);
   }
 
   return { show, ready, element: wrap };

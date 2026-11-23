@@ -5,56 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ראיון אינטייק TCM</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<script>try { if (localStorage.getItem("tcm-theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one reading column; a chat for the patient, a worksheet for the clinician, switched by two tabs. */
+/* Design: "the journey" in earth and moss. A calm warm-dark ground (light linen on request), sage as the
+   one accent, glass bars for navigation, quiet solid panels for dense clinical content, and the body as
+   glass with a soft halo. Red and amber stay reserved for safety and draft marks.
+   Layout: a sticky glass bar (brand, the four stations of the work as pills, sample case, theme);
+   the patient chat in one reading column; the clinician summary wide, with its own section rail. */
 :root {
-  --paper: #f4f6f5;
-  --surface: #ffffff;
-  --ink: #1d2a28;
-  --muted: #5b6b68;
-  --line: #d6dfdc;
-  --jade: #2b6a5c;
-  --jade-soft: #e2efeb;
-  --patient: #eef1f8;
-  --cinnabar: #b23a2a;
-  --cinnabar-soft: #f8e6e2;
-  --amber: #8a5a00;
-  --amber-soft: #f6ecd6;
-  --font-display: "Frank Ruhl Libre", "David Libre", Georgia, serif;
-  --font-body: "Assistant", "Segoe UI", Arial, sans-serif;
+  color-scheme: dark;
+  --paper: #1a1812; --surface: #26221a; --surface-2: #2e2a20; --ink: #f0eadc; --muted: #b9ae97; --line: #3d372a;
+  --jade: #b9cf9c; --jade-ink: #1d2216; --jade-soft: #303624; --patient: #343a26;
+  --cinnabar: #f0957f; --cinnabar-soft: #3d2620; --amber: #e6c27a; --amber-soft: #3a301b;
+  --glass: rgba(46, 42, 30, .62); --edge: rgba(255, 246, 224, .12);
+  --glow-1: #3b3626; --glow-2: #263020;
+  --b3d-glass: #6d7f55; --b3d-rim: #f3e7cc; --b3d-halo: #a9bb88;
+  --font-display: "Heebo", "Segoe UI", Arial, sans-serif;
+  --font-body: "Heebo", "Segoe UI", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-    --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-    --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-  --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-  --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --paper: #f3efe6; --surface: #fffdf8; --surface-2: #f8f4ea; --ink: #2a2619; --muted: #6b6352; --line: #ddd5c4;
+  --jade: #4f6b3a; --jade-ink: #fffdf8; --jade-soft: #e6ebd9; --patient: #ebe7d6;
+  --cinnabar: #b5432c; --cinnabar-soft: #f6e3dc; --amber: #8a5a00; --amber-soft: #f4ead2;
+  --glass: rgba(255, 252, 244, .7); --edge: rgba(80, 70, 40, .14);
+  --glow-1: #e6e2cf; --glow-2: #e9eedd;
+  --b3d-glass: #8a9a70; --b3d-rim: #4f6b3a; --b3d-halo: #9fb07c;
 }
 * { box-sizing: border-box; }
+html { scroll-padding-top: 140px; }
 body {
-  margin: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  margin: 0; color: var(--ink); background: var(--paper);
+  background-image: radial-gradient(90% 60% at 80% -10%, var(--glow-1), transparent 70%), radial-gradient(70% 50% at 10% 0%, var(--glow-2), transparent 70%);
+  background-attachment: fixed;
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6; font-weight: 400;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 48px;
+  padding-block: 0 56px;
 }
-.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
-header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; margin: 0; text-wrap: balance; }
-.sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
-.draft { display: inline-block; font-size: .75rem; letter-spacing: .04em; color: var(--amber); background: var(--amber-soft); border-radius: 4px; padding: 1px 8px; font-weight: 600; }
-nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
-nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; }
-nav.tabs button[aria-selected="true"] { color: var(--jade); border-bottom-color: var(--jade); }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+.wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
+h1 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.7rem, 3.2vw, 2.3rem); line-height: 1.1; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .9rem; margin: 4px 0 0; max-width: 62ch; }
+.draft { display: inline-block; font-size: .75rem; color: var(--amber); background: var(--amber-soft); border-radius: 999px; padding: 1px 10px; font-weight: 500; }
+nav.tabs { position: sticky; top: 10px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; justify-self: center; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); max-width: 100%; }
+nav.tabs button { font: inherit; font-weight: 500; background: none; border: 0; color: var(--muted); padding: 9px 18px; min-height: 42px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
+nav.tabs button:hover { color: var(--ink); background: color-mix(in srgb, var(--jade) 12%, transparent); }
+nav.tabs button[aria-selected="true"] { color: var(--jade-ink); background: var(--jade); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+a { color: var(--jade); }
+.theme-btn { font: inherit; font-size: .9rem; border: 1px solid var(--edge); background: var(--glass); color: var(--ink); border-radius: 999px; min-height: 40px; padding: 6px 14px; cursor: pointer; }
+.rail { position: sticky; top: 72px; z-index: 4; display: flex; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 999px; justify-self: center; max-width: 100%;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); scrollbar-width: none; }
+.rail a { flex: none; text-decoration: none; color: var(--muted); font-size: .88rem; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.rail a:hover { color: var(--ink); }
+.rail a[aria-current="true"] { color: var(--ink); background: var(--jade-soft); }
+.rail[hidden] { display: none; }
 
 /* chat */
 .chat { display: grid; gap: 10px; }
@@ -206,19 +220,83 @@ table.herbs tr.risk-amber td:first-child { box-shadow: inset -4px 0 0 var(--ambe
 input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
 .flag .en { direction: ltr; unicode-bidi: isolate; }
 @media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
+/* ---- earth and moss: components ---- */
+h2 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.4rem, 2.2vw, 1.75rem); line-height: 1.15; letter-spacing: -.01em; }
+h3 { font-weight: 500; }
+.panel, .dx { background: var(--surface); border: 1px solid var(--edge); border-radius: 22px; padding: 18px 20px; box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 10px 30px rgba(0, 0, 0, .12); }
+.dx.primary { border-color: color-mix(in srgb, var(--jade) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--jade) 25%, transparent), 0 12px 36px color-mix(in srgb, var(--jade) 14%, transparent); }
+.dx-name { font-weight: 500; font-size: 1.1rem; }
+.bar { height: 6px; background: var(--jade-soft); border-radius: 3px; }
+.msg { border-radius: 20px; padding: 11px 16px; line-height: 1.6; }
+.msg.sys { background: var(--surface); border: 1px solid var(--edge); }
+.msg.pt { background: var(--patient); color: var(--ink); }
+.msg.alert { border-radius: 16px; }
+.chip { border-radius: 999px; }
+.btn { border-radius: 999px; min-height: 44px; padding: 9px 20px; font-weight: 500; background: var(--jade); color: var(--jade-ink); border-color: var(--jade); transition: filter .15s, background .15s; }
+.btn:hover:not(:disabled) { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--jade); }
+.btn.no { border-color: var(--line); background: transparent; color: var(--ink); }
+label.opt { border-radius: 999px; padding: 7px 14px; border-color: var(--line); background: var(--surface-2); min-height: 40px; transition: border-color .15s, background .15s; }
+label.opt:hover { border-color: color-mix(in srgb, var(--jade) 50%, var(--line)); }
+input[type="number"], input[type="text"], input[type="password"], input[type="search"], textarea, select, input.gram, input[type="text"].note {
+  font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+select { min-height: 42px; padding: 6px 12px; }
+.mini { background: var(--surface-2); border-color: var(--line); min-height: 30px; padding: 2px 12px; }
+.mini[aria-pressed="true"] { background: var(--jade-soft); border-color: var(--jade); color: var(--ink); }
+.ep span { border-radius: 999px; padding: 4px 14px; border-color: var(--line); background: var(--surface-2); }
+.src, pre.json { background: var(--paper); border-radius: 12px; }
+.scenario, .flag { border-radius: 14px; }
+.txrow { border-radius: 16px; border-color: var(--line); background: var(--surface-2); }
+details > summary { padding: 4px 0; }
+table.herbs th, table.herbs td { border-color: var(--line); }
+li.session { border-radius: 16px; background: var(--surface-2); }
+.voicebar { border-radius: 999px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.wrap .recbar { top: 72px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+/* The clinician summary: wide, with the pattern cards in pairs. */
+#view-clin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.wrap > *, #view-clin > *, .panel > *, .dx > *, .txwrap > *, .tx > * { min-width: 0; }
+#view-clin[hidden], .rail[hidden] { display: none; }
+@media (min-width: 1000px) {
+  #view-clin { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-clin > * { grid-column: 1 / -1; }
+  #view-clin > .dx { grid-column: auto; }
+}
+/* The body: glass on a soft glow, labels as small pills in the channel's colour. */
+.b3d-stage { background: radial-gradient(60% 55% at 50% 45%, color-mix(in srgb, var(--b3d-halo) 16%, transparent), transparent 70%); border-radius: 22px; }
+.b3d-stage canvas { cursor: grab; }
+.b3d-stage canvas:active { cursor: grabbing; }
+.b3d-label { font: 500 11px var(--font-mono); color: var(--ink); padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--ch, var(--line)); transform: translateY(-14px); }
+.b3d-tip { position: absolute; left: 0; top: 0; transform: translate(14px, -50%); pointer-events: none; white-space: nowrap; font-size: .82rem; padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--ink); border: 1px solid var(--edge); box-shadow: 0 4px 14px rgba(0, 0, 0, .2); }
+.b3d-tip[hidden] { display: none; }
+.b3d-bar { justify-content: center; }
+.bm-body { fill: var(--surface-2); stroke: var(--muted); }
+@media (max-width: 640px) {
+  header.top { padding-top: 14px; }
+  .brand svg { width: 36px; height: 36px; }
+  nav.tabs { top: 6px; border-radius: 22px; justify-content: center; }
+  nav.tabs button { padding: 7px 12px; font-size: .92rem; min-height: 40px; }
+  .rail { top: 62px; }
+  .panel, .dx { padding: 14px 15px; border-radius: 18px; }
+  .wrap .recbar { top: 112px; }
+}
+@media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap" dir="rtl" lang="he">
   <header class="top">
-    <div>
+    <div class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
+      <div>
       <h1>ראיון אינטייק TCM</h1>
       <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
+      </div>
     </div>
     <div class="row">
       <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
       <select id="demo-case" aria-label="מקרה לדוגמה"></select>
       <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
+      <button class="theme-btn" id="theme-toggle" type="button" aria-pressed="false">מצב בהיר</button>
     </div>
   </header>
   <nav class="tabs" role="tablist">
@@ -250,6 +328,7 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
 <script src="voice_config.js"></script>
 <script src="voice_flow.js"></script>
 <script type="module" src="voice_ui.js"></script>
+<script src="design.js"></script>
 <script type="module" src="body3d.js"></script>
 </body>
 </html>
