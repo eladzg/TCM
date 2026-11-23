@@ -396,7 +396,7 @@ def write_standalone(path, keep_document=False):
     a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
     scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("demo_cases.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("records.js", ""), ("approvals.js", ""), ("voice_config.js", ""),
-               ("voice_flow.js", ""), ("voice_ui.js", ' type="module"'), ("design.js", ""), ("body3d.js", ' type="module"')]
+               ("voice_flow.js", ""), ("voice_ui.js", ' type="module"'), ("design.js", ""), ("intro.js", ""), ("body3d.js", ' type="module"')]
     for name, attrs in scripts:
         tag = f'<script{attrs} src="{name}"></script>'
         if tag not in html:

@@ -280,10 +280,103 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
+/* ---- the opening screen ---- */
+#intro[hidden] { display: none; }
+body.intro-on .wrap { max-width: 1440px; }
+body.intro-on .wrap > :not(#intro) { display: none; }
+.intro { position: relative; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; padding-block: 18px 14px; transition: opacity .35s ease, transform .35s ease; }
+.intro.leaving { opacity: 0; transform: translateY(-14px); }
+.intro::before, .intro::after { content: ""; position: absolute; pointer-events: none; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.intro::before { top: 0; bottom: 0; left: 50%; width: 1px; }
+.intro::after { left: 0; right: 0; top: 58%; height: 1px; }
+.intro > * { position: relative; z-index: 1; min-width: 0; }
+.intro-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.intro-name { font-size: 1.15rem; font-weight: 500; }
+.intro-steps { list-style: none; margin: 0; padding: 5px; display: flex; gap: 2px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.intro-steps li { flex: none; padding: 7px 16px; border-radius: 999px; font-size: .92rem; color: var(--muted); }
+.intro-steps li:first-child { background: var(--jade); color: var(--jade-ink); font-weight: 500; }
+.intro-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; gap: 12px 24px; }
+.intro-title { font-weight: 300; font-size: clamp(2.8rem, 6vw, 5.6rem); line-height: .98; letter-spacing: -.025em; margin: 0;
+  background: linear-gradient(160deg, var(--ink) 30%, color-mix(in srgb, var(--jade) 75%, var(--ink))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.intro-lead { font-size: 1.08rem; color: var(--muted); max-width: 30ch; margin: 18px 0 22px; }
+.intro-feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.intro-feats li { display: flex; align-items: center; gap: 12px; font-size: 1.02rem; }
+.intro-feats i { flex: none; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, var(--jade-ink) 0 2.5px, var(--jade) 3.5px 7px, color-mix(in srgb, var(--jade) 30%, transparent) 8px);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--jade) 35%, transparent); }
+.intro-fig { min-height: 360px; }
+.intro-fig .b3d-bar { display: none; }
+.intro-fig .b3d-stage { background: radial-gradient(45% 50% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 22%, transparent), transparent 72%); }
+.intro-stats { display: grid; gap: 4px; padding: 18px 22px; border-radius: 26px; background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); justify-self: end; min-width: 11em; }
+.intro-stats div { display: grid; padding: 8px 0; border-bottom: 1px solid var(--edge); }
+.intro-stats div:last-child { border-bottom: 0; }
+.intro-stats b { font-weight: 300; font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.intro-stats span { color: var(--muted); font-size: .88rem; }
+.intro-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 18px; padding-top: 6px; }
+.intro-go { font: inherit; font-size: 1.15rem; font-weight: 500; cursor: pointer; border: 0; border-radius: 999px; padding: 18px 46px; min-height: 60px;
+  background: var(--jade); color: var(--jade-ink);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--jade) 20%, transparent), 0 0 0 16px color-mix(in srgb, var(--jade) 8%, transparent), 0 12px 40px color-mix(in srgb, var(--jade) 25%, transparent);
+  transition: box-shadow .3s ease, transform .2s ease; }
+.intro-go:hover { box-shadow: 0 0 0 11px color-mix(in srgb, var(--jade) 22%, transparent), 0 0 0 22px color-mix(in srgb, var(--jade) 9%, transparent), 0 12px 44px color-mix(in srgb, var(--jade) 30%, transparent); }
+.intro-go:active { transform: scale(.98); }
+.intro-credit { margin: 0; font-size: .78rem; color: var(--muted); text-align: start; }
+.intro-credit a { color: inherit; }
+header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
+@media (max-width: 900px) {
+  .intro { min-height: 0; }
+  .intro::before, .intro::after { display: none; }
+  .intro-main { grid-template-columns: minmax(0, 1fr); }
+  .intro-copy { order: 1; } .intro-fig { order: 2; } .intro-stats { order: 3; }
+  .intro-title { font-size: clamp(2.4rem, 11vw, 3.6rem); }
+  .intro-lead { max-width: none; }
+  .intro-stats { justify-self: stretch; grid-template-columns: repeat(auto-fit, minmax(7em, 1fr)); gap: 0 12px; }
+  .intro-stats div { border-bottom: 0; }
+  .intro-cta { position: sticky; bottom: 10px; z-index: 3; padding: 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .intro-go { padding: 14px 30px; min-height: 52px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--jade) 20%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .intro, .intro-go { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap" dir="rtl" lang="he">
+  <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
+    <div class="intro-top">
+      <div class="brand">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
+        <span class="intro-name">יועץ קליני</span>
+      </div>
+      <ol class="intro-steps" aria-label="מהלך העבודה">
+        <li>ראיון</li><li>ממצאים</li><li>אבחנה</li><li>תוכנית</li><li>בטיחות</li><li>אישור</li>
+      </ol>
+      <span class="draft">אב-טיפוס · טיוטה</span>
+    </div>
+    <div class="intro-main">
+      <div class="intro-copy">
+        <h2 id="intro-title" class="intro-title">יועץ קליני<br>לרפואה סינית</h2>
+        <p class="intro-lead">ראיון מטופל בעברית, הצעת תבניות, תכנית טיפול ובדיקת בטיחות. המערכת מציעה, המטפל מחליט.</p>
+        <ul class="intro-feats">
+          <li><i aria-hidden="true"></i>ראיון מטופל בעברית, בכתב</li>
+          <li><i aria-hidden="true"></i>תבניות לפי WHO 2022 ו-GB/T 16751.2</li>
+          <li><i aria-hidden="true"></i>דיקור, שיאצו וצמחים, עם מקור לכל הצעה</li>
+          <li><i aria-hidden="true"></i>בדיקת בטיחות ואישור של המטפל</li>
+        </ul>
+      </div>
+      <div class="intro-fig" id="intro-fig" aria-label="דמות הגוף עם כל המרידיאנים והנקודות"></div>
+      <aside class="intro-stats" aria-label="מה יש במאגר">
+        <div><b id="st-points">361</b><span>נקודות דיקור</span></div>
+        <div><b>14</b><span>מרידיאנים</span></div>
+        <div><b id="st-patterns">1,734</b><span>תבניות</span></div>
+        <div><b id="st-formulas">329</b><span>נוסחאות צמחים</span></div>
+        <div><b id="st-safety">150</b><span>כללי בטיחות</span></div>
+      </aside>
+    </div>
+    <div class="intro-cta">
+      <button class="intro-go" id="intro-start" type="button"><span>התחלת ראיון</span></button>
+      <button class="btn ghost" id="intro-demo" type="button">מקרה לדוגמה</button>
+      <button class="btn ghost" id="intro-records" type="button" hidden>תיקים</button>
+    </div>
+    <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
+  </section>
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
@@ -4168,6 +4261,80 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
 })();
 
 </script>
+<script>
+// The opening screen: the glass body with every channel, the work's six stations, the numbers in the
+// knowledge base, and the way in (start an interview, a sample case, or the records when the clinic
+// server answers). It shows once per browser session; the brand in the header brings it back.
+(function () {
+  "use strict";
+  var intro = document.getElementById("intro");
+  if (!intro) return;
+  var KEY = "tcm-intro-seen";
+  var fmt = function (n) { return Number(n).toLocaleString("en-US"); };
+  function set(id, n) { var e = document.getElementById(id); if (e && n) e.textContent = fmt(n); }
+  set("st-points", window.TCM_POINTS3D ? Object.keys(window.TCM_POINTS3D).length : 0);
+  set("st-patterns", window.TCM_KB && window.TCM_KB.syndromes ? window.TCM_KB.syndromes.length : 0);
+  set("st-formulas", window.TCM_TX && window.TCM_TX.formulas ? window.TCM_TX.formulas.length : 0);
+  set("st-safety", window.TCM_TX && window.TCM_TX.safety ? window.TCM_TX.safety.length : 0);
+
+  var viewer = null;
+  function figure() {
+    var B3 = window.TCMBody3D, host = document.getElementById("intro-fig");
+    if (viewer || !B3 || !B3.available || !host || intro.hidden) return;
+    var T = window.TCMTreatment;
+    viewer = B3.create(host, {
+      hero: true,
+      label: T && T.label ? T.label : null,
+      height: function (w) { return w < 700 ? Math.max(340, Math.min(window.innerHeight * 0.55, 520)) : Math.max(380, Math.min(window.innerHeight * 0.72, 760)); }
+    });
+    viewer.show({ acu: [], shiatsu: [], warn: [] });
+  }
+
+  function open() {
+    intro.hidden = false;
+    document.body.classList.add("intro-on");
+    window.scrollTo(0, 0);
+    figure();
+  }
+  function close(then) {
+    try { sessionStorage.setItem(KEY, "1"); } catch (e) { /* storage off */ }
+    var done = function () {
+      intro.hidden = true;
+      intro.classList.remove("leaving");
+      document.body.classList.remove("intro-on");
+      window.scrollTo(0, 0);
+      if (then) then();
+    };
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return done();
+    intro.classList.add("leaving");
+    setTimeout(done, 380);
+  }
+  var click = function (id) { var b = document.getElementById(id); if (b) b.click(); };
+  document.getElementById("intro-start").addEventListener("click", function () { close(function () { click("tab-patient"); }); });
+  document.getElementById("intro-demo").addEventListener("click", function () { close(function () { click("demo"); }); });
+  var rec = document.getElementById("intro-records");
+  rec.addEventListener("click", function () { close(function () { click("tab-records"); }); });
+  // The records tab exists only with the clinic server (records.js adds it); show the shortcut then.
+  var watch = new MutationObserver(function () { if (document.getElementById("tab-records")) { rec.hidden = false; watch.disconnect(); } });
+  watch.observe(document.querySelector("nav.tabs"), { childList: true });
+
+  // The brand in the header goes back to the opening screen.
+  var brand = document.querySelector("header.top .brand");
+  if (brand) {
+    brand.setAttribute("role", "button");
+    brand.setAttribute("tabindex", "0");
+    brand.setAttribute("title", "למסך הפתיחה");
+    brand.addEventListener("click", open);
+    brand.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  }
+  window.addEventListener("tcm-body3d-ready", figure);
+
+  var seen = false;
+  try { seen = sessionStorage.getItem(KEY) === "1"; } catch (e) { /* storage off */ }
+  if (!seen && !location.hash) open();
+})();
+
+</script>
 <script type="module">
 // 3D body figure for the treatment plan: the "Male base muscular anatomy" model (Harshit Prajapati,
 // Sketchfab, CC BY 4.0) drawn as glass with a soft halo. All 14 channels and all 361 points show faintly
@@ -4273,6 +4440,8 @@ function dotTexture() {
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ALL_KEY = "tcm-b3d-all";
 
+// opts: label(id) -> name for tooltips; height(width) -> stage height; hero: the opening screen's figure
+// (every channel always on, the choice not remembered).
 function create(container, opts) {
   opts = opts || {};
   const wrap = document.createElement("div");
@@ -4393,12 +4562,12 @@ function create(container, opts) {
     bar.appendChild(b);
   });
   let showAll = true;
-  try { showAll = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* storage off */ }
+  if (!opts.hero) try { showAll = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* storage off */ }
   const allBtn = document.createElement("button");
   allBtn.type = "button"; allBtn.className = "mini"; allBtn.textContent = "כל המרידיאנים והנקודות";
   const setAll = (on) => {
     showAll = on; allLayer.visible = on; allBtn.setAttribute("aria-pressed", String(on));
-    try { localStorage.setItem(ALL_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
+    if (!opts.hero) try { localStorage.setItem(ALL_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
     request();
   };
   allBtn.addEventListener("click", () => setAll(!showAll));
@@ -4406,7 +4575,7 @@ function create(container, opts) {
   setAll(showAll);
 
   function size() {
-    const w = stage.clientWidth || 600, h = Math.round(Math.min(640, Math.max(380, w * 1.0)));
+    const w = stage.clientWidth || 600, h = opts.height ? Math.round(opts.height(w)) : Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     request();
