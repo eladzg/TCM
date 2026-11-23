@@ -364,6 +364,7 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
       <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
       <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="l" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
       <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="r" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
     </nav>
     <div class="intro-foot">
@@ -5123,6 +5124,7 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
     plan: function () { close(function () { click("tab-clin"); var t = document.getElementById("tx"); if (t) setTimeout(function () { t.scrollIntoView({ block: "start" }); }, 60); }); },
     records: function () { close(function () { click("tab-records"); }); },
     approvals: function () { close(function () { click("tab-approvals"); }); },
+    today: function () { close(function () { click("tab-pm-today"); }); },
     theme: function () { click("theme-toggle"); syncTheme(); }
   };
   items.forEach(function (b) { b.addEventListener("click", function () { var f = go[b.getAttribute("data-go")]; if (f) f(); }); });
@@ -5133,6 +5135,7 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
     items.forEach(function (b) {
       var g = b.getAttribute("data-go");
       if ((g === "records" || g === "approvals") && document.getElementById("tab-" + g)) b.hidden = false;
+      if (g === "today" && document.getElementById("tab-pm-today")) b.hidden = false;   // practice.js
     });
     if (viewer && viewer.ready) place(viewer);
   }
