@@ -15,7 +15,10 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import approvals, sanitize
+import threading
+from contextlib import asynccontextmanager
+
+from . import approvals, pm_api, sanitize
 from .auth import Lockout, check_password
 from .config import load_settings
 from .crypto import Box
@@ -30,7 +33,19 @@ def create_app(settings=None):
     settings = settings or load_settings()
     store = Store(settings.db_path, Box.load(settings.key_dir))
     lockout = Lockout()
-    app = FastAPI(title="TCM clinic server", docs_url=None, redoc_url=None, openapi_url=None)
+    holder = {}
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        # The background loop (Google sync, WhatsApp queue, daily backup) runs only in a real server.
+        jobs = holder.get("jobs")
+        if jobs and settings.run_jobs:
+            threading.Thread(target=jobs.run, name="tcm-jobs", daemon=True).start()
+        yield
+        if jobs:
+            jobs.stop.set()
+
+    app = FastAPI(title="TCM clinic server", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     decisions = approvals.Decisions(store, approvals.load_sign_key(settings.key_dir))
     app.state.store = store
     app.state.decisions = decisions
@@ -43,7 +58,9 @@ def create_app(settings=None):
             if size and int(size) > MAX_BODY:
                 return JSONResponse({"detail": "too large"}, status_code=413)
             # Clinician writes must come from our own page: a cross-site form cannot set this header.
-            if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-tcm") != "1":
+            # Meta's webhook is the exception: it is checked by its app-secret signature instead.
+            if (request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-tcm") != "1"
+                    and request.url.path != "/api/wa/webhook"):
                 return JSONResponse({"detail": "missing X-TCM header"}, status_code=403)
         response = await call_next(request)
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -271,6 +288,9 @@ def create_app(settings=None):
         with store.db() as c:
             store.audit(c, actor, "kb_export")
         return JSONResponse(out, headers={"Content-Disposition": 'attachment; filename="decisions.json"'})
+
+    # ---- practice management (server/pm_api.py) ----
+    holder["jobs"] = pm_api.install(app, store, settings, clinician, body, patient_token)
 
     @app.get("/")
     def root():

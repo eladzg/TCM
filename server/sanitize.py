@@ -110,5 +110,16 @@ def export(store, keep_ids=False):
             alias[rid] = rid if keep_ids else "X-" + secrets.token_hex(5).upper()
         rec = out.setdefault(alias[rid], {"record": alias[rid]})
         rec.setdefault(kind, []).append({"version": doc["version"], "created_at": doc["created_at"], "data": scrub(doc["data"])})
+    # Practice data that carries no free text: MYMOP scores (not the symptom names) and visit counts.
+    with store.db() as c:
+        if c.execute("SELECT 1 FROM sqlite_master WHERE name = 'pm_outcomes'").fetchone():
+            for r in c.execute("SELECT record_id, at, source, s1, s2, activity, wellbeing FROM pm_outcomes ORDER BY at"):
+                if r["record_id"] not in alias:
+                    alias[r["record_id"]] = r["record_id"] if keep_ids else "X-" + secrets.token_hex(5).upper()
+                rec = out.setdefault(alias[r["record_id"]], {"record": alias[r["record_id"]]})
+                rec.setdefault("mymop", []).append({k: r[k] for k in ("at", "source", "s1", "s2", "activity", "wellbeing")})
+            for r in c.execute("SELECT record_id, status, COUNT(*) AS n FROM pm_appointments WHERE record_id IS NOT NULL GROUP BY record_id, status"):
+                if r["record_id"] in alias:
+                    out[alias[r["record_id"]]].setdefault("visits", {})[r["status"]] = r["n"]
     return {"schema_version": "deidentified_export.v1", "free_text_removed": sorted(FREE_TEXT_KEYS),
             "records": list(out.values())}
