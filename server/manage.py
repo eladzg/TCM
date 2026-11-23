@@ -5,15 +5,18 @@
     python -m server.manage deactivate <username>
     python -m server.manage export [--keep-ids] > export.json   # de-identified clinical data
     python -m server.manage audit [record_id]
+    python -m server.manage kb-export [path]          # clinician KB decisions -> kb/approvals/decisions.json
+    python -m server.manage kb-verify                 # check the decision log's hash chain and signatures
 """
 import argparse
 import getpass
 import json
 import sys
+from pathlib import Path
 
-from . import sanitize
+from . import approvals, sanitize
 from .auth import hash_password
-from .config import load_settings
+from .config import ROOT, load_settings
 from .crypto import Box, create_keys
 from .store import Store
 
@@ -27,6 +30,8 @@ def main(argv=None):
     d = sub.add_parser("deactivate"); d.add_argument("username")
     e = sub.add_parser("export"); e.add_argument("--keep-ids", action="store_true")
     u = sub.add_parser("audit"); u.add_argument("record_id", nargs="?")
+    k = sub.add_parser("kb-export"); k.add_argument("path", nargs="?", type=Path, default=ROOT / "kb" / "approvals" / "decisions.json")
+    sub.add_parser("kb-verify")
     args = ap.parse_args(argv)
     s = load_settings()
 
@@ -34,6 +39,7 @@ def main(argv=None):
         s.data_dir.mkdir(parents=True, exist_ok=True)
         for p in create_keys(s.key_dir):
             print(f"created {p}")
+        approvals.load_sign_key(s.key_dir)
         Store(s.db_path, Box.load(s.key_dir))
         print(f"database {s.db_path}")
         print("Back up the keys separately from the database: without data.key the records cannot be read.")
@@ -54,6 +60,16 @@ def main(argv=None):
     elif args.cmd == "export":
         json.dump(sanitize.export(store, keep_ids=args.keep_ids), sys.stdout, ensure_ascii=False, indent=1)
         print()
+    elif args.cmd in ("kb-export", "kb-verify"):
+        dec = approvals.Decisions(store, approvals.load_sign_key(s.key_dir, create=False))
+        ok, msg = dec.verify()
+        print(msg, file=sys.stderr)
+        if not ok:
+            return 1
+        if args.cmd == "kb-export":
+            args.path.parent.mkdir(parents=True, exist_ok=True)
+            args.path.write_text(json.dumps(dec.export(), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+            print(f"wrote {args.path}; rebuild with tools/interview/build_interview.py and tools/treatment/build_treatment.py")
     elif args.cmd == "audit":
         for row in store.audit_log(args.record_id):
             print(row["at"], row["actor"], row["action"], row["record_id"] or "")

@@ -11,8 +11,12 @@ Where TCM-SD clinical records give enough data (kb/staging/TCM-SD/link_stats.jso
 learn_weights.py), links get a draft weight from how much more often the pattern's records report
 the finding, and findings the records clearly tie to the pattern are added as TCM-SD links.
 
-Every derived link is a DRAFT with the placeholder weight from the lexicon `defaults`; the
-clinician replaces these with real weights and essential flags later.
+Every derived link is a DRAFT with the placeholder weight from the lexicon `defaults`. The clinician's
+decisions from the clinic server's approval tab (kb/approvals/decisions.json, written by
+`python -m server.manage kb-export`) are laid over the draft: an approved link keeps its weight and is
+marked `ok`, an edited one carries the clinician's weight `w` with the draft weight kept in `dw`, a
+rejected link moves to the pattern's `rej` list, a link the clinician added gets source "clinician";
+a rejected pattern is kept with status "rejected" and is not ranked. The source files are not changed.
 
 Usage:
     python3 tools/interview/build_interview.py                 # write app/interview/kb.js
@@ -33,6 +37,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 KB = ROOT / "kb"
 APP = ROOT / "app" / "interview"
+DECISIONS = KB / "approvals" / "decisions.json"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from server import approvals  # noqa: E402  (standard library only)
 
 NEGATION = re.compile(r"(absence of|\bno|without|lack of|\bnot|absent)\s+(?:[\w/-]+[ ,]+){0,2}$", re.I)
 NEGATED_TERM = re.compile(r"(absence of|no|without|lack of|not)\b", re.I)  # the feature itself is a negative finding
@@ -251,6 +259,65 @@ def apply_record_stats(links, features):
                               "src": ["TCM-SD"], "w": round(min(3.0, math.log2(lr)), 2), "sd": f"{k}/{n}"})
 
 
+def link_draft(link, default_w):
+    """What a link looked like before any decision: compared with the snapshot the clinician saw."""
+    return {"w": link.get("w", default_w), "src": sorted(link["src"])}
+
+
+def apply_decisions(out_syndromes, features, default_w, decisions):
+    """Lay the clinician's latest decision per key over the draft (see the module docstring).
+    Returns a summary: how many decisions applied, the keys whose draft changed since the decision,
+    and the keys that name nothing in the current draft."""
+    applied, changed, orphans = 0, [], []
+    feats = {f["id"]: f for f in features}
+    syns = {s["id"]: s for s in out_syndromes}
+    for key, row in sorted(decisions.items(), key=lambda kv: kv[1]["seq"]):
+        kind = approvals.key_type(key)
+        if kind == "pattern":
+            syn = syns.get(key.split(":", 1)[1])
+            if not syn:
+                orphans.append(key); continue
+            syn["status"] = "approved" if row["action"] == "approve" else "rejected"
+            syn["ok" if row["action"] == "approve" else "rejected_by"] = approvals.stamp(row)
+        elif kind == "link":
+            sid, fid = key.split(":", 1)[1].split("|")
+            syn = syns.get(sid)
+            if not syn or fid not in feats:
+                orphans.append(key); continue
+            link = next((l for l in syn["links"] if l["f"] == fid), None)
+            if link and row.get("draft") and row["draft"] != link_draft(link, default_w):
+                changed.append(key)
+            if row["action"] == "reject":
+                if not link:
+                    orphans.append(key); continue
+                syn["links"].remove(link)
+                syn.setdefault("rej", []).append({**link, "by": approvals.stamp(row)})
+            elif row["action"] == "approve":
+                if not link:
+                    orphans.append(key); continue
+                link["ok"] = approvals.stamp(row)
+            else:   # edit: the clinician's weight; on a link the draft lacks, a new link
+                if not link:
+                    link = {"f": fid, "ev": row.get("note") or "added by the clinician", "src": ["clinician"]}
+                    syn["links"].append(link)
+                else:
+                    link["dw"] = link.get("w", default_w)
+                link["w"] = row["value"]["w"]
+                link["ok"] = approvals.stamp(row)
+        elif kind == "feature":
+            f = feats.get(key.split(":", 1)[1])
+            if not f:
+                orphans.append(key); continue
+            if row["action"] == "edit":
+                f["draft_he"] = {k: f.get(k) for k in row["value"]}
+                f.update(row["value"])
+            f["ok"] = approvals.stamp(row)
+        else:
+            continue          # tx: and safety: keys are the treatment build's
+        applied += 1
+    return {"applied": applied, "changed": changed, "orphans": orphans}
+
+
 def locator(syn):
     for src in syn.get("sources", []):
         if src.get("field") == "presentation":
@@ -299,14 +366,19 @@ def build_data():
             "links": links[syn["syndrome_id"]],
             **({"prior": GB_ONLY_PRIOR} if gb_only else {}),
         })
+    out_features = [{k: v for k, v in f.items() if k not in ("en", "zh")} for f in features]
+    decisions, head = approvals.load_export(DECISIONS)
+    summary = apply_decisions(out_syndromes, out_features, lex["defaults"]["weight"], decisions)
+    summary["head_seq"] = head
     return {
         "schema_version": "interview_kb.v1",
         "kb_version": config.get("kb_version", ""),
         "defaults": lex["defaults"],
         "groups": lex["groups"],
-        "features": [{k: v for k, v in f.items() if k not in ("en", "zh")} for f in features],
+        "features": out_features,
         "safety": safety,
         "syndromes": out_syndromes,
+        "approvals": summary,
     }
 
 
@@ -323,7 +395,7 @@ def write_standalone(path, keep_document=False):
     By default the document skeleton is dropped for the artifact host; keep_document keeps it, for
     a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
-    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("demo_cases.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("records.js", ""), ("voice_config.js", ""),
+    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("demo_cases.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("records.js", ""), ("approvals.js", ""), ("voice_config.js", ""),
                ("voice_flow.js", ""), ("voice_ui.js", ' type="module"'), ("body3d.js", ' type="module"')]
     for name, attrs in scripts:
         tag = f'<script{attrs} src="{name}"></script>'
@@ -356,7 +428,11 @@ def main(argv=None):
     linked = sum(1 for s in data["syndromes"] if s["links"])
     total = sum(len(s["links"]) for s in data["syndromes"])
     print(f"{len(data['features'])} features, {linked}/{len(data['syndromes'])} patterns linked, "
-          f"{total} draft links -> {APP / 'kb.js'}")
+          f"{total} links -> {APP / 'kb.js'}")
+    a = data["approvals"]
+    if a["applied"] or a["orphans"]:
+        print(f"clinician decisions applied: {a['applied']}; draft changed since the decision: {len(a['changed'])}; "
+              f"naming nothing in the draft: {len(a['orphans'])}")
     if args.standalone:
         write_standalone(args.standalone)
         print(f"standalone -> {args.standalone}")

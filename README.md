@@ -157,7 +157,31 @@ python3 -m server.manage audit [R-...]
 
 `TCM_DATA_DIR`, `TCM_KEY_DIR`, `TCM_TOKEN_DAYS`, `TCM_SESSION_HOURS` and `TCM_DATA_KEY` / `TCM_IDENTITY_KEY` (base64, in place of the key files) change the defaults. To reach it from other devices, put it behind HTTPS (for example Caddy as a reverse proxy) and set `TCM_SECURE_COOKIE=1`; a patient link must be HTTPS. Back up the database and the keys to different places: the database alone cannot be read, and without `data.key` neither can the clinic. A replaced key can stay in the key folder as `data.<anything>.old.key` so older rows still open.
 
-Not done yet: the patient's answers are sent once, at the end (closing the page mid-way loses them); a saved treatment plan is stored and versioned but not loaded back into the plan editor; there is no clinician approval screen for the knowledge base yet.
+Not done yet: the patient's answers are sent once, at the end (closing the page mid-way loses them); a saved treatment plan is stored and versioned but not loaded back into the plan editor.
+
+## Clinical approval of the knowledge base (`server/approvals.py`, tab "אישור קליני")
+
+Every pattern, pattern-finding link and weight, question wording, treatment suggestion and safety rule the builds derive is a draft. On the clinic server a signed-in clinician reviews them in the "אישור קליני" tab (`app/interview/approvals.js`, shown only when the server answers, like "תיקים"):
+
+| What | Decisions | Effect in the next build |
+| --- | --- | --- |
+| Pattern | approve, reject | a rejected pattern stays in `kb.js` with status `rejected` and is never ranked |
+| Pattern-finding link | approve, set weight (0.1-5), reject, add a finding | approved weight marked `ok`; an edited one carries the clinician's `w` and the draft in `dw`; a rejected link moves to the pattern's `rej`; an added one has source `clinician` |
+| Finding wording | approve, edit `q_he` / `label_he` | the new wording replaces the draft, which is kept in `draft_he` |
+| Treatment suggestion (WHO method, point, herb, formula) per pattern | approve, reject, add | approved ones are kept even if the heuristics stop finding them and show "✓ מאושר" in the plan; rejected ones move to `x`; added ones rank first |
+| Safety rule | approve, dispute (note required) | a safety rule cannot be switched off here: a disputed rule keeps firing with the note attached |
+
+Decisions collect in the page until "חתימה ושמירה". The server then appends them to `kb_decisions`, an append-only log: each row holds who, when, the decision, the draft the clinician saw and a note, a SHA-256 hash over the row and the previous row's hash, and an HMAC of that hash under `keys/sign.key`. Changing or deleting a row breaks the chain (`manage kb-verify`, and the tab shows the state). The latest decision per item wins; "↺" returns an item to draft with a new row, so nothing is erased. Gram doses are not set here: they stay a decision in each patient's plan.
+
+The `kb/` source files are never edited. To apply the decisions:
+
+```
+python3 -m server.manage kb-export                 # kb/approvals/decisions.json (verifies the chain first)
+python3 tools/interview/build_interview.py         # matching: weights, rejected links and patterns
+python3 tools/treatment/build_treatment.py         # treatment suggestions and safety rule status
+```
+
+The builds check the exported chain and stop if a row was changed; they print how many decisions applied, how many name an item the draft no longer has, and which links' draft changed since the clinician decided (still applied, and flagged in the tab). The export can also be downloaded from the tab.
 
 ## Run
 

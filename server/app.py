@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import sanitize
+from . import approvals, sanitize
 from .auth import Lockout, check_password
 from .config import load_settings
 from .crypto import Box
@@ -31,7 +31,9 @@ def create_app(settings=None):
     store = Store(settings.db_path, Box.load(settings.key_dir))
     lockout = Lockout()
     app = FastAPI(title="TCM clinic server", docs_url=None, redoc_url=None, openapi_url=None)
+    decisions = approvals.Decisions(store, approvals.load_sign_key(settings.key_dir))
     app.state.store = store
+    app.state.decisions = decisions
     app.state.settings = settings
 
     @app.middleware("http")
@@ -230,6 +232,45 @@ def create_app(settings=None):
         with store.db() as c:
             store.audit(c, actor, "export")
         return sanitize.export(store)
+
+    # ---- clinical approval of the draft knowledge base (server/approvals.py) ----
+    @app.get("/api/kb/decisions")
+    def kb_decisions(actor: str = Depends(clinician)):
+        rows = decisions.all()
+        ok, msg = approvals.verify_chain(rows, decisions.key)
+        return {"decisions": list(approvals.effective(rows).values()), "total_rows": len(rows),
+                "chain_ok": ok, "chain": msg}
+
+    @app.post("/api/kb/decisions")
+    async def kb_decide(request: Request, actor: str = Depends(clinician)):
+        data = await body(request)
+        batch = data.get("decisions")
+        if not isinstance(batch, list) or not batch or len(batch) > 500:
+            raise HTTPException(422, "expected {decisions: [...]} with 1 to 500 items")
+        try:
+            rows = decisions.add(actor, batch)
+        except approvals.Invalid as e:
+            raise HTTPException(422, str(e))
+        return {"saved": rows}
+
+    @app.get("/api/kb/history")
+    def kb_history(key: str, actor: str = Depends(clinician)):
+        return {"key": key, "rows": decisions.history(key)}
+
+    @app.get("/api/kb/log")
+    def kb_log(limit: int = 100, actor: str = Depends(clinician)):
+        rows = decisions.all()
+        return {"rows": rows[::-1][:max(1, min(limit, 1000))], "total_rows": len(rows)}
+
+    @app.get("/api/kb/export")
+    def kb_export(actor: str = Depends(clinician)):
+        try:
+            out = decisions.export()
+        except approvals.Invalid as e:
+            raise HTTPException(409, str(e))
+        with store.db() as c:
+            store.audit(c, actor, "kb_export")
+        return JSONResponse(out, headers={"Content-Disposition": 'attachment; filename="decisions.json"'})
 
     @app.get("/")
     def root():
