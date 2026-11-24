@@ -3439,6 +3439,7 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     ["PUT", /^\/pm\/whatsapp\/demo-credentials$/, function (m, b) {
       var id = String(b.phone_id || "").replace(/\D/g, ""), tok = String(b.token || "").trim();
       if (!id || !tok) throw E(422, "צריך Phone Number ID ואסימון");
+      if (/^(1555|972|0)/.test(id) || id.length < 13) throw E(422, "זה נראה כמו מספר הטלפון של מספר הבדיקה, לא ה־Phone Number ID. ה־ID הוא מספר ארוך (בדרך כלל 15–16 ספרות) שמופיע ב־API Setup מתחת למספר הטלפון, ליד הכיתוב Phone number ID.");
       try { sessionStorage.setItem(LIVE_KEY, JSON.stringify({ phone_id: id, token: tok })); } catch (e) { throw E(500, "הדפדפן לא שומר נתונים בלשונית"); }
       return { ok: true };
     }],
@@ -3544,6 +3545,8 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
         return r.json().catch(function () { return {}; }).then(function (j) {
           if (r.ok) return j;
           var er = j.error || {}, e = new Error("Meta " + r.status + (er.code ? " (code " + er.code + ")" : "") + ": " + (((er.error_data || {}).details) || er.message || "error"));
+          if (er.code === 100) e.message = "Meta לא מכירה את ה־Phone Number ID שהוזן. כנראה הוזן מספר הטלפון במקום ה־ID: ב־API Setup ה־ID מופיע מתחת למספר הטלפון, ליד הכיתוב Phone number ID. (" + e.message + ")";
+          if (er.code === 190) e.message = "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ב־API Setup ולחבר מחדש. (" + e.message + ")";
           e.status = 502; throw e;
         });
       });
@@ -4509,11 +4512,12 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
         el("button", { class: "mini", type: "button", text: "ניתוק ומחיקת האסימון", onclick: function () { call("DELETE", "/pm/whatsapp/demo-credentials").then(function () { load("admin"); }); } }),
         el("p", { class: "hint", text: "תזכורות יוצאות רק לתיקים עם מספר אמיתי שאישרת באפליקציה ב־Meta ועם הסכמה חתומה לוואטסאפ, לא למטופלים הבדויים. בהדגמה הן יוצאות מיד כשמגיע זמנן, בלי שעות שליחה." })]);
     }
-    var pid = input("text", { placeholder: "Phone Number ID", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
+    var pid = input("text", { placeholder: "למשל 1444554052082077", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
     var tok = input("password", { placeholder: "אסימון זמני (Temporary access token)", "aria-label": "אסימון", autocomplete: "off" });
     return el("div", { class: "panel" }, [el("h3", { text: "חיבור ההדגמה למספר הבדיקה של Meta" }),
       el("p", { class: "hint", text: "מ־developers.facebook.com ← האפליקציה ← WhatsApp ← API Setup. האסימון נשמר רק בלשונית הדפדפן הזאת (sessionStorage), נשלח רק ל־graph.facebook.com, ונמחק בסגירת הלשונית או בלחיצה על ניתוק. אל תדביק כאן אסימון קבוע." }),
-      el("div", { class: "row" }, [pid, tok, el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
+      el("p", { class: "hint", text: "שים לב: Phone Number ID הוא לא מספר הטלפון (‎+1 555…). זה מספר ארוך שמופיע ב־API Setup מתחת למספר, ליד הכיתוב Phone number ID." }),
+      el("div", { class: "row" }, [field("Phone Number ID (לא מספר הטלפון)", pid), field("אסימון זמני", tok), el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
         call("PUT", "/pm/whatsapp/demo-credentials", { phone_id: pid.value, token: tok.value }).then(function () { tok.value = ""; load("admin"); }, fail(box));
       } })]), box]);
   }

@@ -617,11 +617,12 @@
         el("button", { class: "mini", type: "button", text: "ניתוק ומחיקת האסימון", onclick: function () { call("DELETE", "/pm/whatsapp/demo-credentials").then(function () { load("admin"); }); } }),
         el("p", { class: "hint", text: "תזכורות יוצאות רק לתיקים עם מספר אמיתי שאישרת באפליקציה ב־Meta ועם הסכמה חתומה לוואטסאפ, לא למטופלים הבדויים. בהדגמה הן יוצאות מיד כשמגיע זמנן, בלי שעות שליחה." })]);
     }
-    var pid = input("text", { placeholder: "Phone Number ID", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
+    var pid = input("text", { placeholder: "למשל 1444554052082077", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
     var tok = input("password", { placeholder: "אסימון זמני (Temporary access token)", "aria-label": "אסימון", autocomplete: "off" });
     return el("div", { class: "panel" }, [el("h3", { text: "חיבור ההדגמה למספר הבדיקה של Meta" }),
       el("p", { class: "hint", text: "מ־developers.facebook.com ← האפליקציה ← WhatsApp ← API Setup. האסימון נשמר רק בלשונית הדפדפן הזאת (sessionStorage), נשלח רק ל־graph.facebook.com, ונמחק בסגירת הלשונית או בלחיצה על ניתוק. אל תדביק כאן אסימון קבוע." }),
-      el("div", { class: "row" }, [pid, tok, el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
+      el("p", { class: "hint", text: "שים לב: Phone Number ID הוא לא מספר הטלפון (‎+1 555…). זה מספר ארוך שמופיע ב־API Setup מתחת למספר, ליד הכיתוב Phone number ID." }),
+      el("div", { class: "row" }, [field("Phone Number ID (לא מספר הטלפון)", pid), field("אסימון זמני", tok), el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
         call("PUT", "/pm/whatsapp/demo-credentials", { phone_id: pid.value, token: tok.value }).then(function () { tok.value = ""; load("admin"); }, fail(box));
       } })]), box]);
   }

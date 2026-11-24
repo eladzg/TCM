@@ -562,7 +562,9 @@ def _open(req):
         except ValueError:
             err = {}
         detail = (err.get("error_data") or {}).get("details") or err.get("error_user_msg") or err.get("message") or e.reason
-        raise MetaError(f"Meta {e.code}" + (f" (code {err.get('code')})" if err.get("code") else "") + f": {detail}") from None
+        hint = {100: "Meta does not know this id: is TCM_WA_PHONE_ID the Phone number ID from API Setup, not the phone number itself? ",
+                190: "The token expired or is wrong: make a new one. "}.get(err.get("code"), "")
+        raise MetaError(hint + f"Meta {e.code}" + (f" (code {err.get('code')})" if err.get("code") else "") + f": {detail}") from None
 
 
 def _post_json(url, body, headers):

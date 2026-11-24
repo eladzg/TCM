@@ -504,6 +504,7 @@
     ["PUT", /^\/pm\/whatsapp\/demo-credentials$/, function (m, b) {
       var id = String(b.phone_id || "").replace(/\D/g, ""), tok = String(b.token || "").trim();
       if (!id || !tok) throw E(422, "צריך Phone Number ID ואסימון");
+      if (/^(1555|972|0)/.test(id) || id.length < 13) throw E(422, "זה נראה כמו מספר הטלפון של מספר הבדיקה, לא ה־Phone Number ID. ה־ID הוא מספר ארוך (בדרך כלל 15–16 ספרות) שמופיע ב־API Setup מתחת למספר הטלפון, ליד הכיתוב Phone number ID.");
       try { sessionStorage.setItem(LIVE_KEY, JSON.stringify({ phone_id: id, token: tok })); } catch (e) { throw E(500, "הדפדפן לא שומר נתונים בלשונית"); }
       return { ok: true };
     }],
@@ -609,6 +610,8 @@
         return r.json().catch(function () { return {}; }).then(function (j) {
           if (r.ok) return j;
           var er = j.error || {}, e = new Error("Meta " + r.status + (er.code ? " (code " + er.code + ")" : "") + ": " + (((er.error_data || {}).details) || er.message || "error"));
+          if (er.code === 100) e.message = "Meta לא מכירה את ה־Phone Number ID שהוזן. כנראה הוזן מספר הטלפון במקום ה־ID: ב־API Setup ה־ID מופיע מתחת למספר הטלפון, ליד הכיתוב Phone number ID. (" + e.message + ")";
+          if (er.code === 190) e.message = "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ב־API Setup ולחבר מחדש. (" + e.message + ")";
           e.status = 502; throw e;
         });
       });
