@@ -38,6 +38,9 @@ def main(argv=None):
     sub.add_parser("backup")
     rc = sub.add_parser("restore-check"); rc.add_argument("file", nargs="?", type=Path)
     sub.add_parser("wa-token")
+    sub.add_parser("wa-status", help="check the WhatsApp token and number with Meta, and list the templates' approval")
+    wt = sub.add_parser("wa-templates", help="print the six templates as Meta takes them, or submit them for approval")
+    wt.add_argument("--submit", action="store_true")
     args = ap.parse_args(argv)
     s = load_settings()
 
@@ -55,7 +58,18 @@ def main(argv=None):
         from .whatsapp import new_verify_token
         print(new_verify_token())
         return 0
+    if args.cmd == "wa-templates" and not args.submit:
+        from .whatsapp import TEMPLATES, template_definition
+        print(json.dumps([template_definition(k, k) for k in TEMPLATES], ensure_ascii=False, indent=1))
+        return 0
     store = Store(s.db_path, Box.load(s.key_dir))
+    if args.cmd in ("wa-status", "wa-templates"):
+        from .practice import Practice
+        from .whatsapp import WhatsApp
+        wa = WhatsApp(Practice(store, s.timezone), s)
+        out = wa.status() if args.cmd == "wa-status" else wa.submit_templates()
+        print(json.dumps(out, ensure_ascii=False, indent=1))
+        return 0 if (out.get("ok") if isinstance(out, dict) else all("error" not in r for r in out)) else 1
     if args.cmd == "add-clinician":
         if args.password_stdin:
             pw = sys.stdin.readline().rstrip("\n")

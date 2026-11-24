@@ -333,3 +333,72 @@ def test_pages_served(env):
     assert c.get("/app/practice.js").status_code == 200
     page = c.get("/app/forms.html").text
     assert "forms.js" in page and "googleapis" not in page   # the patient page makes no third-party requests
+
+
+# ---- the Cloud API over real HTTP, against a local stand-in for Meta ----
+def test_cloud_api_over_http(tmp_path):
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    seen = []
+
+    class Meta(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def reply(self, code, obj):
+            raw = json.dumps(obj).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def do_GET(self):
+            seen.append(("GET", self.path, self.headers.get("Authorization")))
+            if self.headers.get("Authorization") != "Bearer T":
+                return self.reply(401, {"error": {"message": "Invalid OAuth access token", "code": 190}})
+            if "/message_templates" in self.path:
+                return self.reply(200, {"data": [{"name": "reminder", "language": "he", "status": "APPROVED", "category": "UTILITY"}]})
+            return self.reply(200, {"display_phone_number": "+972 50-000-0000", "verified_name": "Clinic", "quality_rating": "GREEN"})
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            seen.append(("POST", self.path, body))
+            if body.get("to") == "972500000009":
+                return self.reply(400, {"error": {"message": "(#131030) Recipient phone number not in allowed list", "code": 131030,
+                                                  "error_data": {"details": "Recipient phone number not in allowed list"}}})
+            if self.path.endswith("/message_templates"):
+                return self.reply(200, {"id": "tpl-" + body["name"], "status": "PENDING", "category": "UTILITY"})
+            return self.reply(200, {"messages": [{"id": "wamid.1"}]})
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Meta)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        app, s, c = build(tmp_path, wa_token="T", wa_phone_id="111", wa_waba_id="222", wa_api_base=base)
+        st = c.get("/api/pm/whatsapp/status").json()
+        assert st["ok"] and st["number"] == "+972 50-000-0000" and st["templates"][0]["status"] == "APPROVED"
+        assert seen[0][1].startswith("/v26.0/111?fields=")
+        assert c.post("/api/pm/whatsapp/test", json={"phone": "050-0000001"}, headers=H).json()["id"] == "wamid.1"
+        assert seen[-1][2]["template"]["name"] == "hello_world" and seen[-1][2]["to"] == "972500000001"
+        r = c.post("/api/pm/whatsapp/test", json={"phone": "050-0000009"}, headers=H)
+        assert r.status_code == 502 and "not in allowed list" in r.json()["detail"]
+        res = c.post("/api/pm/whatsapp/templates", headers=H).json()["results"]
+        assert len(res) == 6 and all(x["status"] == "PENDING" for x in res)
+        posted = [b for m, p, b in seen if m == "POST" and p == "/v26.0/222/message_templates"]
+        rem = [b for b in posted if b["name"] == "reminder"][0]
+        assert rem["category"] == "UTILITY" and rem["language"] == "he"
+        assert rem["components"][0]["text"].startswith("שלום {{1}}, תזכורת") and len(rem["components"][0]["example"]["body_text"][0]) == 4
+        assert [b["text"] for b in rem["components"][1]["buttons"]] == ["מאשר/ת", "צריך לשנות"]
+        for b in posted:   # Meta refuses a body that starts or ends with a variable
+            text = b["components"][0]["text"]
+            assert not text.startswith("{{") and not text.rstrip().endswith("}}"), b["name"]
+        # a series schedule goes out as one line: Meta refuses line breaks in a parameter
+        wa = app.state.whatsapp
+        sent = wa.send_template("050-0000001", "series_schedule", {"name": "דנה", "dates": "שלישי 08.12 16:00\nשלישי 15.12 16:00"})
+        assert sent == "wamid.1" and seen[-1][2]["template"]["components"][0]["parameters"][1]["text"] == "שלישי 08.12 16:00 · שלישי 15.12 16:00"
+        # a wrong token: Meta's reason reaches the screen
+        s.wa_token = "wrong"
+        assert "Invalid OAuth access token" in c.get("/api/pm/whatsapp/status").json()["error"]
+    finally:
+        srv.shutdown()

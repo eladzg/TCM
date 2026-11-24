@@ -593,6 +593,7 @@
     return panel("wa-admin", "וואטסאפ", [
       el("p", { class: w.cloud_api ? "flag info" : "flag amber", text: w.cloud_api ? "WhatsApp Cloud API מחובר: תזכורות יוצאות אוטומטית בשעות השליחה." : "WhatsApp Cloud API לא מוגדר (TCM_WA_TOKEN, TCM_WA_PHONE_ID). עד אז, הודעות שלא יצאו מופיעות במסך היום לשליחה ידנית." }),
       el("p", { class: w.webhook ? "hint" : "flag amber", text: w.webhook ? "קליטת תשובות מוגדרת (/api/wa/webhook)." : "קליטת תשובות לא מוגדרת (TCM_WA_VERIFY_TOKEN, TCM_WA_APP_SECRET). ראו מדריך ההקמה." }),
+      w.cloud_api ? waConnection(w) : null,
       el("div", { class: "row" }, [field("שליחה מ־", a), field("עד", b), field("שעת תזכורת", rem), field("כתובת", addr)]),
       el("h3", { text: "תבניות" }),
       el("ul", { class: "pm-list" }, w.templates.map(function (t) {
@@ -605,6 +606,42 @@
         call("PUT", "/pm/whatsapp/config", { send_hours: [a.value, b.value], reminder_time: rem.value, address: addr.value, meta_names: mn }).then(function () { box.textContent = "נשמר."; }, fail(box));
       } })]), box,
       el("h3", { text: "בודק ההודעות" }), test, res]);
+  }
+  // The Cloud API, checked from here: Meta answers for the number, the templates' approval, and a test send.
+  var TPL_HE = { APPROVED: "אושרה", PENDING: "ממתינה לאישור", REJECTED: "נדחתה", PAUSED: "מושהית", DISABLED: "מושבתת", IN_APPEAL: "בערעור" };
+  function waConnection(w) {
+    var box = el("div", {}), out = el("div", {});
+    var phone = input("tel", { placeholder: "מספר שלך לבדיקה, למשל 0501234567", "aria-label": "מספר לבדיקה", inputmode: "tel" });
+    function check() {
+      out.textContent = "בודק מול Meta…";
+      call("GET", "/pm/whatsapp/status").then(function (r) {
+        out.textContent = "";
+        if (!r.ok) { out.appendChild(el("p", { class: "flag red", text: "Meta לא אישרה את החיבור: " + r.error })); return; }
+        out.appendChild(el("p", { class: "flag info", text: "מחובר: " + (r.number || "") + (r.name ? " · " + r.name : "") + (r.quality ? " · איכות " + r.quality : "") + (r.name_status && r.name_status !== "APPROVED" ? " · שם התצוגה: " + r.name_status : "") }));
+        if (r.templates) {
+          var mine = w.templates.map(function (t) { return t.meta_name; });
+          out.appendChild(el("ul", { class: "pm-list" }, w.templates.map(function (t) {
+            var m = r.templates.filter(function (x) { return x.name === t.meta_name; })[0];
+            return el("li", {}, [t.label + " (" + t.meta_name + "): ", m ? badge((TPL_HE[m.status] || m.status) + (m.category && m.category !== "UTILITY" ? " · " + m.category : ""), m.status === "APPROVED" ? "" : m.status === "REJECTED" ? "red" : "amber")
+              : badge("לא נמצאה ב־Meta", "amber"), m && m.rejected_reason && m.rejected_reason !== "NONE" ? el("span", { class: "hint", text: " " + m.rejected_reason }) : null]);
+          })));
+          if (mine.some(function (n) { return !r.templates.some(function (x) { return x.name === n; }); })) out.appendChild(el("button", { class: "mini", type: "button", text: "שליחת התבניות החסרות לאישור", onclick: submit }));
+        } else out.appendChild(el("p", { class: "hint", text: r.templates_error ? "רשימת התבניות לא נטענה: " + r.templates_error : "כדי לראות כאן את אישור התבניות, צריך גם את TCM_WA_WABA_ID." }));
+      }, fail(out));
+    }
+    function submit() {
+      out.textContent = "שולח את התבניות ל־Meta…";
+      call("POST", "/pm/whatsapp/templates").then(function (r) {
+        out.textContent = "";
+        out.appendChild(el("ul", { class: "pm-list" }, r.results.map(function (x) { return el("li", { text: x.name + ": " + (x.error || (TPL_HE[x.status] || x.status || "נשלחה")) }); })));
+      }, fail(out));
+    }
+    return el("div", {}, [
+      el("div", { class: "answers" }, [el("button", { class: "btn ghost", type: "button", text: "בדיקת החיבור ל־Meta", onclick: check })]),
+      el("div", { class: "row" }, [phone, el("button", { class: "btn ghost", type: "button", text: "שליחת הודעת בדיקה", onclick: function () {
+        box.textContent = "שולח…";
+        call("POST", "/pm/whatsapp/test", { phone: phone.value }).then(function () { box.textContent = "נשלחה הודעת hello_world של Meta (באנגלית). אם היא הגיעה לטלפון, השליחה עובדת."; }, fail(box));
+      } })]), box, out]);
   }
   function gcalAdmin() {
     var g = cfg.gcal, box = el("div", {});

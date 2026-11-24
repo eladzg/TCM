@@ -20,6 +20,7 @@ import hmac
 import json
 import re
 import secrets
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, time as dtime, timedelta
@@ -29,7 +30,6 @@ from .practice import Invalid, new_id
 from .store import now
 
 ROOT = Path(__file__).resolve().parent.parent
-GRAPH = "https://graph.facebook.com/v21.0"
 WEEKDAYS_HE = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"]  # Python weekday() order
 
 # Each template: the Hebrew body with {named} slots, the order Meta numbers them ({{1}}, {{2}}...),
@@ -49,19 +49,19 @@ TEMPLATES = {
     },
     "intake_link": {
         "label": "קישור לשאלון",
-        "body": "שלום {name}, לפני הפגישה הראשונה נשמח שתמלא/י שאלון קצר. הקישור אישי ונסגר אחרי שליחה:\n{link}",
+        "body": "שלום {name}, לפני הפגישה הראשונה נשמח שתמלא/י שאלון קצר בקישור {link}\nהקישור אישי ונסגר אחרי השליחה.",
         "params": ["name", "link"],
         "buttons": [],
     },
     "forms_link": {
         "label": "קישור לטפסים",
-        "body": "שלום {name}, לפני הפגישה נשמח שתמלא/י טופס קצר. הקישור אישי ונסגר אחרי שליחה:\n{link}",
+        "body": "שלום {name}, לפני הפגישה נשמח שתמלא/י טופס קצר בקישור {link}\nהקישור אישי ונסגר אחרי השליחה.",
         "params": ["name", "link"],
         "buttons": [],
     },
     "series_schedule": {
         "label": "מועדי המפגשים",
-        "body": "שלום {name}, אלה מועדי המפגשים שקבענו:\n{dates}",
+        "body": "שלום {name}, אלה מועדי המפגשים שקבענו: {dates}.\nלשינוי אפשר להשיב להודעה זו.",
         "params": ["name", "dates"],
         "buttons": [],
     },
@@ -146,6 +146,28 @@ def render(template, params):
     return text, hits
 
 
+def meta_param(v):
+    """Meta refuses a template parameter with a line break, a tab or more than four spaces in a row."""
+    v = re.sub(r"[\r\n\t]+", " · ", str(v))
+    return re.sub(r" {4,}", "   ", v).strip()
+
+
+EXAMPLES = {"name": "דנה", "weekday": "שלישי", "date": "08.12", "time": "16:00", "address": "רחוב הרצל 1, תל אביב",
+            "link": "https://example.org/app/patient.html", "dates": "שלישי 08.12 16:00 · שלישי 15.12 16:00"}
+
+
+def template_definition(key, name, lang="he"):
+    """The body Meta's /message_templates endpoint takes: {name} slots become {{1}}, {{2}}... with examples."""
+    t = TEMPLATES[key]
+    text = t["body"]
+    for i, p in enumerate(t["params"], 1):
+        text = text.replace("{" + p + "}", "{{" + str(i) + "}}")
+    comps = [{"type": "BODY", "text": text, "example": {"body_text": [[EXAMPLES[p] for p in t["params"]]]}}]
+    if t["buttons"]:
+        comps.append({"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": b["text"]} for b in t["buttons"]]})
+    return {"name": name, "language": lang, "category": "UTILITY", "components": comps}
+
+
 def normalize_phone(phone):
     digits = re.sub(r"\D", "", str(phone or ""))
     if digits.startswith("00"):
@@ -168,10 +190,18 @@ def first_name(identity):
 
 
 class WhatsApp:
-    def __init__(self, practice, settings, http=None):
+    def __init__(self, practice, settings, http=None, http_get=None):
         self.pm = practice
         self.s = settings
         self.http = http or _post_json
+        self.http_get = http_get or _get_json
+
+    @property
+    def graph(self):
+        return f"{self.s.wa_api_base}/{self.s.wa_api_version}"
+
+    def _auth(self):
+        return {"Authorization": "Bearer " + self.s.wa_token}
 
     # ---- configuration ----
     @property
@@ -232,7 +262,7 @@ class WhatsApp:
         for r in rows:
             d = self.pm.local(r["start"])
             out.append(f"{WEEKDAYS_HE[d.weekday()]} {d.strftime('%d.%m')} {d.strftime('%H:%M')}")
-        return "\n".join(out)
+        return " · ".join(out)
 
     def log(self, c, rid, template, channel, status):
         c.execute("INSERT INTO pm_messages (record_id, template, channel, at, status) VALUES (?, ?, ?, ?, ?)", (rid, template, channel, now(), status))
@@ -342,13 +372,63 @@ class WhatsApp:
             raise Invalid("no usable phone number")
         t = TEMPLATES[template]
         names = self.pm.kv_get("wa_meta_names", {})
-        comps = [{"type": "body", "parameters": [{"type": "text", "text": str(params[p])} for p in t["params"]]}]
+        comps = [{"type": "body", "parameters": [{"type": "text", "text": meta_param(params[p])} for p in t["params"]]}]
         for i, b in enumerate(t["buttons"]):
             comps.append({"type": "button", "sub_type": "quick_reply", "index": str(i), "parameters": [{"type": "payload", "payload": b["id"]}]})
         body = {"messaging_product": "whatsapp", "to": to, "type": "template",
                 "template": {"name": names.get(template, template), "language": {"code": self.pm.kv_get("wa_lang", "he")}, "components": comps}}
-        res = self.http(f"{GRAPH}/{self.s.wa_phone_id}/messages", body, {"Authorization": "Bearer " + self.s.wa_token})
+        res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", body, self._auth())
         return ((res or {}).get("messages") or [{}])[0].get("id")
+
+    # ---- checking the connection ----
+    def status(self):
+        """Ask Meta about the configured number: proves the token and the phone number id work."""
+        if not self.cloud:
+            return {"ok": False, "error": "TCM_WA_TOKEN and TCM_WA_PHONE_ID are not set"}
+        try:
+            n = self.http_get(f"{self.graph}/{self.s.wa_phone_id}?fields=display_phone_number,verified_name,quality_rating,"
+                              "code_verification_status,name_status,messaging_limit_tier", self._auth())
+        except Exception as e:  # noqa: BLE001 - shown on the management screen
+            return {"ok": False, "error": str(e)[:400]}
+        out = {"ok": True, "number": n.get("display_phone_number"), "name": n.get("verified_name"), "quality": n.get("quality_rating"),
+               "name_status": n.get("name_status"), "limit": n.get("messaging_limit_tier"), "templates": None}
+        if self.s.wa_waba_id:
+            try:
+                out["templates"] = self.meta_templates()
+            except Exception as e:  # noqa: BLE001
+                out["templates_error"] = str(e)[:400]
+        return out
+
+    def meta_templates(self):
+        """The account's templates as Meta sees them (name, language, status, category)."""
+        r = self.http_get(f"{self.graph}/{self.s.wa_waba_id}/message_templates?fields=name,language,status,category,rejected_reason&limit=200", self._auth())
+        return [{k: t.get(k) for k in ("name", "language", "status", "category", "rejected_reason")} for t in (r or {}).get("data") or []]
+
+    def submit_templates(self, only=None):
+        """Send the six templates to Meta for approval (category Utility, Hebrew). Returns Meta's answer per template."""
+        if not (self.s.wa_token and self.s.wa_waba_id):
+            raise Invalid("TCM_WA_TOKEN and TCM_WA_WABA_ID are needed to submit templates")
+        names = self.pm.kv_get("wa_meta_names", {})
+        out = []
+        for k, t in TEMPLATES.items():
+            if only and k not in only:
+                continue
+            body = template_definition(k, names.get(k, k), self.pm.kv_get("wa_lang", "he"))
+            try:
+                r = self.http(f"{self.graph}/{self.s.wa_waba_id}/message_templates", body, self._auth())
+                out.append({"template": k, "name": body["name"], "id": r.get("id"), "status": r.get("status"), "category": r.get("category")})
+            except Exception as e:  # noqa: BLE001 - one bad template should not stop the others
+                out.append({"template": k, "name": body["name"], "error": str(e)[:400]})
+        return out
+
+    def send_test(self, phone):
+        """Meta's own "hello_world" template (English, approved in every new account): checks sending end to end."""
+        to = normalize_phone(phone)
+        if not to:
+            raise Invalid("no usable phone number")
+        body = {"messaging_product": "whatsapp", "to": to, "type": "template", "template": {"name": "hello_world", "language": {"code": "en_US"}}}
+        res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", body, self._auth())
+        return {"id": ((res or {}).get("messages") or [{}])[0].get("id")}
 
     def retry(self, qid, actor):
         with self.pm.db() as c:
@@ -450,11 +530,31 @@ class WhatsApp:
         return 1
 
 
+class MetaError(Exception):
+    pass
+
+
+def _open(req):
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        # Meta explains a refusal in the body: {"error": {"message", "code", "error_data": {"details"}}}.
+        try:
+            err = json.loads(e.read().decode("utf-8") or "{}").get("error") or {}
+        except ValueError:
+            err = {}
+        detail = (err.get("error_data") or {}).get("details") or err.get("error_user_msg") or err.get("message") or e.reason
+        raise MetaError(f"Meta {e.code}" + (f" (code {err.get('code')})" if err.get("code") else "") + f": {detail}") from None
+
+
 def _post_json(url, body, headers):
-    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json", **headers})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read().decode("utf-8") or "{}")
+    return _open(urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
+                                        headers={"Content-Type": "application/json", **headers}))
+
+
+def _get_json(url, headers):
+    return _open(urllib.request.Request(url, method="GET", headers=headers))
 
 
 def new_verify_token():

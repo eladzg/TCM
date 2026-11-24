@@ -288,6 +288,33 @@ def install(app, store, settings, clinician, body, patient_token):
             raise HTTPException(422, "bad setting")
         return wa.config()
 
+    @app.get("/api/pm/whatsapp/status")
+    def wa_status(actor: str = Depends(clinician)):
+        return wa.status()
+
+    @app.post("/api/pm/whatsapp/test")
+    async def wa_test(request: Request, actor: str = Depends(clinician)):
+        d = await body(request)
+        if not wa.cloud:
+            raise HTTPException(409, "TCM_WA_TOKEN and TCM_WA_PHONE_ID are not set")
+        try:
+            out = wa.send_test(str(d.get("phone") or "")[:30])
+        except Exception as e:  # noqa: BLE001 - Meta's reason goes back to the screen
+            raise HTTPException(502 if not isinstance(e, ValueError) else 422, str(e)[:400])
+        with store.db() as c:
+            store.audit(c, actor, "wa_test")
+        return out
+
+    @app.post("/api/pm/whatsapp/templates")
+    def wa_templates(actor: str = Depends(clinician)):
+        try:
+            out = wa.submit_templates()
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(409, str(e)[:400])
+        with store.db() as c:
+            store.audit(c, actor, "wa_templates_submit")
+        return {"results": out}
+
     @app.get("/api/pm/whatsapp/queue")
     def wa_queue(actor: str = Depends(clinician)):
         return {"queue": wa.queue()}
