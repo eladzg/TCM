@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ראיון אינטייק TCM</title>
+<title>יועץ קליני לרפואה סינית</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script>try { if (localStorage.getItem("tcm-theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -280,6 +280,27 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
+/* ---- one language with the opening screen: thin titles, glass and hairlines, glowing rings ---- */
+header.top { padding-bottom: 14px; border-bottom: 1px solid var(--edge); }
+header.top h1 { font-weight: 300; font-size: clamp(1.6rem, 2.6vw, 2.4rem); letter-spacing: -.015em; }
+header.top .sub { font-size: .92rem; }
+header.top .kbsrc { display: block; margin-top: 4px; font: .74rem/1.5 var(--font-mono); color: var(--muted); letter-spacing: .02em; }
+header.top select, header.top .btn, header.top .theme-btn { border-radius: 999px; min-height: 42px; }
+header.top select, header.top .theme-btn, .btn.ghost, .btn.no { background: var(--glass); border-color: var(--edge); }
+.btn.ghost { border-color: color-mix(in srgb, var(--jade) 55%, transparent); }
+.btn:not(.ghost):not(.no) { box-shadow: 0 0 0 5px color-mix(in srgb, var(--jade) 14%, transparent), 0 8px 24px color-mix(in srgb, var(--jade) 18%, transparent); }
+.btn:not(.ghost):not(.no):hover:not(:disabled) { box-shadow: 0 0 0 8px color-mix(in srgb, var(--jade) 18%, transparent), 0 8px 28px color-mix(in srgb, var(--jade) 24%, transparent); }
+nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb, var(--jade) 18%, transparent), 0 6px 20px color-mix(in srgb, var(--jade) 22%, transparent); }
+.panel, .dx, .msg.sys { background: color-mix(in srgb, var(--surface) 76%, transparent); border-color: var(--edge); }
+.msg { border-radius: 20px; padding: 11px 16px; }
+.msg.sys { border-start-start-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .1); }
+.msg.pt { background: color-mix(in srgb, var(--jade) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--jade) 30%, transparent); border-start-end-radius: 6px; }
+/* A glowing ring before each block's title, like the rings on the figure's points. */
+.panel > h3:first-child::before, .panel > .txhead h3::before, #view-clin > h2::before, .chat ~ h2::before {
+  content: ""; display: inline-block; width: 9px; height: 9px; margin-inline-end: 10px; vertical-align: .08em; border-radius: 50%;
+  border: 1.5px solid var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 14%, transparent), 0 0 10px color-mix(in srgb, var(--jade) 45%, transparent); }
+.panel > h3:first-child, .panel > .txhead h3 { font-weight: 400; font-size: 1.12rem; letter-spacing: -.005em; }
+.hint, .msg .meta { font-size: .82rem; }
 /* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
 .companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
 .companion[hidden], body.intro-on .companion { display: none; }
@@ -426,8 +447,9 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
     <div class="brand">
       <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
       <div>
-      <h1>ראיון אינטייק TCM</h1>
-      <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
+      <h1>יועץ קליני לרפואה סינית</h1>
+      <p class="sub">ראיון מטופל בעברית, תבניות, תכנית טיפול ובטיחות. המערכת מציעה, המטפל מחליט. <span class="draft">אב-טיפוס · משקלות טיוטה לאישור המטפל</span>
+        <span class="kbsrc">WHO 2022 · GB/T 16751.2 · TCM-SD</span></p>
       </div>
     </div>
     <div class="row">
