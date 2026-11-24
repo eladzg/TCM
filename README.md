@@ -127,6 +127,8 @@ python3 tools/treatment/build_he.py          # after editing kb/translations/he 
 
 ## Clinic server and patient records (`server/`)
 
+**Demo mode.** Without a server (GitHub Pages), `app/interview/demo_server.js` answers the `/api` calls in the browser with invented patients, so the records, "היום", "יומן", "ניהול" and approval tabs can be tried. A banner marks it, changes stay in the browser tab, WhatsApp opens without a number, and nothing is sent anywhere. With the real server it does nothing. `?demo=1` forces it.
+
 A small server the clinic runs itself: Python, FastAPI and one SQLite file, with no outside service. It splits the interview into a patient side and a clinician side and keeps every record encrypted.
 
 | Side | Page | What it can do |
