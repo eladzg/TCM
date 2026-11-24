@@ -4308,14 +4308,19 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
     return out.filter(function (s) { if (seen[s.text]) return false; seen[s.text] = 1; return true; }).slice(0, 14);
   }
   var links = [], ticking = false;
-  // The pill of the last section whose top has passed the upper part of the screen.
+  // The pill of the last section whose top has reached the rail (a jump lands its section at 140px).
   function mark() {
     ticking = false;
     if (rail.hidden || !links.length) return;
     var cur = links[0];
-    links.forEach(function (l) { if (l.node.getBoundingClientRect().top < window.innerHeight * 0.35) cur = l; });
+    links.forEach(function (l) { if (l.node.getBoundingClientRect().top < 170) cur = l; });
     links.forEach(function (l) { l.a.setAttribute("aria-current", String(l === cur)); });
-    if (rail.scrollWidth > rail.clientWidth && cur !== mark.last) cur.a.scrollIntoView({ block: "nearest", inline: "center" });
+    // Bring the current pill into view inside the rail only: scrollIntoView here would also move the window
+    // and cut short a jump that is still gliding to its section.
+    if (rail.scrollWidth > rail.clientWidth && cur !== mark.last) {
+      var a = cur.a, left = a.offsetLeft - (rail.clientWidth - a.offsetWidth) / 2;
+      rail.scrollTo({ left: left, behavior: "auto" });
+    }
     mark.last = cur;
   }
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(mark); } }, { passive: true });
@@ -4331,6 +4336,8 @@ endBtn.addEventListener("click", () => { if (conversation) conversation.endSessi
       a.textContent = s.text;
       a.addEventListener("click", function (e) {
         e.preventDefault();
+        // A section inside a closed block opens it first, so the jump lands on something visible.
+        for (var d = s.node.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
         s.node.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
       });
       rail.appendChild(a);
