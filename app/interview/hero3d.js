@@ -311,12 +311,23 @@ function create(host, opts) {
   function size() {
     const w = host.clientWidth || 600, h = Math.round(opts.height ? opts.height() : host.clientHeight || 600);
     renderer.setSize(w, h);
-    camera.aspect = w / h; camera.updateProjectionMatrix();
+    camera.aspect = w / h;
+    applyShift();
     const scale = h * renderer.getPixelRatio() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     mats.forEach((m) => { m.uniforms.uScale.value = scale; m.uniforms.uAspect.value = w / h; m.uniforms.uMax.value = (m === bodyMat ? 3 : 7) * renderer.getPixelRatio(); });
     if (camGoal) { camera.position.set(0, camGoal.y, camGoal.dist); camera.lookAt(0, camGoal.y, 0); }
     request();
   }
+  // The figure can stand off centre (the page's figure stands in the free space beside the content):
+  // centreX is where its middle falls, in pixels from the left of the stage; null is the centre.
+  let centreX = null;
+  function applyShift() {
+    const w = el.clientWidth || host.clientWidth || 1, h = el.clientHeight || 1;
+    if (centreX === null) camera.clearViewOffset();
+    else camera.setViewOffset(w, h, w / 2 - centreX, 0, w, h);
+    camera.updateProjectionMatrix();
+  }
+  function shift(x) { if (x === centreX) return; centreX = x; applyShift(); request(); }
   new ResizeObserver(size).observe(host);
   new IntersectionObserver((es) => { visible = es[0].isIntersecting; request(); }).observe(wrap);
   document.addEventListener("visibilitychange", request);
@@ -351,7 +362,7 @@ function create(host, opts) {
     focusGoal = ids.length ? 1 : 0;
     request();
   }
-  const api = { frame, screen, focus, element: wrap, ready: Promise.resolve() };
+  const api = { frame, screen, focus, shift, element: wrap, ready: Promise.resolve() };
   applyTheme(); size();
   scene.updateMatrixWorld(true);
   return api;

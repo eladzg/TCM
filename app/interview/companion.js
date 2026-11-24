@@ -1,5 +1,6 @@
 // The figure that stays with the reader through the whole system: the same cloud of dots as the opening
-// screen, in a column at the side of wide screens and as a faint backdrop on narrow ones. It follows the
+// screen, living in the page itself: on wide screens it stands in the open space beside the content and
+// fades into it, on narrow ones it is a faint backdrop. It follows the
 // page as it scrolls (head at the top, legs further down) and answers what is on the page: on the
 // clinician summary the points of the treatment plan pulse on it and their channels lead, with their
 // codes beside them. The treatment plan asks for this through TCMCompanion.focus().
@@ -21,6 +22,21 @@
     var full = aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385;
     viewer.frame(-0.035 - smooth(t) * 0.085, full * 0.72, now, 0);
   }
+  // Where the figure stands: the middle of the open space left of the content (the content leans right on
+  // wide screens); never closer to the edge than a fifth of the screen.
+  var page = document.querySelector(".wrap");
+  function stand() {
+    if (!viewer) return;
+    var W = window.innerWidth, x = null;
+    if (wide.matches && page) {
+      var left = page.getBoundingClientRect().left;
+      x = Math.round(Math.max(W * 0.2, Math.min(W * 0.5, left * 0.5)));
+    }
+    viewer.shift(x);
+    aside.style.setProperty("--fig-x", x === null ? "50%" : x + "px");
+  }
+  if (page && window.ResizeObserver) new ResizeObserver(stand).observe(page);
+  window.addEventListener("resize", stand);
   var ticking = false;
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; frame(false); }); } }, { passive: true });
 
@@ -61,6 +77,7 @@
     if (!H.available) { aside.hidden = true; return; }
     viewer = H.create(fig, { height: function () { return fig.clientHeight; }, onframe: place });
     frame(true);
+    stand();
     apply();
   }
   window.addEventListener("tcm-hero3d-ready", start);
