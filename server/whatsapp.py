@@ -212,6 +212,7 @@ class WhatsApp:
         names = self.pm.kv_get("wa_meta_names", {})
         return {
             "cloud_api": self.cloud,
+            "test_mode": bool(getattr(self.s, "wa_test_mode", False)),
             "webhook": bool(self.s.wa_verify_token and self.s.wa_app_secret),
             "send_hours": self.send_hours(),
             "reminder_time": self.pm.kv_get("wa_reminder_time", "10:00"),
@@ -371,6 +372,8 @@ class WhatsApp:
         if not to:
             raise Invalid("no usable phone number")
         t = TEMPLATES[template]
+        if getattr(self.s, "wa_test_mode", False):
+            return self.send_test_mode(to, template, params)
         names = self.pm.kv_get("wa_meta_names", {})
         comps = [{"type": "body", "parameters": [{"type": "text", "text": meta_param(params[p])} for p in t["params"]]}]
         for i, b in enumerate(t["buttons"]):
@@ -378,6 +381,20 @@ class WhatsApp:
         body = {"messaging_product": "whatsapp", "to": to, "type": "template",
                 "template": {"name": names.get(template, template), "language": {"code": self.pm.kv_get("wa_lang", "he")}, "components": comps}}
         res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", body, self._auth())
+        return ((res or {}).get("messages") or [{}])[0].get("id")
+
+    def send_test_mode(self, to, template, params):
+        """Meta's developer test number, for a demo without a business: no approved templates there, so the
+        Hebrew text goes as a plain message. Meta allows that only within 24 hours of the recipient's last
+        message to the number; outside that window it refuses, and the approved "hello_world" goes instead,
+        so a reminder still visibly arrives. Recipients must be on the app's list of up to five test numbers."""
+        text, _ = render(template, params)
+        body = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text, "preview_url": False}}
+        try:
+            res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", body, self._auth())
+        except MetaError:
+            res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", {"messaging_product": "whatsapp", "to": to, "type": "template",
+                            "template": {"name": "hello_world", "language": {"code": "en_US"}}}, self._auth())
         return ((res or {}).get("messages") or [{}])[0].get("id")
 
     # ---- checking the connection ----

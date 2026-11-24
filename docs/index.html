@@ -4400,6 +4400,7 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     return panel("wa-admin", "וואטסאפ", [
       el("p", { class: w.cloud_api ? "flag info" : "flag amber", text: w.cloud_api ? "WhatsApp Cloud API מחובר: תזכורות יוצאות אוטומטית בשעות השליחה." : "WhatsApp Cloud API לא מוגדר (TCM_WA_TOKEN, TCM_WA_PHONE_ID). עד אז, הודעות שלא יצאו מופיעות במסך היום לשליחה ידנית." }),
       el("p", { class: w.webhook ? "hint" : "flag amber", text: w.webhook ? "קליטת תשובות מוגדרת (/api/wa/webhook)." : "קליטת תשובות לא מוגדרת (TCM_WA_VERIFY_TOKEN, TCM_WA_APP_SECRET). ראו מדריך ההקמה." }),
+      w.cloud_api && w.test_mode ? el("p", { class: "flag info", text: "מצב בדיקה של Meta: ההודעות יוצאות מהמספר לבדיקה, רק למספרים שאישרת באפליקציה. טקסט בעברית יוצא אם הנמען כתב למספר ב־24 השעות האחרונות; אחרת יוצאת הודעת hello_world של Meta." }) : null,
       w.cloud_api ? waConnection(w) : null,
       el("div", { class: "row" }, [field("שליחה מ־", a), field("עד", b), field("שעת תזכורת", rem), field("כתובת", addr)]),
       el("h3", { text: "תבניות" }),

@@ -367,6 +367,9 @@ def test_cloud_api_over_http(tmp_path):
             if body.get("to") == "972500000009":
                 return self.reply(400, {"error": {"message": "(#131030) Recipient phone number not in allowed list", "code": 131030,
                                                   "error_data": {"details": "Recipient phone number not in allowed list"}}})
+            if body.get("type") == "text" and body.get("to") == "972500000007":
+                return self.reply(400, {"error": {"message": "Re-engagement message", "code": 131047,
+                                                  "error_data": {"details": "Message failed to send because more than 24 hours have passed"}}})
             if self.path.endswith("/message_templates"):
                 return self.reply(200, {"id": "tpl-" + body["name"], "status": "PENDING", "category": "UTILITY"})
             return self.reply(200, {"messages": [{"id": "wamid.1"}]})
@@ -397,6 +400,14 @@ def test_cloud_api_over_http(tmp_path):
         wa = app.state.whatsapp
         sent = wa.send_template("050-0000001", "series_schedule", {"name": "דנה", "dates": "שלישי 08.12 16:00\nשלישי 15.12 16:00"})
         assert sent == "wamid.1" and seen[-1][2]["template"]["components"][0]["parameters"][1]["text"] == "שלישי 08.12 16:00 · שלישי 15.12 16:00"
+        # Meta's test number (demo without a business): Hebrew as plain text, hello_world outside the 24-hour window
+        s.wa_test_mode = True
+        assert c.get("/api/pm/config").json()["whatsapp"]["test_mode"] is True
+        wa.send_template("050-0000001", "reminder", {"name": "דנה", "weekday": "שלישי", "date": "08.12", "time": "16:00"})
+        assert seen[-1][2]["type"] == "text" and seen[-1][2]["text"]["body"].startswith("שלום דנה, תזכורת לתור ביום שלישי 08.12")
+        assert wa.send_template("050-0000007", "reminder", {"name": "דנה", "weekday": "שלישי", "date": "08.12", "time": "16:00"}) == "wamid.1"
+        assert seen[-2][2]["type"] == "text" and seen[-1][2]["template"]["name"] == "hello_world"
+        s.wa_test_mode = False
         # a wrong token: Meta's reason reaches the screen
         s.wa_token = "wrong"
         assert "Invalid OAuth access token" in c.get("/api/pm/whatsapp/status").json()["error"]
