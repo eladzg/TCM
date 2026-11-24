@@ -99,17 +99,56 @@
     });
   }
 
+  // What a "send in WhatsApp" answer means, shown in box. Connected to the Cloud API, the system sends it
+  // itself; Meta's refusal comes back with the reason and a button for sending by hand. Not connected,
+  // WhatsApp opens with the message ready (wa.me), as before.
+  function openLink(url) { var a = el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }); document.body.appendChild(a); a.click(); a.remove(); }
+  function waReason(msg) {
+    msg = String(msg || "");
+    if (/131047/.test(msg)) return "עברו יותר מ־24 שעות מאז שהנמען כתב למספר הבדיקה של Meta, ולכן Meta לא מעבירה הודעה חופשית. כדי לפתוח חלון של 24 שעות, שלחו מהטלפון של הנמען הודעה כלשהי למספר הבדיקה ונסו שוב.";
+    if (/131030/.test(msg)) return "המספר לא ברשימת הנמענים של מספר הבדיקה. מוסיפים אותו ב־Meta, ב־API Setup, בשדה To.";
+    if (/code 190|\b190\b|האסימון/.test(msg)) return "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ולחבר מחדש בלשונית ניהול הקליניקה.";
+    if (/^invented/.test(msg)) return "זה מטופל/ת בדוי/ה (050-00000xx), וההדגמה לא שולחת אליו. כדי לנסות, צרו תיק חדש עם המספר שלכם, מספר שנמצא ברשימת הנמענים של מספר הבדיקה.";
+    if (/no usable phone/.test(msg)) return "אין בתיק מספר טלפון שאפשר לשלוח אליו.";
+    return msg;
+  }
+  function waResult(o, box) {
+    box.textContent = "";
+    if (o.blocked && o.blocked.length) { box.textContent = "נחסם, יש בהודעה מילה קלינית: " + o.blocked.join(", "); return o; }
+    if (o.sent) {
+      box.textContent = "נשלח בוואטסאפ דרך Meta." + (o.test_mode ? " במספר הבדיקה, ההודעה מגיעה רק אם הנמען כתב למספר הבדיקה ב־24 השעות האחרונות. אם לא הגיעה תוך דקה, שלחו מהטלפון שלו הודעה כלשהי למספר הבדיקה ונסו שוב." : "");
+      return o;
+    }
+    if (o.sent === false) {
+      box.appendChild(document.createTextNode("לא נשלח: " + waReason(o.error) + " "));
+      if (o.link) box.appendChild(el("button", { class: "mini", type: "button", text: "שליחה ידנית בוואטסאפ", onclick: function () { openLink(o.link); } }));
+      return o;
+    }
+    if (o.link) { openLink(o.link); box.textContent = "נפתח בוואטסאפ (המערכת לא מחוברת ל־Cloud API)."; }
+    return o;
+  }
+  // The patient page next to this one: /app/patient.html on the clinic server; on GitHub Pages the
+  // demo hands back a full address under the site's own folder (patient_url).
+  function patientUrl(res) { return res.patient_url || (location.origin + res.patient_path); }
+
   function linkBox(res) {
-    var url = location.origin + res.patient_path;
+    var url = patientUrl(res);
     var copy = el("button", { class: "btn ghost", type: "button", text: "העתקת הקישור" });
     copy.addEventListener("click", function () {
       try { navigator.clipboard.writeText(url).then(function () { copy.textContent = "הועתק"; }); } catch (e) { /* select by hand */ }
+    });
+    var wa = el("button", { class: "btn ghost", type: "button", text: "שליחה בוואטסאפ" });
+    var waMsg = el("span", { class: "hint", role: "status" });
+    wa.addEventListener("click", function () {
+      call("POST", "/pm/records/" + res.record_id + "/whatsapp", { template: "intake_link", link: url }).then(function (o) {
+        waResult(o, waMsg);
+      }, function (e) { waMsg.textContent = e.status === 422 ? "אין מספר טלפון בתיק." : waReason(e.message); });
     });
     return el("div", { class: "flag info" }, [
       el("b", { text: "קישור למטופל לתיק " + res.record_id + " " }),
       "(בתוקף עד " + when(res.expires_at) + ", לשימוש אחד). שלחו אותו למטופל/ת. אחרי השליחה הקישור נסגר, והמטופל/ת לא יכול/ה לראות את התשובות או את הסיכום.",
       el("div", { class: "reclink", text: url }),
-      el("div", { class: "answers" }, [copy])
+      el("div", { class: "answers" }, [copy, wa, waMsg])
     ]);
   }
 
@@ -144,6 +183,7 @@
     records.forEach(function (r) {
       var actions = el("span", { class: "mini-row" });
       if (r.documents.intake) actions.appendChild(el("button", { class: "mini", type: "button", text: "פתיחה", onclick: function () { openRecord(r.record_id); } }));
+      if (window.TCMPractice) actions.appendChild(el("button", { class: "mini", type: "button", text: "כרטיס", onclick: function () { view.hidden = true; window.TCMPractice.card(r.record_id); } }));
       if (r.status === "awaiting_patient") actions.appendChild(el("button", { class: "mini", type: "button", text: "קישור חדש", onclick: function () {
         call("POST", "/records/" + r.record_id + "/link").then(function (res) { var o = document.getElementById("new-link"); o.textContent = ""; o.appendChild(linkBox(res)); o.scrollIntoView({ block: "nearest" }); });
       } }));
@@ -171,15 +211,32 @@
   }
 
   // ---- an open record ----
+  // Standing alerts from the patient card (practice.js) join the record's safety flags: a category C flag
+  // per alert, as if the patient had named the medication, and "PREGNANCY" sets the pregnancy status.
+  function withAlerts(state, alerts) {
+    state = JSON.parse(JSON.stringify(state || {}));
+    state.patient = state.patient || {};
+    state.flags = (state.flags || []).filter(function (f) { return f.source !== "standing_alert"; });
+    (alerts || []).forEach(function (a) {
+      if (a.code === "PREGNANCY") { state.patient.pregnancy = "yes"; return; }
+      if (a.code === "NEEDLE" || a.code === "OTHER") return;
+      state.flags.push({ category: "C", type: a.code.toLowerCase(), gloss_en: a.label, verbatim_he: "התראה קבועה בכרטיס: " + a.label + (a.text ? " · " + a.text : ""),
+                         status: "current", source: "standing_alert" });
+    });
+    return state;
+  }
+
   function openRecord(rid) {
-    call("GET", "/records/" + rid).then(function (rec) {
+    Promise.all([call("GET", "/records/" + rid), call("GET", "/pm/records/" + rid + "/alerts").catch(function () { return { alerts: [] }; })]).then(function (r) {
+      var rec = r[0];
       var src = rec.review ? rec.review.data : rec.intake && rec.intake.data;
       if (!src) return;
       active = rec;
       view.hidden = true;
       tab.setAttribute("aria-selected", "false");
-      window.TCMInterviewUI.loadRecord(rid, src.state, rec.review ? src.objective : null);
-      renderBar("");
+      document.querySelectorAll(".pm-view").forEach(function (v) { v.hidden = true; });
+      window.TCMInterviewUI.loadRecord(rid, withAlerts(src.state, r[1].alerts), rec.review ? src.objective : null);
+      renderBar(r[1].alerts.length ? "בתיק יש " + r[1].alerts.length + " התראות קבועות, והן נכנסו לבדיקת הבטיחות." : "");
     });
   }
 
@@ -224,6 +281,8 @@
   }
 
   window.TCMRecords = {
+    waResult: waResult, waReason: waReason, patientUrl: patientUrl,
+    open: openRecord,
     active: function () { return !!active && window.TCMInterviewUI.recordId() === active.record_id; },
     savePlan: function (plan) {
       var rid = active.record_id;

@@ -47,7 +47,7 @@ body {
   padding-block: 0 56px;
 }
 .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
-.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])), .wrap:has(.pm-view:not([hidden])) { max-width: 1180px; }
 header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
 .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
@@ -327,7 +327,7 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
 .comp-cap a { color: inherit; pointer-events: auto; }
 @media (min-width: 1100px) {
   body:not(.intro-on) .wrap { margin-left: auto; margin-right: clamp(16px, 3vw, 72px); }
-  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
+  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])), body:not(.intro-on) .wrap:has(.pm-view:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
   .companion { pointer-events: auto;
     background: radial-gradient(28% 55% at var(--fig-x) 50%, color-mix(in srgb, var(--b3d-halo) 9%, transparent), transparent 85%); }
   .comp-fig { -webkit-mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); }
@@ -444,6 +444,9 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
       <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
       <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="r" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
+      <button type="button" class="im" data-at="SP10" data-mirror="1" data-side="l" data-go="cal" hidden><b>יומן</b><span>שבוע התורים, סדרות טיפול, סנכרון גוגל</span></button>
+      <button type="button" class="im" data-at="SP6" data-mirror="1" data-side="r" data-go="admin" hidden><b>ניהול הקליניקה</b><span>וואטסאפ, מחירים, ימי עבודה, גיבוי</span></button>
       <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
     </nav>
     <div class="intro-foot">
@@ -2930,6 +2933,721 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
 
 </script>
 <script>
+// Demo mode: when there is no clinic server (GitHub Pages), this file answers the app's /api calls in the
+// browser, so the records, "היום", "יומן", "ניהול" and approval tabs can be tried without installing anything.
+// Every patient here is invented for the demo. Changes stay in this browser tab (sessionStorage) and
+// nothing is sent anywhere. With a real server (server/app.py answers /api/health) this file does nothing.
+(function () {
+  "use strict";
+  var API = window.TCM_API || "/api";
+  var realFetch = window.fetch.bind(window);
+  var KEY = "tcm-demo-server-v1";
+  var CFG = {"kinds": [{"kind": "first", "label": "ביקור ראשון", "minutes": 90, "price": 0}, {"kind": "followup", "label": "טיפול המשך", "minutes": 60, "price": 0}, {"kind": "check", "label": "מפגש מעקב", "minutes": 45, "price": 0}, {"kind": "herbs_pickup", "label": "איסוף צמחים", "minutes": 15, "price": 0}], "statuses": ["booked", "confirmed", "change_requested", "done", "no_show", "cancelled"], "alert_codes": {"PREGNANCY": "היריון", "ANTICOAGULANT": "נוגדי קרישה / נוגדי טסיות", "ANTIDIABETIC": "תרופות לסוכרת", "ANTIDEPRESSANT": "נוגדי דיכאון", "DIGOXIN": "דיגוקסין", "DEVICE": "קוצב לב או מכשיר מושתל", "EPILEPSY": "אפילפסיה", "IMMUNO": "דיכוי חיסוני או כימותרפיה", "ORGAN": "מחלת כבד או כליות", "ALLERGY": "אלרגיה", "NEEDLE": "רגישות למחטים / התעלפות", "OTHER": "אחר"}, "pay_methods": ["cash", "card", "transfer", "bit", "check", "other"], "consent_kinds": ["treatment", "privacy", "whatsapp"], "forms": {"treatment": {"version": "2026-11-draft1", "title": "הסכמה לטיפול", "text": ["אני מבקש/ת לקבל טיפול ברפואה סינית, שעשוי לכלול דיקור במחטים חד-פעמיות, כוסות רוח, מוקסה (חימום), עיסוי ומרשם צמחי מרפא.", "הוסבר לי שהטיפול אינו מחליף אבחון וטיפול רפואי, ושעליי להמשיך במעקב אצל הרופא/ה שלי ולא להפסיק תרופות בלי להתייעץ איתו/ה.", "הוסבר לי שייתכנו תופעות לוואי חולפות, כגון כאב קל או שטף דם קטן במקום הדיקור, עייפות או סחרחורת, ושצמחי מרפא עלולים להשפיע על תרופות.", "אדווח למטפל/ת על היריון או אפשרות להיריון, על תרופות שאני נוטל/ת, על מחלות רקע ועל מכשיר מושתל כמו קוצב לב.", "אני רשאי/ת להפסיק את הטיפול בכל שלב."]}, "privacy": {"version": "2026-11-draft1", "title": "שמירת מידע ופרטיות", "text": ["המידע שאמסור, כולל השאלון, הערות הטיפול ומדדי ההתקדמות, נשמר בשרת של הקליניקה, מוצפן, ומשמש לטיפול בי בלבד.", "השם ומספר הטלפון שלי נשמרים בנפרד מהמידע הקליני, במפתח הצפנה נפרד.", "מידע קליני לא נמסר לשום גורם חיצוני. לצורך מחקר ושיפור המערכת ייתכן שימוש בנתונים בלי שם, בלי טלפון ובלי טקסט חופשי.", "אני רשאי/ת לבקש לעיין במידע שלי, לתקן אותו או למחוק אותו."]}, "whatsapp": {"version": "2026-11-draft1", "title": "הודעות וואטסאפ", "text": ["אני מסכים/ה לקבל מהקליניקה הודעות וואטסאפ לוגיסטיות: אישור תור, תזכורת לפני תור, קישורים לשאלונים וטפסים, ומועדי מפגשים.", "ההודעות נשלחות דרך שירות WhatsApp של חברת Meta, ולכן Meta רואה את מספר הטלפון שלי ואת תוכן ההודעה. ההודעות לא יכללו שום מידע רפואי: לא תלונה, לא אבחנה ולא טיפול.", "כדאי לא לכתוב פרטים רפואיים בתשובה בוואטסאפ. אפשר לספר אותם בפגישה.", "אפשר לבטל את ההסכמה בכל עת, בפנייה לקליניקה, ואז לא יישלחו עוד הודעות אוטומטיות."]}}, "mymop": {"version": "MYMOP2 (Paterson 1996), Hebrew draft", "scale": "0 = טוב ככל האפשר · 6 = גרוע ככל האפשר", "s1": "בחר/י את הבעיה (תסמין) שהכי מטריד/ה אותך. כמה היא הייתה קשה בשבוע האחרון?", "s2": "בעיה שנייה שמטרידה אותך (לא חובה). כמה היא הייתה קשה בשבוע האחרון?", "activity": "פעילות אחת שחשובה לך (גופנית, חברתית או נפשית) שהבעיה מקשה עליה. כמה קשה היה לבצע אותה בשבוע האחרון?", "wellbeing": "איך היית מתאר/ת את ההרגשה הכללית שלך בשבוע האחרון?"}, "form_tasks": ["consent:treatment", "consent:privacy", "consent:whatsapp", "mymop"], "workdays": [6, 0, 1, 2, 3], "days_off": {"2026-04-02": "פסח", "2026-04-08": "שביעי של פסח", "2026-04-22": "יום העצמאות", "2026-05-22": "שבועות", "2026-09-12": "ראש השנה", "2026-09-13": "ראש השנה", "2026-09-21": "יום כיפור", "2026-09-26": "סוכות", "2026-10-03": "שמיני עצרת", "2027-04-22": "פסח", "2027-04-28": "שביעי של פסח", "2027-05-12": "יום העצמאות", "2027-06-11": "שבועות", "2027-10-02": "ראש השנה", "2027-10-03": "ראש השנה", "2027-10-11": "יום כיפור", "2027-10-16": "סוכות", "2027-10-23": "שמיני עצרת"}, "timezone": "Asia/Jerusalem", "whatsapp": {"cloud_api": false, "webhook": false, "send_hours": ["09:00", "19:00"], "reminder_time": "10:00", "address": "רחוב הדוגמה 1, תל אביב", "lang": "he", "templates": [{"id": "appt_confirm", "label": "אישור תור", "body": "שלום {name}, נקבע לך תור ביום {weekday} {date} בשעה {time}.\nכתובת: {address}\nלשינוי או ביטול אפשר להשיב להודעה זו.", "params": ["name", "weekday", "date", "time", "address"], "buttons": [], "meta_name": "appt_confirm", "check": []}, {"id": "reminder", "label": "תזכורת לתור", "body": "שלום {name}, תזכורת לתור ביום {weekday} {date} בשעה {time}.\nנשמח לאישור בלחיצה על הכפתור.", "params": ["name", "weekday", "date", "time"], "buttons": [{"id": "confirm", "text": "מאשר/ת"}, {"id": "change", "text": "צריך לשנות"}], "meta_name": "reminder", "check": []}, {"id": "intake_link", "label": "קישור לשאלון", "body": "שלום {name}, לפני הפגישה הראשונה נשמח שתמלא/י שאלון קצר בקישור {link}\nהקישור אישי ונסגר אחרי השליחה.", "params": ["name", "link"], "buttons": [], "meta_name": "intake_link", "check": []}, {"id": "forms_link", "label": "קישור לטפסים", "body": "שלום {name}, לפני הפגישה נשמח שתמלא/י טופס קצר בקישור {link}\nהקישור אישי ונסגר אחרי השליחה.", "params": ["name", "link"], "buttons": [], "meta_name": "forms_link", "check": []}, {"id": "series_schedule", "label": "מועדי המפגשים", "body": "שלום {name}, אלה מועדי המפגשים שקבענו: {dates}.\nלשינוי אפשר להשיב להודעה זו.", "params": ["name", "dates"], "buttons": [], "meta_name": "series_schedule", "check": []}, {"id": "followup_check", "label": "בדיקת שלומך", "body": "שלום {name}, עברו שבועיים מהמפגש האחרון. נשמח לשמוע מה שלומך ואם תרצה/י לקבוע מפגש המשך.", "params": ["name"], "buttons": [], "meta_name": "followup_check", "check": []}]}, "gcal": {"configured": false, "connected": false, "read_calendars": ["primary"], "clinic_calendar": null, "title": {"mode": "fixed", "text": "טיפול"}, "last_sync": null, "last_error": null}};
+  CFG.kinds.forEach(function (k) { k.price = { first: 350, followup: 280, check: 200 }[k.kind] || 0; });
+
+  var mode = null;   // a promise of "real" or "demo"
+  function detect() {
+    if (!mode) {
+      mode = /[?&]demo=1\b/.test(location.search) ? Promise.resolve("demo") :
+        realFetch(API + "/health", { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { return j && j.service === "tcm-clinic-server" && !j.demo ? "real" : "demo"; }, function () { return "demo"; });
+    }
+    return mode;
+  }
+
+  // ---- time helpers (local clinic time, minutes precision, like the server's "YYYY-MM-DDTHH:MM") ----
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function stamp(d) { return iso(d) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function parse(s) { return new Date(s.length === 10 ? s + "T00:00" : s); }
+  function ts(s) { return Math.floor(parse(s).getTime() / 1000); }
+  function fmt(t) { return stamp(new Date(t * 1000)); }
+  function now() { return Math.floor(Date.now() / 1000); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function pyDay(d) { return (d.getDay() + 6) % 7; }   // Monday = 0, as in Python
+  function rid(prefix) { return prefix + "-" + Math.random().toString(16).slice(2, 14); }
+  function recId() { var a = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789", s = "R-"; for (var i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+  var DAYS_SUN = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+  // ---- the invented clinic ----
+  var PEOPLE = [
+    { name: "נועה לוי (דוגמה)", phone: "050-0000001", case: "liver_yang", age: 41, sex: "F", status: "in_review", since: 120 },
+    { name: "דוד כהן (דוגמה)", phone: "050-0000002", case: "spleen_qi", age: 56, sex: "M", status: "in_review", since: 90 },
+    { name: "מיכל ברק (דוגמה)", phone: "050-0000003", case: "kidney_yin", age: 52, sex: "F", status: "submitted", since: 2 },
+    { name: "יוסי אברהם (דוגמה)", phone: "050-0000004", case: "cold_damp_bi", age: 67, sex: "M", status: "closed", since: 160 },
+    { name: "שירה פרץ (דוגמה)", phone: "050-0000005", case: "pregnant_nausea", age: 31, sex: "F", status: "in_review", since: 40 },
+    { name: "אורי מזרחי (דוגמה)", phone: "050-0000006", case: null, age: null, sex: null, status: "awaiting_patient", since: 1 }
+  ];
+
+  function workday(d, db) { return CFG_workdays(db).indexOf(pyDay(d)) !== -1 && !daysOff(db)[iso(d)]; }
+  function CFG_workdays(db) { return db.workdays; }
+  function daysOff(db) { return Object.assign({}, CFG.days_off, db.days_off); }
+
+  function seed() {
+    var db = { records: [], appts: [], series: [], notes: [], alerts: [], outcomes: [], consents: [], packages: [], payments: [],
+               queue: [], replies: [], messages: [], kb: [], docs: {}, workdays: CFG.workdays.slice(), days_off: {}, signed_in: true,
+               wa: { send_hours: CFG.whatsapp.send_hours.slice(), reminder_time: CFG.whatsapp.reminder_time, address: CFG.whatsapp.address, meta_names: {} },
+               gcal_title: { mode: "fixed", text: "טיפול" }, kinds: JSON.parse(JSON.stringify(CFG.kinds)), backup: { file: "records-" + iso(new Date()).replace(/-/g, "") + "-0700.db.gz.enc", at: now() - 4 * 3600 } };
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    PEOPLE.forEach(function (p, i) {
+      var r = { record_id: recId(), status: p.status, created_at: now() - p.since * 86400, updated_at: now() - Math.min(p.since, 3) * 86400,
+                link_expires_at: now() + 7 * 86400, identity: { name: p.name, phone: p.phone }, age: p.age, sex: p.sex, halted: false, documents: {}, case: p.case };
+      if (p.case) r.documents.intake = 1;
+      db.records.push(r);
+      if (p.status === "awaiting_patient") {
+        var first = nextWork(db, addDays(today, 2));
+        db.appts.push(appt(db, r.record_id, stamp(at(first, 9, 0)), "first"));
+        return;
+      }
+      ["treatment", "privacy"].concat(i === 2 ? [] : ["whatsapp"]).forEach(function (k) {
+        db.consents.push({ id: rid("C"), record_id: r.record_id, kind: k, form_version: CFG.forms[k].version, signed_at: r.created_at + 600, revoked_at: null,
+                           source: i % 2 ? "patient_link" : "clinic", signer: p.name.replace(" (דוגמה)", ""), signature: SIG });
+      });
+    });
+    var R = db.records;
+    // History: weekly visits over the past months, with notes and MYMOP going the right way.
+    function history(r, weeks, hour, opts) {
+      var start = addDays(today, -7 * weeks);
+      var pkg = opts.pkg ? { id: rid("P"), record_id: r.record_id, label: "סדרת 7 טיפולים", sessions: 7, price: 1750, created_at: ts(iso(start)) } : null;
+      if (pkg) db.packages.push(pkg);
+      for (var w = 0; w < weeks; w++) {
+        var d = nextWork(db, addDays(start, 7 * w));
+        if (iso(d) >= iso(today)) break;
+        var a = appt(db, r.record_id, stamp(at(d, hour, 0)), w === 0 ? "first" : "followup");
+        a.status = opts.noShow && opts.noShow.indexOf(w) !== -1 ? "no_show" : "done";
+        if (pkg && w > 0 && w <= 7) a.package_id = pkg.id;
+        db.appts.push(a);
+        if (a.status === "done" && opts.notes) {
+          db.notes.push({ id: rid("N"), record_id: r.record_id, version: 1, appt_id: a.id, created_at: a.ts + 3600, created_by: "clinician:demo", first_at: a.ts + 3600,
+                          data: opts.notes[w % opts.notes.length] });
+        }
+        if (a.status === "done" && opts.mymop && w % 2 === 0) {
+          var k = Math.min(w / 2, opts.mymop.length - 1), m = opts.mymop[k];
+          db.outcomes.push({ id: rid("O"), record_id: r.record_id, at: a.ts - 600, appt_id: a.id, source: w ? "patient_link" : "clinician",
+                             s1: m[0], s2: m[1], activity: m[2], wellbeing: m[3], labels: opts.labels });
+        }
+        if (a.status === "done" && !a.package_id) db.payments.push({ id: rid("Y"), record_id: r.record_id, amount: a.price, at: a.ts + 3000, method: ["bit", "card", "cash"][w % 3], receipt_no: String(1000 + db.payments.length), package_id: null, appt_id: a.id, day: iso(d) });
+      }
+      if (pkg) db.payments.push({ id: rid("Y"), record_id: r.record_id, amount: 1750, at: pkg.created_at + 3600 * 24 * 7, method: "transfer", receipt_no: String(1000 + db.payments.length), package_id: pkg.id, appt_id: null, day: iso(addDays(start, 7)) });
+    }
+    history(R[0], 10, 16, { pkg: true, labels: { symptom1: "כאבי ראש", symptom2: "שינה", activity_name: "עבודה מול מחשב" },
+      mymop: [[5, 4, 4, 4], [4, 4, 3, 3], [3, 3, 3, 3], [2, 2, 2, 2], [2, 1, 1, 2]],
+      notes: [{ complaint: "כאבי ראש ברקות 4 פעמים בשבוע, מחמירים בלחץ", tongue: "אדומה בצדדים", pulse: "מיתרי", done: "LR3, LI4, GB20, Yintang", response: "נרגעה במהלך הטיפול", next: "שבוע הבא" },
+              { complaint: "פחות התקפים, 2 בשבוע", done: "LR3, GB20, PC6", response: "טוב", next: "להמשיך" },
+              { complaint: "שינה השתפרה, כאב ראש אחד בשבוע", done: "LR3, KI3, HT7", next: "לשקול מרווח של שבועיים" }] });
+    history(R[1], 6, 11, { labels: { symptom1: "נפיחות אחרי האוכל", activity_name: "הליכה" }, mymop: [[5, null, 4, 4], [4, null, 3, 4], [3, null, 3, 3]], noShow: [3],
+      notes: [{ complaint: "נפיחות ועייפות אחרי ארוחות", tongue: "חיוורת, סימני שיניים", pulse: "חלש", done: "ST36, SP6, CV12", next: "המלצות תזונה" }] });
+    history(R[3], 9, 9, { labels: { symptom1: "כאב ברכיים", activity_name: "עלייה במדרגות" }, mymop: [[5, null, 5, 4], [4, null, 4, 3], [3, null, 3, 3], [3, null, 2, 2], [2, null, 2, 2]], noShow: [2, 5],
+      notes: [{ complaint: "כאב ברכיים בבוקר ובקור", done: "ST35, Xiyan, GB34 + מוקסה", next: "המשך" }] });
+    history(R[4], 3, 13, { labels: { symptom1: "בחילות" }, mymop: [[4, null, null, 4], [3, null, null, 3]],
+      notes: [{ complaint: "בחילות בבוקר, שבוע 14", done: "PC6 בלבד, דיקור עדין", response: "הקלה", next: "בלי נקודות אסורות בהיריון" }] });
+    db.alerts.push({ id: rid("L"), record_id: R[4].record_id, code: "PREGNANCY", label: CFG.alert_codes.PREGNANCY, active: true, updated_at: now() - 30 * 86400, text: "שבוע 14" });
+    db.alerts.push({ id: rid("L"), record_id: R[1].record_id, code: "ANTICOAGULANT", label: CFG.alert_codes.ANTICOAGULANT, active: true, updated_at: now() - 80 * 86400, text: "אספירין 100" });
+    db.series.push({ id: rid("S"), record_id: R[3].record_id, plan_version: 1, length: 7, per_week: 1, followup_appt: null, created_at: now() - 60 * 86400 });
+    db.appts.filter(function (a) { return a.record_id === R[3].record_id && a.kind === "followup"; }).slice(0, 7).forEach(function (a, i) { a.series_id = db.series[0].id; a.series_no = i + 1; });
+
+    // Today and the coming days.
+    var t0 = nextWork(db, today), t1 = nextWork(db, addDays(t0, 1)), t2 = nextWork(db, addDays(t1, 1));
+    [[R[0], t0, 10, 0, "followup", "confirmed"], [R[1], t0, 12, 30, "followup", "booked"], [R[4], t0, 16, 0, "followup", "change_requested"],
+     [R[2], t1, 9, 30, "first", "booked"], [null, t1, 14, 0, "followup", "booked"], [R[1], t2, 11, 0, "followup", "booked"]].forEach(function (x) {
+      var a = appt(db, x[0] ? x[0].record_id : null, stamp(at(x[1], x[2], x[3])), x[4]);
+      a.status = x[5];
+      if (!x[0]) { a.source = "google"; a.external_title = "פגישה (מיומן גוגל)"; }
+      db.appts.push(a);
+    });
+    // A new series for Noa, starting next week.
+    makeSeries(db, R[0].record_id, iso(addDays(today, 7)), "16:00", 7, 1, null, null, 1);
+    db.appts.forEach(function (a) { if (a.record_id && a.ts > now() && a.status !== "cancelled") queueReminder(db, a); });
+    var miss = db.queue.filter(function (q) { return q.record_id === R[1].record_id; })[0];
+    if (miss) { miss.status = "missed"; miss.due_at = now() - 20 * 3600; }
+    db.replies.push({ id: rid("W"), record_id: R[4].record_id, kind: "button", payload: "change", text: null, at: now() - 5 * 3600, handled: false });
+    db.replies.push({ id: rid("W"), record_id: R[0].record_id, kind: "button", payload: "confirm", text: null, at: now() - 22 * 3600, handled: true });
+    db.kb = [];
+    return db;
+  }
+  function at(d, h, m) { var x = new Date(d); x.setHours(h, m, 0, 0); return x; }
+  function nextWork(db, d) { var x = new Date(d); for (var i = 0; i < 14 && !workday(x, db); i++) x = addDays(x, 1); return x; }
+  function kindOf(db, k) { return db.kinds.filter(function (x) { return x.kind === k; })[0] || db.kinds[1]; }
+  function appt(db, recordId, start, kind) {
+    var k = kindOf(db, kind), s = parse(start);
+    return { id: rid("A"), record_id: recordId, minutes: k.minutes, kind: k.kind, status: "booked", series_id: null, series_no: null, source: "clinic",
+             gcal_state: "push", price: k.price, package_id: null, start: start, end: stamp(new Date(s.getTime() + k.minutes * 60000)), ts: ts(start), external_title: null };
+  }
+  function hasConsent(db, r, k) { return db.consents.some(function (c) { return c.record_id === r && c.kind === k && !c.revoked_at; }); }
+  function prevWorkday(db, d) { var x = addDays(d, -1); for (var i = 0; i < 14 && !workday(x, db); i++) x = addDays(x, -1); return x; }
+  function queueReminder(db, a) {
+    db.queue = db.queue.filter(function (q) { return !(q.appt_id === a.id && q.status === "pending"); });
+    if (!hasConsent(db, a.record_id, "whatsapp")) return;
+    var hm = db.wa.reminder_time.split(":"), d = at(prevWorkday(db, parse(a.start)), +hm[0], +hm[1]);
+    db.queue.push({ id: rid("Q"), record_id: a.record_id, appt_id: a.id, template: "reminder", due_at: Math.floor(d.getTime() / 1000), status: a.ts <= now() ? "missed" : "pending", last_error: null, sent_at: null });
+  }
+  function plan(db, start, time, length, perWeek) {
+    var out = [], moved = [], d = parse(start), hm = time.split(":");
+    var step = perWeek === 2 ? [3, 4] : [7];
+    for (var i = 0; i < length; i++) {
+      var want = new Date(d), x = new Date(d), why = null;
+      for (var g = 0; g < 14 && !workday(x, db); g++) { why = why || daysOff(db)[iso(x)] || "לא יום עבודה"; x = addDays(x, 1); }
+      if (iso(x) !== iso(want)) moved.push({ from: iso(want), why: why, to: iso(x) });
+      out.push(stamp(at(x, +hm[0], +hm[1])));
+      d = addDays(d, step[i % step.length]);
+    }
+    var fu = nextWork(db, addDays(parse(out[out.length - 1]), 14));
+    return { sessions: out, followup: stamp(at(fu, +hm[0], +hm[1])), moved: moved };
+  }
+  function makeSeries(db, recordId, start, time, length, perWeek, firstKind, packageId, planVersion) {
+    var p = plan(db, start, time, length, perWeek), s = { id: rid("S"), record_id: recordId, plan_version: planVersion || null, length: length, per_week: perWeek, followup_appt: null, created_at: now() };
+    var ids = p.sessions.map(function (st, i) {
+      var a = appt(db, recordId, st, i === 0 && firstKind ? firstKind : "followup");
+      a.series_id = s.id; a.series_no = i + 1; a.package_id = packageId || null;
+      db.appts.push(a); queueReminder(db, a); return a.id;
+    });
+    var f = appt(db, recordId, p.followup, "check"); f.series_id = s.id; f.series_no = 0; db.appts.push(f); queueReminder(db, f);
+    s.followup_appt = f.id; db.series.push(s);
+    return { series_id: s.id, appointments: ids, followup: f.id, moved: p.moved };
+  }
+
+  // ---- state in this tab ----
+  var db = null;
+  function load() {
+    if (db) return db;
+    try { db = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch (e) { db = null; }
+    if (!db || db.day !== iso(new Date())) { db = seed(); db.day = iso(new Date()); }
+    return db;
+  }
+  function save() { try { sessionStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { /* full or off: keep in memory */ } }
+
+  function rec(id) { return db.records.filter(function (r) { return r.record_id === id; })[0]; }
+  function nameOf(id) { var r = rec(id); return r && r.identity ? r.identity.name : null; }
+  function publicRecord(r) {
+    var o = {}; Object.keys(r).forEach(function (k) { if (k !== "case") o[k] = r[k]; });
+    o.documents = Object.assign({}, r.documents); return o;
+  }
+  function sortAppts(list) { return list.slice().sort(function (a, b) { return a.ts - b.ts; }); }
+  function activeCodes(r) { return db.alerts.filter(function (a) { return a.record_id === r && a.active; }).map(function (a) { return a.code; }); }
+  function account(r) {
+    var visits = db.appts.filter(function (a) { return a.record_id === r && a.status === "done"; });
+    var pk = db.packages.filter(function (p) { return p.record_id === r; }).map(function (p) {
+      return Object.assign({}, p, { used: visits.filter(function (a) { return a.package_id === p.id; }).length });
+    });
+    var charged = pk.reduce(function (s, p) { return s + p.price; }, 0) + visits.filter(function (a) { return !a.package_id; }).reduce(function (s, a) { return s + (a.price || 0); }, 0);
+    var pays = db.payments.filter(function (p) { return p.record_id === r; });
+    var paid = pays.reduce(function (s, p) { return s + p.amount; }, 0);
+    return { visits: visits.map(function (a) { return { id: a.id, start: a.start, price: a.price, package_id: a.package_id }; }), packages: pk, payments: pays, charged: charged, paid: paid, balance: charged - paid };
+  }
+
+  // A whole interview for a sample record, made in the browser from a sample case (demo_cases.js).
+  function intakeState(r) {
+    if (db.docs[r.record_id + ":intake"]) return db.docs[r.record_id + ":intake"];
+    var UI = window.TCMInterviewUI, D = window.TCMDemoCases;
+    if (!UI || !D || !r.case) return null;
+    var c = D.CASES.filter(function (x) { return x.id === r.case; })[0];
+    var E = UI.engine, st = E.newState({}), transcript = [];
+    var obj = D.run(E, st, c, function (x, who) { if (typeof x === "string") transcript.push({ role: who === "pt" ? "patient" : "system", text: x }); });
+    st.transcript = st.transcript && st.transcript.length ? st.transcript : transcript;
+    var doc = { data: { schema_version: "intake.v1", state: JSON.parse(JSON.stringify(st)) }, version: 1, created_at: r.created_at + 900 };
+    if (r.status !== "submitted") db.docs[r.record_id + ":review"] = { data: { schema_version: "review.v1", state: doc.data.state, objective: { tongue: obj.tongue, pulse: obj.pulse } }, version: 1, created_at: r.created_at + 3600 };
+    db.docs[r.record_id + ":intake"] = doc;
+    return doc;
+  }
+
+  // ---- WhatsApp text, as the server renders it (no real phone numbers in the demo) ----
+  function tpl(id) { return CFG.whatsapp.templates.filter(function (t) { return t.id === id; })[0]; }
+  function render(id, r, a, extra) {
+    var t = tpl(id), d = a ? parse(a.start) : null;
+    var p = { name: ((r && r.identity && r.identity.name) || "").split(" ")[0], weekday: d ? DAYS_SUN[d.getDay()] : "", date: d ? pad(d.getDate()) + "." + pad(d.getMonth() + 1) : "",
+              time: a ? a.start.slice(11, 16) : "", address: db.wa.address, link: extra.link || (extra.link_path ? location.origin + extra.link_path : ""), dates: extra.dates || "" };
+    return t.body.replace(/\{(\w+)\}/g, function (m, k) { return p[k] !== undefined ? p[k] : m; });
+  }
+  var CLINICAL = ["דיקור", "מחטים", "כאב", "אבחנה", "היריון", "צמחים", "תרופה", "סרטן", "דיכאון", "לחץ דם", "סוכרת", "טיפול שורש", "כבד", "כליות"];
+  function check(text) { return CLINICAL.filter(function (w) { return (text || "").indexOf(w) !== -1; }); }
+  function waOut(id, r, a, extra) {
+    var text = render(id, r, a, extra || {});
+    db.messages.push({ id: rid("M"), record_id: r.record_id, template: id, channel: "wa.me", status: "opened", at: now() });
+    // An invented patient's wa.me link has no number (WhatsApp asks whom to send it to); a number the clinician typed in is used.
+    var num = r.identity && !invented(r.identity.phone) ? waNumber(r.identity.phone) : null;
+    return { blocked: [], text: text, link: "https://wa.me/" + (num || "") + "?text=" + encodeURIComponent(text), demo: true };
+  }
+
+  // ---- routes ----
+  function E(status, detail) { var e = new Error(detail); e.status = status; return e; }
+  var routes = [
+    ["GET", /^\/health$/, function () { return { ok: true, service: "tcm-clinic-server", demo: true }; }],
+    ["POST", /^\/login$/, function () { db.signed_in = true; return { username: "demo" }; }],
+    ["POST", /^\/logout$/, function () { db.signed_in = false; return { ok: true }; }],
+    ["GET", /^\/me$/, function () { return { username: "demo" }; }],
+    ["GET", /^\/records$/, function () { return { records: db.records.slice().sort(function (a, b) { return b.updated_at - a.updated_at; }).map(publicRecord) }; }],
+    ["POST", /^\/records$/, function (m, b) {
+      var r = { record_id: recId(), status: "awaiting_patient", created_at: now(), updated_at: now(), link_expires_at: now() + 7 * 86400,
+                identity: b.identity || null, age: null, sex: null, halted: false, documents: {}, case: null };
+      db.records.push(r);
+      return link(r);
+    }],
+    ["POST", /^\/records\/([^/]+)\/link$/, function (m) { var r = need(m[1]); r.link_expires_at = now() + 7 * 86400; return link(r); }],
+    ["DELETE", /^\/records\/([^/]+)$/, function (m) {
+      need(m[1]);
+      ["records", "appts", "series", "notes", "alerts", "outcomes", "consents", "packages", "payments", "queue", "replies", "messages"].forEach(function (k) {
+        db[k] = db[k].filter(function (x) { return x.record_id !== m[1]; });
+      });
+      return { ok: true };
+    }],
+    ["GET", /^\/records\/([^/]+)$/, function (m) {
+      var r = need(m[1]), o = publicRecord(r), intake = r.documents.intake ? intakeState(r) : null;
+      var plans = db.docs[r.record_id + ":plans"] || [];
+      return Object.assign(o, { intake: intake, review: db.docs[r.record_id + ":review"] || null, report: db.docs[r.record_id + ":report"] || null,
+                                plan: plans.length ? plans[plans.length - 1] : null, plan_versions: plans.length });
+    }],
+    ["PUT", /^\/records\/([^/]+)\/status$/, function (m, b) { var r = need(m[1]); r.status = b.status; r.updated_at = now(); return { ok: true }; }],
+    ["POST", /^\/records\/([^/]+)\/(review|report|plan)$/, function (m, b) {
+      var r = need(m[1]), k = m[2], v;
+      if (k === "plan") { var l = db.docs[r.record_id + ":plans"] = db.docs[r.record_id + ":plans"] || []; v = l.length + 1; l.push({ data: b.document, version: v, created_at: now() }); }
+      else { var old = db.docs[r.record_id + ":" + k]; v = old ? old.version + 1 : 1; db.docs[r.record_id + ":" + k] = { data: b.document, version: v, created_at: now() }; }
+      r.documents[k] = v; r.updated_at = now();
+      if (k === "review" && r.status === "submitted") r.status = "in_review";
+      return { version: v };
+    }],
+
+    ["GET", /^\/pm\/config$/, function () {
+      var c = JSON.parse(JSON.stringify(CFG));
+      c.kinds = db.kinds; c.workdays = db.workdays; c.days_off = daysOff(db);
+      c.whatsapp.send_hours = db.wa.send_hours; c.whatsapp.reminder_time = db.wa.reminder_time; c.whatsapp.address = db.wa.address;
+      c.whatsapp.templates.forEach(function (t) { if (db.wa.meta_names[t.id]) t.meta_name = db.wa.meta_names[t.id]; });
+      c.gcal.title = db.gcal_title;
+      c.backup = { latest: db.backup.file, age_hours: (now() - db.backup.at) / 3600, error: null };
+      c.jobs = { running: false, last: {}, error: null };
+      c.demo = true;
+      var L = live();
+      c.whatsapp.cloud_api = !!L; c.whatsapp.test_mode = !!L; c.whatsapp.webhook = false;
+      c.whatsapp.demo_live = L ? { phone_id: L.phone_id } : null;
+      return c;
+    }],
+    ["GET", /^\/pm\/today$/, function (m, b, q) {
+      var day = q.day || iso(new Date()), nowS = stamp(new Date());
+      var appts = sortAppts(db.appts.filter(function (a) { return a.start.slice(0, 10) === day && a.status !== "cancelled"; })).map(function (a) {
+        return Object.assign({}, a, { name: nameOf(a.record_id), alerts: a.record_id ? activeCodes(a.record_id) : [],
+          consent_missing: a.record_id ? ["treatment", "privacy"].filter(function (k) { return !hasConsent(db, a.record_id, k); }) : [] });
+      });
+      var noShow = {};
+      db.appts.forEach(function (a) { if (a.status === "no_show" && a.record_id) noShow[a.record_id] = (noShow[a.record_id] || 0) + 1; });
+      var ended = db.series.filter(function (s) {
+        var list = db.appts.filter(function (a) { return a.series_id === s.id && a.series_no > 0; });
+        return list.length && list.every(function (a) { return a.status === "done" || a.status === "no_show" || a.status === "cancelled"; }) &&
+          !db.appts.some(function (a) { return a.record_id === s.record_id && a.start > nowS && a.status !== "cancelled"; });
+      }).map(function (s) { return { record_id: s.record_id, name: nameOf(s.record_id) }; });
+      var soon = stamp(addDays(new Date(), 7));
+      return {
+        day: day, day_off: daysOff(db)[day] || null, appointments: appts,
+        intakes_waiting: db.records.filter(function (r) { return r.status === "submitted"; }).map(function (r) { return { record_id: r.record_id, name: nameOf(r.record_id), at: r.updated_at }; }),
+        in_review: db.records.filter(function (r) { return r.status === "in_review"; }).map(function (r) { return { record_id: r.record_id, name: nameOf(r.record_id) }; }),
+        series_ended: ended,
+        unsent_messages: db.queue.filter(function (x) { return ["missed", "failed", "blocked", "skipped_no_consent"].indexOf(x.status) !== -1; })
+          .map(function (x) { return Object.assign({}, x, { name: nameOf(x.record_id), due: fmt(x.due_at) }); }),
+        replies: db.replies.filter(function (r) { return !r.handled; }).map(function (r) { return Object.assign({}, r, { name: nameOf(r.record_id) }); }),
+        repeat_no_show: Object.keys(noShow).filter(function (k) { return noShow[k] >= 2; }).map(function (k) { return { record_id: k, name: nameOf(k), n: noShow[k] }; }),
+        unlinked_events: db.appts.filter(function (a) { return !a.record_id && a.source === "google" && a.start >= nowS.slice(0, 10); }).length,
+        intake_before_first: db.records.filter(function (r) { return r.status === "awaiting_patient"; }).map(function (r) {
+          var a = sortAppts(db.appts.filter(function (x) { return x.record_id === r.record_id && x.start >= nowS && x.start <= soon && x.status !== "cancelled"; }))[0];
+          return a ? { record_id: r.record_id, name: nameOf(r.record_id), start: a.start } : null;
+        }).filter(Boolean)
+      };
+    }],
+    ["GET", /^\/pm\/calendar$/, function (m, b, q) {
+      var start = q.start, days = +(q.days || 7), end = iso(addDays(parse(start), days)), off = {}, all = daysOff(db);
+      Object.keys(all).forEach(function (d) { if (d >= start && d < end) off[d] = all[d]; });
+      return { start: start, days: days, days_off: off, workdays: db.workdays, gcal: gcal(),
+        appointments: sortAppts(db.appts.filter(function (a) { return a.start >= start && a.start < end; })).map(function (a) { return Object.assign({}, a, { name: nameOf(a.record_id) }); }) };
+    }],
+    ["POST", /^\/pm\/appointments$/, function (m, b) {
+      if (!b.start) throw E(422, "start is required");
+      var a = appt(db, b.record_id || null, b.start.slice(0, 16), b.kind || "followup");
+      db.appts.push(a); if (a.record_id) queueReminder(db, a);
+      return { appointment: a };
+    }],
+    ["PUT", /^\/pm\/appointments\/([^/]+)$/, function (m, b) {
+      var a = db.appts.filter(function (x) { return x.id === m[1]; })[0];
+      if (!a) throw E(404, "no such appointment");
+      if ("record_id" in b) a.record_id = b.record_id || null;
+      if (b.kind) { var k = kindOf(db, b.kind); a.kind = k.kind; a.minutes = k.minutes; a.price = k.price; }
+      if (b.start) { a.start = b.start.slice(0, 16); a.ts = ts(a.start); }
+      a.end = stamp(new Date(parse(a.start).getTime() + a.minutes * 60000));
+      if (b.status) a.status = b.status;
+      if (a.status === "cancelled" || a.status === "done" || a.status === "no_show") db.queue.forEach(function (q) { if (q.appt_id === a.id && q.status === "pending") q.status = "cancelled"; });
+      else if (a.record_id && (b.start || "record_id" in b)) queueReminder(db, a);
+      return { appointment: a };
+    }],
+    ["GET", /^\/pm\/series\/preview$/, function (m, b, q) { return plan(db, q.start, q.time || "16:00", +q.length || 7, +q.per_week || 1); }],
+    ["POST", /^\/pm\/records\/([^/]+)\/series$/, function (m, b) {
+      need(m[1]);
+      var out = makeSeries(db, m[1], b.start, b.time || "16:00", +b.length || 7, +b.per_week || 1, b.first_kind, b.package_id, b.plan_version);
+      if (b.send_schedule && hasConsent(db, m[1], "whatsapp")) db.messages.push({ id: rid("M"), record_id: m[1], template: "series_schedule", channel: "cloud_api", status: "sent", at: now() });
+      return out;
+    }],
+    ["GET", /^\/pm\/records\/([^/]+)$/, function (m) {
+      var r = need(m[1]), id = r.record_id;
+      var notes = db.notes.filter(function (n) { return n.record_id === id; });
+      var latest = {};
+      notes.forEach(function (n) { if (!latest[n.id] || latest[n.id].version < n.version) latest[n.id] = n; });
+      return {
+        record_id: id, identity: r.identity, record: { record_id: id, status: r.status, created_at: r.created_at, updated_at: r.updated_at, created_by: "clinician:demo" },
+        alerts: db.alerts.filter(function (a) { return a.record_id === id; }),
+        notes: Object.keys(latest).map(function (k) { var n = latest[k]; return Object.assign({}, n, { versions: notes.filter(function (x) { return x.id === k; }).length }); })
+          .sort(function (a, b) { return b.first_at - a.first_at; }),
+        appointments: sortAppts(db.appts.filter(function (a) { return a.record_id === id; })),
+        series: db.series.filter(function (s) { return s.record_id === id; }).map(function (s) {
+          return Object.assign({}, s, { done: db.appts.filter(function (a) { return a.series_id === s.id && a.series_no > 0 && a.status === "done"; }).length });
+        }),
+        outcomes: db.outcomes.filter(function (o) { return o.record_id === id; }).sort(function (a, b) { return a.at - b.at; }),
+        consents: db.consents.filter(function (c) { return c.record_id === id; }).map(function (c) { var o = Object.assign({}, c); delete o.signature; return o; }),
+        account: account(id),
+        replies: db.replies.filter(function (x) { return x.record_id === id; }),
+        queue: db.queue.filter(function (x) { return x.record_id === id; }).map(function (x) { return Object.assign({}, x, { due: fmt(x.due_at) }); }).sort(function (a, b) { return a.due_at - b.due_at; })
+      };
+    }],
+    ["GET", /^\/pm\/records\/([^/]+)\/alerts$/, function (m) { return { alerts: db.alerts.filter(function (a) { return a.record_id === m[1] && a.active; }) }; }],
+    ["POST", /^\/pm\/records\/([^/]+)\/alerts$/, function (m, b) {
+      need(m[1]);
+      if (!CFG.alert_codes[b.code]) throw E(422, "unknown alert code");
+      var a = b.alert_id ? db.alerts.filter(function (x) { return x.id === b.alert_id; })[0] : null;
+      if (!a) { a = { id: rid("L"), record_id: m[1], code: b.code, label: CFG.alert_codes[b.code], active: true, updated_at: now(), text: b.text || "" }; db.alerts.push(a); }
+      else { a.active = b.active !== false; a.text = b.text || ""; a.updated_at = now(); }
+      return { alert_id: a.id };
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/notes$/, function (m, b) {
+      need(m[1]);
+      var d = b.note || {}, appt_id = d.appt_id || null, data = {};
+      Object.keys(d).forEach(function (k) { if (k !== "appt_id" && d[k]) data[k] = d[k]; });
+      if (!Object.keys(data).length) throw E(422, "an empty note");
+      var prev = b.note_id ? db.notes.filter(function (n) { return n.id === b.note_id; }) : [];
+      var first = prev.length ? prev[0].first_at : now();
+      var n = { id: b.note_id || rid("N"), record_id: m[1], version: prev.length + 1, appt_id: appt_id || (prev[0] && prev[0].appt_id) || null, created_at: now(), created_by: "clinician:demo", first_at: first, data: data };
+      db.notes.push(n);
+      return { note_id: n.id, version: n.version };
+    }],
+    ["GET", /^\/pm\/records\/([^/]+)\/notes\/([^/]+)$/, function (m) {
+      var h = db.notes.filter(function (n) { return n.id === m[2]; }).sort(function (a, b) { return a.version - b.version; });
+      if (!h.length) throw E(404, "no such note");
+      return Object.assign({}, h[h.length - 1], { versions: h.length, history: h });
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/outcomes$/, function (m, b) {
+      need(m[1]);
+      if (b.s1 === undefined || b.wellbeing === undefined) throw E(422, "symptom 1 and wellbeing are required");
+      var labels = {};
+      ["symptom1", "symptom2", "activity_name"].forEach(function (k) { if (b[k]) labels[k] = b[k]; });
+      var last = db.outcomes.filter(function (o) { return o.record_id === m[1]; }).pop();
+      var o = { id: rid("O"), record_id: m[1], at: now(), appt_id: null, source: "clinician", s1: b.s1, s2: b.s2 === undefined ? null : b.s2,
+                activity: b.activity === undefined ? null : b.activity, wellbeing: b.wellbeing, labels: Object.keys(labels).length ? labels : (last ? last.labels : {}) };
+      db.outcomes.push(o);
+      return { outcome_id: o.id };
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/consents$/, function (m, b) {
+      var r = need(m[1]);
+      if (!CFG.forms[b.kind]) throw E(422, "unknown consent kind");
+      var c = { id: rid("C"), record_id: r.record_id, kind: b.kind, form_version: CFG.forms[b.kind].version, signed_at: now(), revoked_at: null, source: "clinic", signer: b.signer || "", signature: b.signature };
+      db.consents.push(c);
+      if (b.kind === "whatsapp") db.appts.forEach(function (a) { if (a.record_id === r.record_id && a.ts > now() && a.status !== "cancelled") queueReminder(db, a); });
+      return { consent_id: c.id };
+    }],
+    ["GET", /^\/pm\/consents\/([^/]+)$/, function (m) {
+      var c = db.consents.filter(function (x) { return x.id === m[1]; })[0];
+      if (!c) throw E(404, "no such consent");
+      var f = CFG.forms[c.kind];
+      return Object.assign({}, c, { title: f.title, text: c.form_version === f.version ? f.text : null });
+    }],
+    ["POST", /^\/pm\/consents\/([^/]+)\/revoke$/, function (m) {
+      var c = db.consents.filter(function (x) { return x.id === m[1]; })[0];
+      if (!c) throw E(404, "no such consent");
+      c.revoked_at = now();
+      if (c.kind === "whatsapp") db.queue.forEach(function (q) { if (q.record_id === c.record_id && q.status === "pending") q.status = "cancelled"; });
+      return { ok: true };
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/form-link$/, function (m) {
+      need(m[1]);
+      var t = "demo-" + Math.random().toString(36).slice(2, 12);
+      return { token: t, path: "/app/forms.html#" + t, url: pageUrl("forms.html", t), expires_at: now() + 7 * 86400 };
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/whatsapp$/, function (m, b) {
+      var r = need(m[1]);
+      if (!r.identity || !r.identity.phone) throw E(422, "no phone number in the record");
+      var a = b.appt_id ? db.appts.filter(function (x) { return x.id === b.appt_id; })[0] : null;
+      if (!a && (b.template === "reminder" || b.template === "appt_confirm")) a = sortAppts(db.appts.filter(function (x) { return x.record_id === r.record_id && x.ts > now(); }))[0];
+      var extra = { link: b.link, link_path: b.link_path };
+      if (b.template === "series_schedule") {
+        var s = b.series_id || (db.series.filter(function (x) { return x.record_id === r.record_id; }).pop() || {}).id;
+        extra.dates = sortAppts(db.appts.filter(function (x) { return x.series_id === s && x.series_no > 0; })).map(function (x) { var d = parse(x.start); return DAYS_SUN[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + " " + x.start.slice(11, 16); }).join(" · ");
+      }
+      var L = live(), to = !b.manual && L && r.identity && !invented(r.identity.phone) && waNumber(r.identity.phone);
+      if (!L || b.manual) return waOut(b.template, r, a, extra);
+      var text = render(b.template, r, a, extra);
+      if (!to) {
+        var o = waOut(b.template, r, a, extra);
+        o.sent = false; o.error = invented(r.identity.phone) ? "invented: מספר של מטופל/ת בדוי/ה, לא שולחים אליו." : "no usable phone number";
+        return o;
+      }
+      // Meta's test number: the Hebrew goes as plain text, with no hello_world stand-in, so a link arrives whole or not at all.
+      return graph("POST", "/" + L.phone_id + "/messages", { messaging_product: "whatsapp", to: to, type: "text", text: { body: text, preview_url: false } }).then(function (res) {
+        db.messages.push({ id: rid("M"), record_id: r.record_id, template: b.template, channel: "cloud_api", status: "sent", at: now() });
+        return { blocked: [], sent: true, test_mode: true, id: ((res.messages || [])[0] || {}).id, text: text };
+      }, function (e) {
+        var o = waOut(b.template, r, a, extra);
+        o.sent = false; o.error = e.message; return o;
+      });
+    }],
+    ["POST", /^\/pm\/queue\/([^/]+)\/(manual|retry|dismiss)$/, function (m) {
+      var q = db.queue.filter(function (x) { return x.id === m[1]; })[0];
+      if (!q) throw E(404, "no such message");
+      if (m[2] === "dismiss") { q.status = "dismissed"; return { ok: true }; }
+      if (m[2] === "retry") { q.status = "pending"; q.due_at = now() + 60; return { ok: true }; }
+      q.status = "sent_by_hand"; q.sent_at = now();
+      return waOut(q.template, rec(q.record_id), db.appts.filter(function (a) { return a.id === q.appt_id; })[0], {});
+    }],
+    ["POST", /^\/pm\/replies\/([^/]+)\/handled$/, function (m) { db.replies.forEach(function (r) { if (r.id === m[1]) r.handled = true; }); return { ok: true }; }],
+    ["POST", /^\/pm\/records\/([^/]+)\/payments$/, function (m, b) {
+      need(m[1]);
+      if (!(b.amount > 0)) throw E(422, "amount must be positive");
+      var p = { id: rid("Y"), record_id: m[1], amount: b.amount, at: now(), method: b.method || "card", receipt_no: b.receipt_no || "", package_id: b.package_id || null, appt_id: null, day: b.day || iso(new Date()) };
+      db.payments.push(p);
+      return { account: account(m[1]) };
+    }],
+    ["POST", /^\/pm\/records\/([^/]+)\/packages$/, function (m, b) {
+      need(m[1]);
+      db.packages.push({ id: rid("P"), record_id: m[1], label: b.label || "חבילה", sessions: +b.sessions || 1, price: +b.price || 0, created_at: now() });
+      return { account: account(m[1]) };
+    }],
+    ["GET", /^\/pm\/records\/([^/]+)\/timeline$/, function (m) {
+      var r = need(m[1]), id = r.record_id, items = [{ at: r.created_at, type: "record" }];
+      if (r.documents.intake) items.push({ at: r.created_at + 900, type: "doc:intake", version: 1 });
+      ["review", "report"].forEach(function (k) { var d = db.docs[id + ":" + k]; if (d) items.push({ at: d.created_at, type: "doc:" + k, version: d.version }); });
+      (db.docs[id + ":plans"] || []).forEach(function (d) { items.push({ at: d.created_at, type: "doc:plan", version: d.version }); });
+      db.appts.forEach(function (a) { if (a.record_id === id) items.push({ at: a.ts, type: "appointment", id: a.id, kind: a.kind, status: a.status, series_no: a.series_no }); });
+      var seen = {};
+      db.notes.filter(function (n) { return n.record_id === id; }).forEach(function (n) { seen[n.id] = seen[n.id] || { at: n.first_at, type: "note", id: n.id, versions: 0 }; seen[n.id].versions++; });
+      Object.keys(seen).forEach(function (k) { items.push(seen[k]); });
+      db.outcomes.forEach(function (o) { if (o.record_id === id) items.push({ at: o.at, type: "mymop", s1: o.s1, s2: o.s2, wellbeing: o.wellbeing, source: o.source }); });
+      db.consents.forEach(function (c) {
+        if (c.record_id !== id) return;
+        items.push({ at: c.signed_at, type: "consent", kind: c.kind });
+        if (c.revoked_at) items.push({ at: c.revoked_at, type: "consent_revoked", kind: c.kind });
+      });
+      db.messages.forEach(function (x) { if (x.record_id === id) items.push({ at: x.at, type: "message", template: x.template, channel: x.channel, status: x.status }); });
+      db.queue.forEach(function (x) { if (x.record_id === id && x.sent_at) items.push({ at: x.sent_at, type: "message", template: x.template, channel: "wa.me", status: x.status }); });
+      db.replies.forEach(function (x) { if (x.record_id === id) items.push({ at: x.at, type: "reply", kind: x.kind }); });
+      db.payments.forEach(function (p) { if (p.record_id === id) items.push({ at: p.at, type: "payment", amount: p.amount }); });
+      db.packages.forEach(function (p) { if (p.record_id === id) items.push({ at: p.created_at, type: "package", label: p.label }); });
+      items.forEach(function (i) { i.when = fmt(i.at); });
+      return { items: items.sort(function (a, b) { return b.at - a.at; }) };
+    }],
+    ["GET", /^\/pm\/stats$/, function () {
+      var months = [], d = new Date(); d.setDate(1);
+      for (var i = 11; i >= 0; i--) { var x = new Date(d.getFullYear(), d.getMonth() - i, 1); months.push({ month: x.getFullYear() + "-" + pad(x.getMonth() + 1), visits: 0, no_show: 0, cancelled: 0, new_records: 0, revenue: 0, messages: 0 }); }
+      var by = {}; months.forEach(function (m) { by[m.month] = m; });
+      db.appts.forEach(function (a) { var m = by[a.start.slice(0, 7)]; if (!m) return; if (a.status === "done") m.visits++; else if (a.status === "no_show") m.no_show++; else if (a.status === "cancelled") m.cancelled++; });
+      db.records.forEach(function (r) { var m = by[fmt(r.created_at).slice(0, 7)]; if (m) m.new_records++; });
+      db.payments.forEach(function (p) { var m = by[p.day.slice(0, 7)]; if (m) m.revenue += p.amount; });
+      db.messages.forEach(function (x) { var m = by[fmt(x.at).slice(0, 7)]; if (m) m.messages++; });
+      var done = months.reduce(function (s, m) { return s + m.visits; }, 0), ns = months.reduce(function (s, m) { return s + m.no_show; }, 0);
+      var per = {};
+      db.outcomes.forEach(function (o) { (per[o.record_id] = per[o.record_id] || []).push(o); });
+      var changes = Object.keys(per).filter(function (k) { return per[k].length > 1; }).map(function (k) { var l = per[k].sort(function (a, b) { return a.at - b.at; }); return l[0].s1 - l[l.length - 1].s1; });
+      return { months: months, no_show_rate: done + ns ? ns / (done + ns) : null,
+        mymop: { patients: changes.length, mean_change_s1: changes.length ? Math.round(10 * changes.reduce(function (s, c) { return s + c; }, 0) / changes.length) / 10 : null,
+                 improved_1_or_more: changes.filter(function (c) { return c >= 1; }).length },
+        series: { total: db.series.length, completed: db.series.filter(function (s) { return db.appts.filter(function (a) { return a.series_id === s.id && a.series_no > 0; }).every(function (a) { return a.status === "done"; }); }).length } };
+    }],
+    ["PUT", /^\/pm\/whatsapp\/demo-credentials$/, function (m, b) {
+      var id = String(b.phone_id || "").replace(/\D/g, ""), tok = String(b.token || "").trim();
+      if (!id || !tok) throw E(422, "צריך Phone Number ID ואסימון");
+      if (/^(1555|972|0)/.test(id) || id.length < 13) throw E(422, "זה נראה כמו מספר הטלפון של מספר הבדיקה, לא ה־Phone Number ID. ה־ID הוא מספר ארוך (בדרך כלל 15–16 ספרות) שמופיע ב־API Setup מתחת למספר הטלפון, ליד הכיתוב Phone number ID.");
+      try { sessionStorage.setItem(LIVE_KEY, JSON.stringify({ phone_id: id, token: tok })); } catch (e) { throw E(500, "הדפדפן לא שומר נתונים בלשונית"); }
+      return { ok: true };
+    }],
+    ["DELETE", /^\/pm\/whatsapp\/demo-credentials$/, function () { try { sessionStorage.removeItem(LIVE_KEY); } catch (e) { /* ignore */ } return { ok: true }; }],
+    ["GET", /^\/pm\/whatsapp\/status$/, function () {
+      var L = live();
+      if (!L) return { ok: false, error: "לא הוזנו Phone Number ID ואסימון" };
+      return graph("GET", "/" + L.phone_id + "?fields=display_phone_number,verified_name,quality_rating", null).then(function (n) {
+        return { ok: true, number: n.display_phone_number, name: n.verified_name, quality: n.quality_rating, templates: null, templates_error: "במצב בדיקה לא צריך תבניות" };
+      }, function (e) { return { ok: false, error: e.message }; });
+    }],
+    ["POST", /^\/pm\/whatsapp\/test$/, function (m, b) {
+      if (!live()) throw E(409, "לא הוזנו Phone Number ID ואסימון");
+      var to = waNumber(b.phone);
+      if (!to) throw E(422, "מספר לא תקין");
+      return graph("POST", "/" + live().phone_id + "/messages", { messaging_product: "whatsapp", to: to, type: "template", template: { name: "hello_world", language: { code: "en_US" } } })
+        .then(function (r) { return { id: ((r.messages || [])[0] || {}).id }; });
+    }],
+    ["POST", /^\/pm\/whatsapp\/templates$/, function () { throw E(409, "במצב בדיקה של Meta לא צריך לשלוח תבניות לאישור"); }],
+    ["POST", /^\/pm\/whatsapp\/check$/, function (m, b) { return { hits: check(b.text) }; }],
+    ["PUT", /^\/pm\/whatsapp\/config$/, function (m, b) {
+      if (b.send_hours) db.wa.send_hours = b.send_hours; if (b.reminder_time) db.wa.reminder_time = b.reminder_time;
+      if (b.address !== undefined) db.wa.address = b.address; if (b.meta_names) db.wa.meta_names = b.meta_names;
+      return { ok: true };
+    }],
+    ["PUT", /^\/pm\/gcal\/config$/, function (m, b) { if (b.title) db.gcal_title = b.title; return { ok: true }; }],
+    ["GET", /^\/pm\/gcal\/start$/, function () { throw E(409, "במצב הדגמה אין חיבור ליומן גוגל"); }],
+    ["POST", /^\/pm\/gcal\/(sync|disconnect)$/, function () { return { ok: true, pulled: 0, pushed: 0 }; }],
+    ["PUT", /^\/pm\/prices$/, function (m, b) {
+      var k = kindOf(db, b.kind);
+      if (b.label) k.label = b.label; if (b.minutes > 0) k.minutes = b.minutes; if (b.price >= 0) k.price = b.price;
+      return { ok: true };
+    }],
+    ["PUT", /^\/pm\/workdays$/, function (m, b) { db.workdays = (b.days || []).map(Number); return { ok: true }; }],
+    ["PUT", /^\/pm\/days-off$/, function (m, b) { if (!b.day) throw E(422, "day is required"); db.days_off[b.day] = b.label || "חופש"; return { ok: true }; }],
+    ["POST", /^\/pm\/backup$/, function () { db.backup = { file: "records-" + stamp(new Date()).replace(/[-:T]/g, "").slice(0, 12) + ".db.gz.enc (הדגמה)", at: now() }; return { file: db.backup.file }; }],
+    ["POST", /^\/pm\/backup\/check$/, function () {
+      return { file: db.backup.file, integrity: "ok", documents_opened: Object.keys(db.docs).length,
+               counts: { records: db.records.length, documents: Object.keys(db.docs).length, pm_appointments: db.appts.length, pm_notes: db.notes.length } };
+    }],
+
+    // Clinical approvals (approvals.js): a signed log, kept in this tab only.
+    ["GET", /^\/kb\/decisions$/, function () {
+      var latest = {};
+      db.kb.forEach(function (row) { if (row.action === "reset") delete latest[row.key]; else latest[row.key] = row; });
+      return { decisions: Object.keys(latest).map(function (k) { return latest[k]; }), total_rows: db.kb.length, chain_ok: true, chain: db.kb.length + " decisions, chain intact (הדגמה)" };
+    }],
+    ["POST", /^\/kb\/decisions$/, function (m, b) {
+      var saved = (b.decisions || []).map(function (d) {
+        var row = Object.assign({}, d, { seq: db.kb.length + 1, actor: "clinician:demo", at: now(), hash: Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2) });
+        db.kb.push(row); return row;
+      });
+      return { saved: saved };
+    }],
+    ["GET", /^\/kb\/log$/, function () { return { rows: db.kb.slice().reverse(), total_rows: db.kb.length }; }]
+  ];
+  function need(id) { var r = rec(id); if (!r) throw E(404, "no such record"); return r; }
+  // Patient pages sit next to this page: app/interview/patient.html beside app/interview/index.html in the
+  // repository, docs/app/patient.html beside docs/index.html on GitHub Pages (https://<user>.github.io/<repo>/).
+  function pageUrl(name, token) {
+    var dir = location.pathname.replace(/[^/]*$/, "");
+    var rel = /\/app\/interview\/$/.test(dir) ? name : "app/" + name;
+    return location.origin + dir + rel + "#" + token;
+  }
+  function link(r) {
+    var t = "demo-" + Math.random().toString(36).slice(2, 14);
+    return { record_id: r.record_id, patient_token: t, patient_path: "/app/patient.html#" + t, patient_url: pageUrl("patient.html", t), expires_at: r.link_expires_at };
+  }
+  function gcal() { return { configured: false, connected: false, read_calendars: ["primary"], clinic_calendar: null, title: db.gcal_title, last_sync: null, last_error: null }; }
+
+  function answer(method, path, body) {
+    load();
+    var qi = path.indexOf("?"), query = {};
+    if (qi !== -1) { path.slice(qi + 1).split("&").forEach(function (kv) { var p = kv.split("="); query[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ""); }); path = path.slice(0, qi); }
+    if (!db.signed_in && !/^\/(health|login)$/.test(path)) return reply(401, { detail: "sign in first" });
+    for (var i = 0; i < routes.length; i++) {
+      var rt = routes[i], m = rt[0] === method && rt[1].exec(path);
+      if (!m) continue;
+      try {
+        var out = rt[2](m, body || {}, query);
+        save(); banner();
+        if (out && typeof out.then === "function") {
+          return out.then(function (o) { save(); return reply(200, o); }, function (e) { save(); return reply(e.status || 502, { detail: e.message }); });
+        }
+        if (method !== "GET") setTimeout(liveTick, 50);
+        return reply(200, out);
+      }
+      catch (e) { return reply(e.status || 500, { detail: e.message }); }
+    }
+    return reply(404, { detail: "not in the demo" });
+  }
+  function reply(status, body) { return new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } }); }
+
+  // ---- live WhatsApp from the demo: Meta's test number, called straight from this browser ----
+  // The Phone Number ID and the temporary token live only in this tab's sessionStorage (never in the page,
+  // the repository or any server). graph.facebook.com answers browsers (CORS *). Test-number rules: Hebrew
+  // goes as plain text, which Meta allows within 24 hours of the recipient writing to the number; when Meta
+  // refuses it, Meta's approved "hello_world" goes instead. Invented patients (050-00000xx) are never sent to.
+  var LIVE_KEY = "tcm-demo-wa-live", GRAPH = "https://graph.facebook.com/v26.0";
+  function live() { try { return JSON.parse(sessionStorage.getItem(LIVE_KEY) || "null"); } catch (e) { return null; } }
+  function waNumber(p) {
+    var d = String(p || "").replace(/\D/g, "");
+    if (d.indexOf("00") === 0) d = d.slice(2);
+    if (d.charAt(0) === "0") d = "972" + d.slice(1);
+    return d.length >= 11 && d.length <= 15 ? d : null;
+  }
+  function invented(phone) { return /^0?50-?0{5}\d\d$/.test(String(phone || "").replace(/\s/g, "")); }
+  function graph(method, path, body) {
+    var L = live();
+    return realFetch(GRAPH + path, { method: method, headers: Object.assign({ Authorization: "Bearer " + L.token }, body ? { "Content-Type": "application/json" } : {}),
+                                     body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.ok) return j;
+          var er = j.error || {}, e = new Error("Meta " + r.status + (er.code ? " (code " + er.code + ")" : "") + ": " + (((er.error_data || {}).details) || er.message || "error"));
+          if (er.code === 100) e.message = "Meta לא מכירה את ה־Phone Number ID שהוזן. כנראה הוזן מספר הטלפון במקום ה־ID: ב־API Setup ה־ID מופיע מתחת למספר הטלפון, ליד הכיתוב Phone number ID. (" + e.message + ")";
+          if (er.code === 131047 || er.code === 131030) e.message = "(code " + er.code + ") " + e.message;
+          if (er.code === 190) e.message = "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ב־API Setup ולחבר מחדש. (" + e.message + ")";
+          e.status = 502; throw e;
+        });
+      });
+  }
+  function sendLive(to, text) {
+    var pid = live().phone_id;
+    return graph("POST", "/" + pid + "/messages", { messaging_product: "whatsapp", to: to, type: "text", text: { body: text, preview_url: false } })
+      .catch(function () { return graph("POST", "/" + pid + "/messages", { messaging_product: "whatsapp", to: to, type: "template", template: { name: "hello_world", language: { code: "en_US" } } }); });
+  }
+  var ticking = false;
+  function liveTick() {
+    if (!db || !live() || ticking) return;
+    var t = now(), due = db.queue.filter(function (q) { return q.status === "pending" && q.due_at <= t; });
+    due.forEach(function (q) {
+      var a = db.appts.filter(function (x) { return x.id === q.appt_id; })[0];
+      if (a && a.ts <= t) q.status = "missed";
+    });
+    var r, a, list = due.filter(function (q) { return q.status === "pending"; });
+    var q = list.filter(function (x) { var rr = rec(x.record_id); return rr && rr.identity && !invented(rr.identity.phone) && waNumber(rr.identity.phone) && hasConsent(db, x.record_id, "whatsapp"); })[0];
+    save();
+    if (!q) return;
+    r = rec(q.record_id); a = db.appts.filter(function (x) { return x.id === q.appt_id; })[0];
+    ticking = true;
+    sendLive(waNumber(r.identity.phone), render(q.template, r, a, {})).then(function () {
+      q.status = "sent"; q.sent_at = now();
+      db.messages.push({ id: rid("M"), record_id: q.record_id, template: q.template, channel: "cloud_api", status: "sent", at: now() });
+    }, function (e) { q.status = "failed"; q.last_error = e.message.slice(0, 300); }).then(function () { ticking = false; save(); setTimeout(liveTick, 500); });
+  }
+  setInterval(function () { if (db) liveTick(); }, 30000);
+
+  // A clear label on every screen while the demo answers.
+  var shown = false;
+  function banner() {
+    if (shown || !document.body) return;
+    var wrap = document.querySelector(".wrap");
+    if (!wrap) return;
+    shown = true;
+    var b = document.createElement("div");
+    b.className = "demo-banner";
+    b.setAttribute("role", "note");
+    b.innerHTML = "<b>מצב הדגמה</b><span>אין כאן שרת קליניקה. כל המטופלים בדויים, ושום דבר לא נשלח או נשמר מחוץ ללשונית הזאת. " +
+      "וואטסאפ נשלח באמת רק אם חיברת את מספר הבדיקה של Meta בלשונית ניהול הקליניקה, ורק למספר שהזנת בעצמך. יומן גוגל לא מחובר.</span>";
+    var reset = document.createElement("button");
+    reset.type = "button"; reset.className = "mini"; reset.textContent = "איפוס נתוני ההדגמה";
+    reset.addEventListener("click", function () { try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ } location.hash = ""; location.reload(); });
+    b.appendChild(reset);
+    var css = document.createElement("style");
+    css.textContent = ".demo-banner{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 14px;padding:10px 16px;border-radius:18px;" +
+      "border:1px dashed color-mix(in srgb,var(--amber) 60%,transparent);background:color-mix(in srgb,var(--amber-soft) 55%,var(--glass));font-size:.9rem}" +
+      ".demo-banner b{color:var(--amber);letter-spacing:.02em}.demo-banner span{flex:1;min-width:14em;color:var(--ink)}";
+    document.head.appendChild(css);
+    var nav = document.querySelector("nav.tabs");
+    if (nav && nav.parentNode === wrap) wrap.insertBefore(b, nav); else wrap.insertBefore(b, wrap.firstChild);
+  }
+
+  window.fetch = function (input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    var rel = url.indexOf(location.origin) === 0 ? url.slice(location.origin.length) : url;
+    if (rel.indexOf(API + "/") !== 0) return realFetch(input, init);
+    var method = ((init && init.method) || "GET").toUpperCase(), body = null;
+    try { body = init && init.body ? JSON.parse(init.body) : null; } catch (e) { body = null; }
+    return detect().then(function (m) {
+      if (m === "real") return realFetch(input, init);
+      return answer(method, rel.slice(API.length), body);
+    });
+  };
+  window.TCMDemoServer = { active: function () { return detect().then(function (m) { return m === "demo"; }); }, reset: function () { db = seed(); db.day = iso(new Date()); save(); } };
+
+  // A plain signature for the invented consent forms.
+  var SIG = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="90"><path d="M10 60 C40 10 60 90 90 40 S140 70 160 30 S220 60 250 45" fill="none" stroke="#1d2216" stroke-width="2.5" stroke-linecap="round"/><text x="10" y="85" font-size="11" fill="#777">הדגמה</text></svg>');
+})();
+
+</script>
+<script>
 // Clinician side of the clinic server (server/app.py): sign-in, the record list, new patient links,
 // and saving the review, the diagnostic report and the treatment plan to an encrypted record.
 // Without a server (GitHub Pages, a file opened from disk) /api/health fails and nothing here shows.
@@ -3031,17 +3749,56 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     });
   }
 
+  // What a "send in WhatsApp" answer means, shown in box. Connected to the Cloud API, the system sends it
+  // itself; Meta's refusal comes back with the reason and a button for sending by hand. Not connected,
+  // WhatsApp opens with the message ready (wa.me), as before.
+  function openLink(url) { var a = el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }); document.body.appendChild(a); a.click(); a.remove(); }
+  function waReason(msg) {
+    msg = String(msg || "");
+    if (/131047/.test(msg)) return "עברו יותר מ־24 שעות מאז שהנמען כתב למספר הבדיקה של Meta, ולכן Meta לא מעבירה הודעה חופשית. כדי לפתוח חלון של 24 שעות, שלחו מהטלפון של הנמען הודעה כלשהי למספר הבדיקה ונסו שוב.";
+    if (/131030/.test(msg)) return "המספר לא ברשימת הנמענים של מספר הבדיקה. מוסיפים אותו ב־Meta, ב־API Setup, בשדה To.";
+    if (/code 190|\b190\b|האסימון/.test(msg)) return "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ולחבר מחדש בלשונית ניהול הקליניקה.";
+    if (/^invented/.test(msg)) return "זה מטופל/ת בדוי/ה (050-00000xx), וההדגמה לא שולחת אליו. כדי לנסות, צרו תיק חדש עם המספר שלכם, מספר שנמצא ברשימת הנמענים של מספר הבדיקה.";
+    if (/no usable phone/.test(msg)) return "אין בתיק מספר טלפון שאפשר לשלוח אליו.";
+    return msg;
+  }
+  function waResult(o, box) {
+    box.textContent = "";
+    if (o.blocked && o.blocked.length) { box.textContent = "נחסם, יש בהודעה מילה קלינית: " + o.blocked.join(", "); return o; }
+    if (o.sent) {
+      box.textContent = "נשלח בוואטסאפ דרך Meta." + (o.test_mode ? " במספר הבדיקה, ההודעה מגיעה רק אם הנמען כתב למספר הבדיקה ב־24 השעות האחרונות. אם לא הגיעה תוך דקה, שלחו מהטלפון שלו הודעה כלשהי למספר הבדיקה ונסו שוב." : "");
+      return o;
+    }
+    if (o.sent === false) {
+      box.appendChild(document.createTextNode("לא נשלח: " + waReason(o.error) + " "));
+      if (o.link) box.appendChild(el("button", { class: "mini", type: "button", text: "שליחה ידנית בוואטסאפ", onclick: function () { openLink(o.link); } }));
+      return o;
+    }
+    if (o.link) { openLink(o.link); box.textContent = "נפתח בוואטסאפ (המערכת לא מחוברת ל־Cloud API)."; }
+    return o;
+  }
+  // The patient page next to this one: /app/patient.html on the clinic server; on GitHub Pages the
+  // demo hands back a full address under the site's own folder (patient_url).
+  function patientUrl(res) { return res.patient_url || (location.origin + res.patient_path); }
+
   function linkBox(res) {
-    var url = location.origin + res.patient_path;
+    var url = patientUrl(res);
     var copy = el("button", { class: "btn ghost", type: "button", text: "העתקת הקישור" });
     copy.addEventListener("click", function () {
       try { navigator.clipboard.writeText(url).then(function () { copy.textContent = "הועתק"; }); } catch (e) { /* select by hand */ }
+    });
+    var wa = el("button", { class: "btn ghost", type: "button", text: "שליחה בוואטסאפ" });
+    var waMsg = el("span", { class: "hint", role: "status" });
+    wa.addEventListener("click", function () {
+      call("POST", "/pm/records/" + res.record_id + "/whatsapp", { template: "intake_link", link: url }).then(function (o) {
+        waResult(o, waMsg);
+      }, function (e) { waMsg.textContent = e.status === 422 ? "אין מספר טלפון בתיק." : waReason(e.message); });
     });
     return el("div", { class: "flag info" }, [
       el("b", { text: "קישור למטופל לתיק " + res.record_id + " " }),
       "(בתוקף עד " + when(res.expires_at) + ", לשימוש אחד). שלחו אותו למטופל/ת. אחרי השליחה הקישור נסגר, והמטופל/ת לא יכול/ה לראות את התשובות או את הסיכום.",
       el("div", { class: "reclink", text: url }),
-      el("div", { class: "answers" }, [copy])
+      el("div", { class: "answers" }, [copy, wa, waMsg])
     ]);
   }
 
@@ -3076,6 +3833,7 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     records.forEach(function (r) {
       var actions = el("span", { class: "mini-row" });
       if (r.documents.intake) actions.appendChild(el("button", { class: "mini", type: "button", text: "פתיחה", onclick: function () { openRecord(r.record_id); } }));
+      if (window.TCMPractice) actions.appendChild(el("button", { class: "mini", type: "button", text: "כרטיס", onclick: function () { view.hidden = true; window.TCMPractice.card(r.record_id); } }));
       if (r.status === "awaiting_patient") actions.appendChild(el("button", { class: "mini", type: "button", text: "קישור חדש", onclick: function () {
         call("POST", "/records/" + r.record_id + "/link").then(function (res) { var o = document.getElementById("new-link"); o.textContent = ""; o.appendChild(linkBox(res)); o.scrollIntoView({ block: "nearest" }); });
       } }));
@@ -3103,15 +3861,32 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
   }
 
   // ---- an open record ----
+  // Standing alerts from the patient card (practice.js) join the record's safety flags: a category C flag
+  // per alert, as if the patient had named the medication, and "PREGNANCY" sets the pregnancy status.
+  function withAlerts(state, alerts) {
+    state = JSON.parse(JSON.stringify(state || {}));
+    state.patient = state.patient || {};
+    state.flags = (state.flags || []).filter(function (f) { return f.source !== "standing_alert"; });
+    (alerts || []).forEach(function (a) {
+      if (a.code === "PREGNANCY") { state.patient.pregnancy = "yes"; return; }
+      if (a.code === "NEEDLE" || a.code === "OTHER") return;
+      state.flags.push({ category: "C", type: a.code.toLowerCase(), gloss_en: a.label, verbatim_he: "התראה קבועה בכרטיס: " + a.label + (a.text ? " · " + a.text : ""),
+                         status: "current", source: "standing_alert" });
+    });
+    return state;
+  }
+
   function openRecord(rid) {
-    call("GET", "/records/" + rid).then(function (rec) {
+    Promise.all([call("GET", "/records/" + rid), call("GET", "/pm/records/" + rid + "/alerts").catch(function () { return { alerts: [] }; })]).then(function (r) {
+      var rec = r[0];
       var src = rec.review ? rec.review.data : rec.intake && rec.intake.data;
       if (!src) return;
       active = rec;
       view.hidden = true;
       tab.setAttribute("aria-selected", "false");
-      window.TCMInterviewUI.loadRecord(rid, src.state, rec.review ? src.objective : null);
-      renderBar("");
+      document.querySelectorAll(".pm-view").forEach(function (v) { v.hidden = true; });
+      window.TCMInterviewUI.loadRecord(rid, withAlerts(src.state, r[1].alerts), rec.review ? src.objective : null);
+      renderBar(r[1].alerts.length ? "בתיק יש " + r[1].alerts.length + " התראות קבועות, והן נכנסו לבדיקת הבטיחות." : "");
     });
   }
 
@@ -3156,6 +3931,8 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
   }
 
   window.TCMRecords = {
+    waResult: waResult, waReason: waReason, patientUrl: patientUrl,
+    open: openRecord,
     active: function () { return !!active && window.TCMInterviewUI.recordId() === active.record_id; },
     savePlan: function (plan) {
       var rid = active.record_id;
@@ -3168,6 +3945,784 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     }
   };
 
+  if (location.protocol === "file:") return;
+  fetch(API + "/health", { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && j.service === "tcm-clinic-server") install(); }, function () { /* no server: static prototype */ });
+})();
+
+</script>
+<script>
+// Practice management on the clinic server (server/practice.py, whatsapp.py, gcal.py, backup.py):
+// the "היום" list, the week calendar (mirroring Google Calendar), the patient card (standing alerts,
+// visits and series, visit notes, MYMOP, consent, WhatsApp, payments, timeline) and "ניהול" (statistics,
+// WhatsApp, Google, prices, working days, backups).
+// Like records.js it shows only when /api/health answers, so GitHub Pages stays a static prototype.
+(function () {
+  "use strict";
+  var API = window.TCM_API || "/api";
+  var cfg = null, records = [];
+  var views = {}, tabs = {};
+  var KIND_HE = {}, STATUS_HE = { booked: "נקבע", confirmed: "אושר", change_requested: "ביקש/ה שינוי", done: "התקיים", no_show: "לא הגיע/ה", cancelled: "בוטל" };
+  var Q_HE = { pending: "ממתין", sent: "נשלח", failed: "נכשל", missed: "לא נשלח בזמן", cancelled: "בוטל", skipped_no_consent: "אין הסכמה", blocked: "נחסם (מילה קלינית)", dismissed: "הוסר", sent_by_hand: "נשלח ידנית" };
+  var METHOD_HE = { cash: "מזומן", card: "אשראי", transfer: "העברה", bit: "ביט", check: "צ׳ק", other: "אחר" };
+  var CONSENT_HE = { treatment: "הסכמה לטיפול", privacy: "שמירת מידע ופרטיות", whatsapp: "הודעות וואטסאפ" };
+  var DAYS_HE = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"];   // Python weekday order
+  var DAYS_SUN = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];  // JS getDay order
+
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (k === "text") n.textContent = v;
+      else if (k === "class") n.className = v;
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+      else if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v);
+    });
+    (children || []).forEach(function (c) { if (c !== null && c !== undefined && c !== false) n.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c); });
+    return n;
+  }
+  function call(method, path, data) {
+    var opts = { method: method, credentials: "same-origin", headers: { "X-TCM": "1" } };
+    if (data !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(data); }
+    return fetch(API + path, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.detail || ("HTTP " + r.status)); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+  }
+  function when(ts) {
+    if (!ts) return "";
+    var d = new Date(ts * 1000);
+    return d.toLocaleDateString("he-IL") + " " + d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+  }
+  function local(s) {   // "2026-11-29T16:00" -> "ראשון 29.11 16:00"
+    if (!s) return "";
+    var d = new Date(s);
+    return DAYS_SUN[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + " " + s.slice(11, 16);
+  }
+  function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function status(msg, bad) { return el("p", { class: bad ? "flag red" : "progress", role: "status", text: msg }); }
+  function fail(box) { return function (e) { box.textContent = ""; box.appendChild(status("לא הצליח: " + e.message, true)); }; }
+  function money(n) { return "₪" + Number(n || 0).toLocaleString("he-IL"); }
+  function badge(text, kind) { return el("span", { class: "badge" + (kind ? " " + kind : ""), text: text }); }
+  function name(r) { return (r && r.identity && r.identity.name) || ""; }
+  function recName(rid) { var r = records.filter(function (x) { return x.record_id === rid; })[0]; return name(r) || rid; }
+  function select(options, value, attrs) {
+    return el("select", attrs || {}, options.map(function (o) { return el("option", { value: o[0], text: o[1], selected: String(o[0]) === String(value) ? "selected" : null }); }));
+  }
+  function field(label, input) { return el("label", { class: "field" }, [label, input]); }
+  function input(type, attrs) { return el("input", Object.assign({ type: type, class: "note" }, attrs || {})); }
+  function openLink(url) { var a = el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }); document.body.appendChild(a); a.click(); a.remove(); }
+  function kindOptions() { return cfg.kinds.map(function (k) { return [k.kind, k.label + " · " + k.minutes + " דק׳"]; }); }
+  function recordOptions(empty) {
+    return [["", empty || "בחירת מטופל/ת"]].concat(records.map(function (r) { return [r.record_id, (name(r) || "ללא שם") + " · " + r.record_id]; }));
+  }
+
+  // ---- tabs ----
+  function show(key, arg) {
+    Object.keys(views).forEach(function (k) { views[k].hidden = k !== key; });
+    ["view-patient", "view-clin", "view-records"].forEach(function (id) { var v = document.getElementById(id); if (v) v.hidden = true; });
+    var bar = document.getElementById("record-bar"); if (bar) bar.hidden = true;
+    document.querySelectorAll("nav.tabs button").forEach(function (b) { b.setAttribute("aria-selected", String(tabs[key] === b)); });
+    try { history.replaceState(null, "", "#pm-" + key); } catch (e) { /* ignore */ }
+    load(key, arg);
+  }
+  function load(key, arg) {
+    var v = views[key];
+    v.textContent = "";
+    v.appendChild(status("טוען…"));
+    Promise.all([call("GET", "/pm/config"), call("GET", "/records")]).then(function (r) {
+      cfg = r[0]; records = r[1].records;
+      cfg.kinds.forEach(function (k) { KIND_HE[k.kind] = k.label; });
+      v.textContent = "";
+      ({ today: renderToday, cal: renderCalendar, card: renderCard, admin: renderAdmin })[key](v, arg);
+    }, function (e) {
+      v.textContent = "";
+      if (e.status === 401) {
+        v.appendChild(el("div", { class: "panel" }, [el("h2", { text: "צריך להיכנס" }), el("p", { class: "hint", text: "הכניסה נעשית בלשונית תיקים." }),
+          el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "לכניסה", onclick: function () { document.getElementById("tab-records").click(); } })])]));
+      } else v.appendChild(status("השרת לא זמין: " + e.message, true));
+    });
+  }
+
+  // ---- today ----
+  function renderToday(v, day) {
+    day = day || iso(new Date());
+    call("GET", "/pm/today?day=" + day).then(function (t) {
+      v.textContent = "";
+      var d = new Date(day + "T12:00");
+      v.appendChild(el("div", { class: "panel" }, [
+        el("div", { class: "row", style: "justify-content:space-between" }, [
+          el("h2", { text: "היום · " + DAYS_SUN[d.getDay()] + " " + d.toLocaleDateString("he-IL") }),
+          el("span", { class: "mini-row" }, [
+            el("button", { class: "mini", type: "button", text: "יום קודם", onclick: function () { load("today", iso(addDays(d, -1))); } }),
+            el("button", { class: "mini", type: "button", text: "היום", onclick: function () { load("today"); } }),
+            el("button", { class: "mini", type: "button", text: "יום הבא", onclick: function () { load("today", iso(addDays(d, 1))); } })])]),
+        t.day_off ? el("p", { class: "flag info", text: "יום חופש: " + t.day_off }) : null,
+        apptList(t.appointments, function () { load("today", day); })
+      ]));
+      var todo = [];
+      if (t.replies.length) todo.push(section("תשובות של מטופלים בוואטסאפ", t.replies.map(function (r) {
+        return el("li", {}, [r.name || "מספר לא מוכר", " · ", r.kind === "button" ? (r.payload === "confirm" ? "אישר/ה את התור" : r.payload === "change" ? "ביקש/ה לשנות את התור" : "לחץ/ה על כפתור") : "כתב/ה הודעה (בכרטיס)",
+          " · " + when(r.at) + " ", r.record_id ? cardBtn(r.record_id) : null,
+          el("button", { class: "mini", type: "button", text: "טופל", onclick: function () { call("POST", "/pm/replies/" + r.id + "/handled").then(function () { load("today", day); }); } })]);
+      })));
+      if (t.unsent_messages.length) todo.push(section("הודעות שלא יצאו", t.unsent_messages.map(function (m) {
+        var box = el("span", {});
+        return el("li", {}, [(m.name || m.record_id) + " · " + (templateLabel(m.template)) + " · " + (Q_HE[m.status] || m.status) + (m.last_error ? " (" + m.last_error + ")" : "") + " ",
+          el("button", { class: "mini", type: "button", text: "שליחה ידנית ב־wa.me", onclick: function () {
+            call("POST", "/pm/queue/" + m.id + "/manual").then(function (o) { if (o.link) { openLink(o.link); load("today", day); } else box.textContent = "נחסם: " + o.blocked.join(", "); }, fail(box));
+          } }),
+          el("button", { class: "mini ghost", type: "button", text: "לנסות שוב", onclick: function () { call("POST", "/pm/queue/" + m.id + "/retry").then(function () { load("today", day); }); } }),
+          el("button", { class: "mini ghost", type: "button", text: "להסיר", onclick: function () { call("POST", "/pm/queue/" + m.id + "/dismiss").then(function () { load("today", day); }); } }), box]);
+      })));
+      if (t.intakes_waiting.length) todo.push(section("שאלונים שהתקבלו ומחכים לסקירה", t.intakes_waiting.map(function (r) {
+        return el("li", {}, [(r.name || r.record_id) + " · " + when(r.at) + " ", el("button", { class: "mini", type: "button", text: "פתיחת הסיכום", onclick: function () { window.TCMRecords.open(r.record_id); } }), cardBtn(r.record_id)]);
+      })));
+      if (t.intake_before_first.length) todo.push(section("ביקור ראשון בקרוב, והשאלון עוד לא מולא", t.intake_before_first.map(function (r) {
+        var box = el("span", {});
+        return el("li", {}, [(r.name || r.record_id) + " · " + local(r.start) + " ", el("button", { class: "mini", type: "button", text: "קישור חדש בוואטסאפ", onclick: function () {
+          call("POST", "/records/" + r.record_id + "/link").then(function (res) { return sendWa(r.record_id, "intake_link", res.patient_url ? { link: res.patient_url } : { link_path: res.patient_path }, box); }, fail(box));
+        } }), box]);
+      })));
+      if (t.series_ended.length) todo.push(section("סיימו סדרה ואין מפגש המשך", t.series_ended.map(function (r) {
+        var box = el("span", {});
+        return el("li", {}, [(r.name || r.record_id) + " ", el("button", { class: "mini", type: "button", text: "בדיקת שלומך בוואטסאפ", onclick: function () { sendWa(r.record_id, "followup_check", {}, box); } }), cardBtn(r.record_id), box]);
+      })));
+      if (t.repeat_no_show.length) todo.push(section("לא הגיעו פעמיים או יותר", t.repeat_no_show.map(function (r) { return el("li", {}, [(r.name || r.record_id) + " · " + r.n + " פעמים ", cardBtn(r.record_id)]); })));
+      if (t.in_review.length) todo.push(section("תיקים בטיפול", t.in_review.map(function (r) { return el("li", {}, [(r.name || r.record_id) + " ", cardBtn(r.record_id)]); })));
+      if (t.unlinked_events) todo.push(el("p", { class: "flag info" }, [t.unlinked_events + " אירועים מיומן גוגל לא מקושרים לתיק. ", el("button", { class: "mini", type: "button", text: "ליומן", onclick: function () { show("cal"); } })]));
+      v.appendChild(el("div", { class: "panel" }, [el("h2", { text: "לטיפול" })].concat(todo.length ? todo : [el("p", { class: "empty", text: "אין משימות פתוחות." })])));
+    }, fail(v));
+  }
+  function section(title, items) { return el("div", {}, [el("h3", { text: title + " (" + items.length + ")" }), el("ul", { class: "pm-list" }, items)]); }
+  function cardBtn(rid) { return el("button", { class: "mini", type: "button", text: "כרטיס", onclick: function () { show("card", rid); } }); }
+  function templateLabel(id) { var t = (cfg.whatsapp.templates || []).filter(function (x) { return x.id === id; })[0]; return t ? t.label : id; }
+  function sendWa(rid, template, extra, box) {
+    return call("POST", "/pm/records/" + rid + "/whatsapp", Object.assign({ template: template }, extra || {})).then(function (o) {
+      if (box) return window.TCMRecords.waResult(o, box);
+      if (o.link && !o.sent && o.sent !== false) openLink(o.link);
+      return o;
+    }, box ? fail(box) : null);
+  }
+
+  // A list of visits with quick status buttons.
+  function apptList(appts, reload) {
+    if (!appts.length) return el("p", { class: "empty", text: "אין תורים." });
+    return el("ul", { class: "pm-appts" }, appts.map(function (a) {
+      var box = el("span", {});
+      var who = a.record_id ? (a.name || recName(a.record_id)) : (a.external_title || (a.source === "google" ? "אירוע מיומן גוגל" : "ללא תיק"));
+      var flags = el("span", { class: "mini-row" });
+      (a.alerts || []).forEach(function (c) { flags.appendChild(badge(cfg.alert_codes[c] || c, c === "PREGNANCY" || c === "ANTICOAGULANT" || c === "DEVICE" ? "red" : "amber")); });
+      if (a.consent_missing && a.consent_missing.length) flags.appendChild(badge("חסרה הסכמה", "amber"));
+      return el("li", { class: "pm-appt st-" + a.status }, [
+        el("b", { class: "pm-time", text: a.start.slice(11, 16) }),
+        el("span", {}, [who, el("span", { class: "hint", text: " · " + (KIND_HE[a.kind] || a.kind) + (a.series_no ? " · מפגש " + a.series_no : "") }), " ", badge(STATUS_HE[a.status] || a.status, a.status === "change_requested" ? "amber" : a.status === "no_show" ? "red" : ""), " ", flags]),
+        el("span", { class: "mini-row" }, [
+          a.record_id ? cardBtn(a.record_id) : null,
+          el("button", { class: "mini", type: "button", text: "הגיע/ה", onclick: function () { call("PUT", "/pm/appointments/" + a.id, { status: "done" }).then(reload, fail(box)); } }),
+          el("button", { class: "mini ghost", type: "button", text: "לא הגיע/ה", onclick: function () { call("PUT", "/pm/appointments/" + a.id, { status: "no_show" }).then(reload, fail(box)); } }),
+          a.record_id ? el("button", { class: "mini ghost", type: "button", text: "תזכורת ידנית", onclick: function () { sendWa(a.record_id, "reminder", { appt_id: a.id }, box); } }) : null,
+          box])
+      ]);
+    }));
+  }
+
+  // ---- the week calendar ----
+  var calStart = null;
+  function sunday(d) { return addDays(d, -d.getDay()); }
+  function renderCalendar(v) {
+    calStart = calStart || sunday(new Date());
+    call("GET", "/pm/calendar?start=" + iso(calStart) + "&days=7").then(function (c) {
+      v.textContent = "";
+      var g = c.gcal;
+      var syncBox = el("span", { class: "hint" });
+      v.appendChild(el("div", { class: "panel" }, [
+        el("div", { class: "row", style: "justify-content:space-between" }, [
+          el("h2", { text: "יומן · " + calStart.toLocaleDateString("he-IL") + " עד " + addDays(calStart, 6).toLocaleDateString("he-IL") }),
+          el("span", { class: "mini-row" }, [
+            el("button", { class: "mini", type: "button", text: "שבוע קודם", onclick: function () { calStart = addDays(calStart, -7); load("cal"); } }),
+            el("button", { class: "mini", type: "button", text: "השבוע", onclick: function () { calStart = sunday(new Date()); load("cal"); } }),
+            el("button", { class: "mini", type: "button", text: "שבוע הבא", onclick: function () { calStart = addDays(calStart, 7); load("cal"); } })])]),
+        el("p", { class: "hint" }, [g.connected ? "מסונכרן עם יומן גוגל" + (g.last_sync ? " · סנכרון אחרון " + local(g.last_sync) : "") + " · " : "יומן גוגל לא מחובר (בלשונית ניהול). ",
+          g.connected ? el("button", { class: "mini", type: "button", text: "סנכרון עכשיו", onclick: function () { syncBox.textContent = "מסנכרן…"; call("POST", "/pm/gcal/sync").then(function () { load("cal"); }, fail(syncBox)); } }) : null, syncBox]),
+        weekGrid(c),
+        newAppt(function () { load("cal"); })
+      ]));
+    }, fail(v));
+  }
+  function weekGrid(c) {
+    var grid = el("div", { class: "pm-week" });
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(calStart, i), key = iso(d);
+      var work = c.workdays.indexOf((d.getDay() + 6) % 7) !== -1;
+      var items = c.appointments.filter(function (a) { return a.start.slice(0, 10) === key; });
+      if (!work && !items.length) continue;
+      var col = el("div", { class: "pm-day" + (c.days_off[key] ? " off" : "") + (key === iso(new Date()) ? " today" : "") }, [
+        el("div", { class: "pm-dayhead" }, [el("b", { text: DAYS_SUN[d.getDay()] }), " " + d.getDate() + "." + (d.getMonth() + 1), c.days_off[key] ? el("span", { class: "hint", text: " · " + c.days_off[key] }) : null])
+      ]);
+      items.forEach(function (a) { col.appendChild(apptChip(a)); });
+      if (!items.length) col.appendChild(el("p", { class: "empty", text: "פנוי" }));
+      grid.appendChild(col);
+    }
+    return grid;
+  }
+  function apptChip(a) {
+    var who = a.record_id ? (a.name || a.record_id) : (a.external_title || "אירוע");
+    var det = el("details", { class: "pm-chip st-" + a.status + (a.record_id ? "" : " ext") }, [
+      el("summary", {}, [el("b", { text: a.start.slice(11, 16) + " " }), who]),
+    ]);
+    var box = el("div", {});
+    var rec = select(recordOptions("לא מקושר"), a.record_id || "", { "aria-label": "תיק" });
+    var st = select(Object.keys(STATUS_HE).map(function (k) { return [k, STATUS_HE[k]]; }), a.status, { "aria-label": "מצב" });
+    var at = input("datetime-local", { value: a.start });
+    var kind = select(kindOptions(), a.kind, { "aria-label": "סוג" });
+    det.appendChild(el("div", { class: "pm-chipbody" }, [
+      el("span", { class: "hint", text: (KIND_HE[a.kind] || a.kind) + " · " + a.minutes + " דק׳" + (a.source === "google" ? " · מיומן גוגל" : "") + (a.series_no ? " · מפגש " + a.series_no + " בסדרה" : a.series_id ? " · מעקב אחרי סדרה" : "") }),
+      field("תיק", rec), field("מצב", st), field("מועד", at), field("סוג", kind),
+      el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "שמירה", onclick: function () {
+        var d = {};
+        if (rec.value !== (a.record_id || "")) d.record_id = rec.value || null;
+        if (st.value !== a.status) d.status = st.value;
+        if (at.value && at.value !== a.start) d.start = at.value;
+        if (kind.value !== a.kind) d.kind = kind.value;
+        call("PUT", "/pm/appointments/" + a.id, d).then(function () { load("cal"); }, fail(box));
+      } }), a.record_id ? cardBtn(a.record_id) : null]),
+      box
+    ]));
+    return det;
+  }
+  function newAppt(done, rid) {
+    var box = el("div", {});
+    var rec = select(recordOptions(), rid || "", { "aria-label": "תיק" });
+    var at = input("datetime-local", { value: iso(addDays(new Date(), 1)) + "T16:00" });
+    var kind = select(kindOptions(), "followup", { "aria-label": "סוג ביקור" });
+    return el("details", { class: "pm-new" }, [el("summary", { text: "תור חדש" }), el("div", { class: "row" }, [
+      rid ? null : field("מטופל/ת", rec), field("מועד", at), field("סוג", kind),
+      el("button", { class: "btn", type: "button", text: "קביעה", onclick: function () {
+        call("POST", "/pm/appointments", { record_id: rid || rec.value || null, start: at.value, kind: kind.value }).then(done, fail(box));
+      } })]), el("p", { class: "hint", text: "התור נכתב ליומן \"קליניקה\" בגוגל בכותרת ניטרלית, ותזכורת וואטסאפ נקבעת ליום העבודה שלפניו (רק אם יש הסכמה)." }), box]);
+  }
+
+  // ---- the patient card ----
+  function renderCard(v, rid) {
+    if (!rid) { v.appendChild(pickRecord()); return; }
+    call("GET", "/pm/records/" + rid).then(function (c) {
+      v.textContent = "";
+      var ident = c.identity || {};
+      v.appendChild(el("div", { class: "panel pm-cardhead" }, [
+        el("div", { class: "row", style: "justify-content:space-between" }, [
+          el("h2", {}, [ident.name || "ללא שם", " ", el("span", { class: "id", text: c.record_id })]),
+          el("span", { class: "mini-row" }, [ident.phone ? el("span", { class: "hint", text: ident.phone }) : null,
+            c.record.status !== "awaiting_patient" ? el("button", { class: "mini", type: "button", text: "הסיכום הקליני", onclick: function () { window.TCMRecords.open(rid); } }) : null,
+            el("button", { class: "mini ghost", type: "button", text: "תיק אחר", onclick: function () { show("card"); } })])]),
+        el("nav", { class: "pm-rail" }, [["alerts", "התראות"], ["visits", "תורים וסדרות"], ["notes", "הערות ביקור"], ["mymop", "מדד MYMOP"], ["consent", "הסכמות"], ["wa", "וואטסאפ"], ["pay", "תשלומים"], ["timeline", "ציר זמן"]].map(function (x) {
+          return el("a", { href: "#pm-c-" + x[0], text: x[1], onclick: function (e) { e.preventDefault(); var t = document.getElementById("pm-c-" + x[0]); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+        }))
+      ]));
+      var reload = function () { load("card", rid); };
+      [alertsPanel, visitsPanel, notesPanel, mymopPanel, consentPanel, waPanel, payPanel, timelinePanel].forEach(function (f) { v.appendChild(f(c, reload)); });
+    }, fail(v));
+  }
+  function pickRecord() {
+    var q = input("search", { placeholder: "חיפוש לפי שם או מספר תיק", "aria-label": "חיפוש" });
+    var list = el("ul", { class: "pm-list" });
+    function draw() {
+      list.textContent = "";
+      records.filter(function (r) { var s = q.value.trim(); return !s || (name(r) + " " + r.record_id).indexOf(s) !== -1; }).slice(0, 60).forEach(function (r) {
+        list.appendChild(el("li", {}, [el("button", { class: "mini", type: "button", text: (name(r) || "ללא שם") + " · " + r.record_id, onclick: function () { show("card", r.record_id); } })]));
+      });
+    }
+    q.addEventListener("input", draw); draw();
+    return el("div", { class: "panel" }, [el("h2", { text: "כרטיס מטופל/ת" }), q, list]);
+  }
+  function panel(id, title, children) { return el("div", { class: "panel", id: "pm-c-" + id }, [el("h2", { text: title })].concat(children)); }
+
+  function alertsPanel(c, reload) {
+    var box = el("div", {});
+    var code = select(Object.keys(cfg.alert_codes).map(function (k) { return [k, cfg.alert_codes[k]]; }), "ANTICOAGULANT", { "aria-label": "סוג" });
+    var text = input("text", { placeholder: "פירוט (למשל שם התרופה)" });
+    return panel("alerts", "התראות קבועות", [
+      el("p", { class: "hint", text: "התראה פעילה נכנסת אוטומטית לבדיקת הבטיחות של תוכנית הטיפול כשפותחים את הסיכום הקליני. היריון מסמן את סטטוס ההיריון." }),
+      c.alerts.length ? el("ul", { class: "pm-list" }, c.alerts.map(function (a) {
+        return el("li", { class: a.active ? "" : "off" }, [badge(a.label, a.active ? (a.code === "PREGNANCY" || a.code === "ANTICOAGULANT" || a.code === "DEVICE" ? "red" : "amber") : ""), " " + (a.text || "") + " ",
+          el("button", { class: "mini ghost", type: "button", text: a.active ? "כיבוי" : "הפעלה", onclick: function () {
+            call("POST", "/pm/records/" + c.record_id + "/alerts", { alert_id: a.id, code: a.code, text: a.text, active: !a.active }).then(reload, fail(box));
+          } })]);
+      })) : el("p", { class: "empty", text: "אין התראות." }),
+      el("div", { class: "row" }, [code, text, el("button", { class: "btn", type: "button", text: "הוספה", onclick: function () {
+        call("POST", "/pm/records/" + c.record_id + "/alerts", { code: code.value, text: text.value }).then(reload, fail(box));
+      } })]), box]);
+  }
+
+  function visitsPanel(c, reload) {
+    var box = el("div", {});
+    var now = new Date().toISOString().slice(0, 16);
+    var upcoming = c.appointments.filter(function (a) { return a.start >= now.slice(0, 10); });
+    var past = c.appointments.filter(function (a) { return a.start < now.slice(0, 10); });
+    var start = input("date", { value: iso(addDays(new Date(), 1)) });
+    var time = input("time", { value: "16:00" });
+    var len = select([[7, "7 מפגשים"], [14, "14 מפגשים"], [5, "5"], [10, "10"]], 7, { "aria-label": "אורך" });
+    var per = select([[1, "פעם בשבוע"], [2, "פעמיים בשבוע"]], 1, { "aria-label": "תדירות" });
+    var first = el("input", { type: "checkbox" });
+    var pkg = select([["", "בלי חבילה"]].concat(c.account.packages.map(function (p) { return [p.id, p.label + " (" + p.used + "/" + p.sessions + ")"]; })), "", { "aria-label": "חבילה" });
+    var sendSched = el("input", { type: "checkbox" });
+    var prev = el("div", {});
+    function preview() {
+      call("GET", "/pm/series/preview?start=" + start.value + "&time=" + time.value + "&length=" + len.value + "&per_week=" + per.value).then(function (p) {
+        prev.textContent = "";
+        prev.appendChild(el("div", { class: "pm-series" }, p.sessions.map(function (s, i) { return el("span", { class: "slot" + (i ? "" : " first") }, [el("b", { text: (i + 1) + "/" + p.sessions.length }), " " + local(s)]); })
+          .concat([el("span", { class: "slot fu" }, [el("b", { text: "מעקב" }), " " + local(p.followup)])])));
+        if (p.moved.length) prev.appendChild(el("p", { class: "hint", text: "הוזזו: " + p.moved.map(function (m) { return m.from + " (" + m.why + ") ← " + m.to; }).join(" · ") }));
+      }, fail(prev));
+    }
+    [start, time, len, per].forEach(function (x) { x.addEventListener("change", preview); });
+    var planV = window.TCMRecords && window.TCMRecords.planVersion ? window.TCMRecords.planVersion(c.record_id) : null;
+    var series = el("details", { class: "pm-new" }, [el("summary", { text: "סדרת טיפולים חדשה" }),
+      el("div", { class: "row" }, [field("מפגש ראשון", start), field("שעה", time), field("אורך", len), field("תדירות", per), field("חבילה", pkg)]),
+      el("label", { class: "opt" }, [first, "המפגש הראשון הוא ביקור ראשון (90 דק׳)"]),
+      el("label", { class: "opt" }, [sendSched, "לשלוח למטופל/ת את מועדי המפגשים בוואטסאפ (אוטומטי, רק עם הסכמה)"]),
+      prev,
+      el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "יצירת הסדרה ביומן", onclick: function () {
+        call("POST", "/pm/records/" + c.record_id + "/series", { start: start.value, time: time.value, length: +len.value, per_week: +per.value,
+          first_kind: first.checked ? "first" : null, package_id: pkg.value || null, send_schedule: sendSched.checked, plan_version: planV }).then(reload, fail(box));
+      } })]), box]);
+    series.addEventListener("toggle", function () { if (series.open) preview(); });
+    return panel("visits", "תורים וסדרות", [
+      c.series.length ? el("p", { class: "hint", text: c.series.map(function (s) { return "סדרה של " + s.length + ", " + (s.per_week === 1 ? "פעם בשבוע" : "פעמיים בשבוע") + ": התקיימו " + s.done; }).join(" · ") }) : null,
+      el("h3", { text: "הבאים" }), apptList(upcoming, reload),
+      past.length ? el("details", {}, [el("summary", { text: "קודמים (" + past.length + ")" }), apptList(past.slice().reverse(), reload)]) : null,
+      newAppt(reload, c.record_id), series]);
+  }
+
+  var NOTE_FIELDS = [["complaint", "תלונה ומה השתנה"], ["findings", "מה נמצא"], ["tongue", "לשון"], ["pulse", "דופק"], ["done", "מה נעשה"], ["response", "תגובת המטופל/ת"], ["next", "מה הלאה"], ["tags", "תגיות"]];
+  function noteForm(c, reload, note) {
+    var box = el("div", {});
+    var inputs = {};
+    var draftKey = "tcm-note-draft-" + c.record_id + (note ? "-" + note.id : "");
+    var saved = {};
+    try { saved = JSON.parse(sessionStorage.getItem(draftKey) || "{}"); } catch (e) { saved = {}; }
+    var appts = c.appointments.filter(function (a) { return a.status !== "cancelled"; });
+    var appt = select([["", "בלי קישור לתור"]].concat(appts.map(function (a) { return [a.id, local(a.start) + " · " + (KIND_HE[a.kind] || a.kind)]; })), note ? note.appt_id : (appts.filter(function (a) { return a.start.slice(0, 10) === iso(new Date()); })[0] || {}).id || "", { "aria-label": "תור" });
+    var rows = NOTE_FIELDS.map(function (f) {
+      var t = el(f[0] === "tongue" || f[0] === "pulse" || f[0] === "tags" ? "input" : "textarea", { class: "note", type: "text", "aria-label": f[1] });
+      t.value = saved[f[0]] !== undefined ? saved[f[0]] : (note && note.data[f[0]]) || "";
+      t.addEventListener("input", function () { var d = {}; Object.keys(inputs).forEach(function (k) { d[k] = inputs[k].value; }); try { sessionStorage.setItem(draftKey, JSON.stringify(d)); } catch (e) { /* ignore */ } });
+      inputs[f[0]] = t;
+      return field(f[1], t);
+    });
+    return el("div", { class: "pm-note-form" }, [note ? null : field("ביקור", appt), el("div", { class: "grid2" }, rows),
+      el("p", { class: "hint", text: "הטיוטה נשמרת בדפדפן הזה עד השמירה. אחרי שמירה אין מחיקה: תיקון נשמר כגרסה חדשה עם תאריך." }),
+      el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: note ? "שמירת תיקון (גרסה חדשה)" : "שמירת ההערה", onclick: function () {
+        var d = { appt_id: appt.value || null };
+        Object.keys(inputs).forEach(function (k) { if (inputs[k].value.trim()) d[k] = inputs[k].value.trim(); });
+        call("POST", "/pm/records/" + c.record_id + "/notes", { note: d, note_id: note ? note.id : null }).then(function () {
+          try { sessionStorage.removeItem(draftKey); } catch (e) { /* ignore */ }
+          reload();
+        }, fail(box));
+      } })]), box]);
+  }
+  function notesPanel(c, reload) {
+    var list = c.notes.map(function (n) {
+      var body = el("div", {});
+      NOTE_FIELDS.forEach(function (f) { if (n.data[f[0]]) body.appendChild(el("p", { class: "pm-notefield" }, [el("b", { text: f[1] + ": " }), n.data[f[0]]])); });
+      var hist = el("div", {});
+      return el("details", { class: "pm-note" }, [el("summary", {}, [when(n.first_at), n.versions > 1 ? el("span", { class: "hint", text: " · " + n.versions + " גרסאות, אחרונה " + when(n.created_at) }) : null, " · ", (n.data.complaint || "").slice(0, 60)]),
+        body,
+        el("div", { class: "answers" }, [
+          el("button", { class: "mini", type: "button", text: "תיקון", onclick: function (e) { e.target.replaceWith(noteForm(c, reload, n)); } }),
+          n.versions > 1 ? el("button", { class: "mini ghost", type: "button", text: "גרסאות קודמות", onclick: function () {
+            call("GET", "/pm/records/" + c.record_id + "/notes/" + n.id).then(function (h) {
+              hist.textContent = "";
+              h.history.slice(0, -1).reverse().forEach(function (x) { hist.appendChild(el("div", { class: "src he" }, ["גרסה " + x.version + " · " + when(x.created_at) + ": " + NOTE_FIELDS.filter(function (f) { return x.data[f[0]]; }).map(function (f) { return f[1] + ": " + x.data[f[0]]; }).join(" | ")])); });
+            });
+          } }) : null]), hist]);
+    });
+    return panel("notes", "הערות ביקור", [el("details", { class: "pm-new", open: c.notes.length ? null : "" }, [el("summary", { text: "הערה חדשה" }), noteForm(c, reload)])].concat(list.length ? list : [el("p", { class: "empty", text: "עוד אין הערות." })]));
+  }
+
+  function chart(outs) {
+    var W = 560, H = 190, P = 26;
+    var series = [["s1", "בעיה 1", "var(--jade)"], ["s2", "בעיה 2", "var(--amber)"], ["activity", "פעילות", "var(--muted)"], ["wellbeing", "הרגשה כללית", "var(--cinnabar)"]];
+    var n = outs.length, x = function (i) { return n < 2 ? W / 2 : P + i * (W - 2 * P) / (n - 1); }, y = function (v) { return H - 10 - v * (H - P - 4) / 6; };
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" class="pm-chart" role="img" aria-label="מדד MYMOP לאורך הזמן">';
+    for (var g = 0; g <= 6; g += 2) svg += '<line x1="' + P + '" x2="' + (W - P) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="var(--line)"/><text x="4" y="' + (y(g) + 4) + '" font-size="11" fill="var(--muted)" text-anchor="start" direction="ltr">' + g + "</text>";
+    series.forEach(function (s) {
+      var pts = outs.map(function (o, i) { return o[s[0]] === null || o[s[0]] === undefined ? null : [x(i), y(o[s[0]])]; }).filter(Boolean);
+      if (!pts.length) return;
+      svg += '<polyline fill="none" stroke="' + s[2] + '" stroke-width="2.5" points="' + pts.map(function (p) { return p.join(","); }).join(" ") + '"/>';
+      pts.forEach(function (p) { svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" fill="' + s[2] + '"/>'; });
+    });
+    svg += "</svg>";
+    var wrap = el("div", {});
+    wrap.innerHTML = svg;
+    wrap.appendChild(el("div", { class: "bm-legend" }, series.map(function (s) { return el("span", {}, [el("i", { style: "background:" + s[2] }), s[1]]); })));
+    wrap.appendChild(el("p", { class: "hint", text: "0 = טוב ככל האפשר, 6 = גרוע ככל האפשר. ירידה = שיפור." }));
+    return wrap;
+  }
+  function mymopPanel(c, reload) {
+    var box = el("div", {});
+    var labels = (c.outcomes.length && c.outcomes[c.outcomes.length - 1].labels) || {};
+    var f = {};
+    var scale = function (k) { f[k] = select([["", "—"]].concat([0, 1, 2, 3, 4, 5, 6].map(function (i) { return [i, String(i)]; })), "", { "aria-label": k }); return f[k]; };
+    var s1n = input("text", { value: labels.symptom1 || "", placeholder: "בעיה 1" }), s2n = input("text", { value: labels.symptom2 || "", placeholder: "בעיה 2" }), an = input("text", { value: labels.activity_name || "", placeholder: "פעילות" });
+    return panel("mymop", "מדד MYMOP", [
+      c.outcomes.length ? chart(c.outcomes) : el("p", { class: "empty", text: "עוד אין מדידות." }),
+      c.outcomes.length ? el("p", { class: "hint", text: [labels.symptom1, labels.symptom2, labels.activity_name].filter(Boolean).join(" · ") }) : null,
+      el("details", { class: "pm-new" }, [el("summary", { text: "מילוי במרפאה" }),
+        el("div", { class: "grid2" }, [field("בעיה 1", el("div", { class: "row" }, [s1n, scale("s1")])), field("בעיה 2", el("div", { class: "row" }, [s2n, scale("s2")])),
+          field("פעילות", el("div", { class: "row" }, [an, scale("activity")])), field("הרגשה כללית", scale("wellbeing"))]),
+        el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "שמירה", onclick: function () {
+          var d = {};
+          ["s1", "s2", "activity", "wellbeing"].forEach(function (k) { if (f[k].value !== "") d[k] = +f[k].value; });
+          if (s1n.value) d.symptom1 = s1n.value; if (s2n.value) d.symptom2 = s2n.value; if (an.value) d.activity_name = an.value;
+          call("POST", "/pm/records/" + c.record_id + "/outcomes", d).then(reload, fail(box));
+        } })]), box]),
+      formLinkButtons(c, ["mymop"], "קישור למטופל/ת למילוי בטלפון")]);
+  }
+  function formLinkButtons(c, tasks, label) {
+    var box = el("div", {});
+    return el("div", {}, [el("div", { class: "answers" }, [
+      el("button", { class: "btn ghost", type: "button", text: label + " · וואטסאפ", onclick: function () {
+        call("POST", "/pm/records/" + c.record_id + "/form-link", { tasks: tasks }).then(function (l) { return sendWa(c.record_id, "forms_link", l.url ? { link: l.url } : { link_path: l.path }, box); }, fail(box));
+      } }),
+      el("button", { class: "btn ghost", type: "button", text: "העתקת קישור", onclick: function () {
+        call("POST", "/pm/records/" + c.record_id + "/form-link", { tasks: tasks }).then(function (l) {
+          var url = l.url || location.origin + l.path; box.textContent = "";
+          box.appendChild(el("div", { class: "reclink", text: url }));
+          try { navigator.clipboard.writeText(url); box.appendChild(el("span", { class: "hint", text: " הועתק." })); } catch (e) { /* select by hand */ }
+        }, fail(box));
+      } })]), box]);
+  }
+
+  function consentPanel(c, reload) {
+    var rows = cfg.consent_kinds.map(function (k) {
+      var signed = c.consents.filter(function (x) { return x.kind === k && !x.revoked_at; }).pop();
+      var box = el("div", { style: "flex-basis:100%" });
+      var parts = signed ? [
+        "נחתם " + when(signed.signed_at) + (signed.signer ? " · " + signed.signer : "") + (signed.source === "patient_link" ? " · בקישור" : " · במרפאה") + " ",
+        el("button", { class: "mini ghost", type: "button", text: "צפייה", onclick: function () { viewConsent(signed.id, box); } }),
+        el("button", { class: "mini ghost", type: "button", text: "ביטול ההסכמה", onclick: function () { call("POST", "/pm/consents/" + signed.id + "/revoke").then(reload, fail(box)); } })
+      ] : [badge("לא נחתם", "amber"), " ", el("button", { class: "mini", type: "button", text: "חתימה במרפאה", onclick: function () { signPad(c, k, reload, box); } })];
+      return el("li", {}, [el("b", { text: CONSENT_HE[k] + ": " })].concat(parts, [box]));
+    });
+    return panel("consent", "הסכמות", [el("ul", { class: "pm-list" }, rows),
+      el("p", { class: "hint", text: "בלי הסכמה לוואטסאפ לא יוצאות תזכורות אוטומטיות. נוסח הטפסים הוא טיוטה לבדיקתך." }),
+      formLinkButtons(c, cfg.consent_kinds.filter(function (k) { return !c.consents.some(function (x) { return x.kind === k && !x.revoked_at; }); }).map(function (k) { return "consent:" + k; }).concat(["mymop"]), "קישור לחתימה ולמדד בטלפון")]);
+  }
+  function viewConsent(cid, box) {
+    call("GET", "/pm/consents/" + cid).then(function (x) {
+      box.textContent = "";
+      box.appendChild(el("div", { class: "src he" }, [el("b", { text: x.title + " · גרסה " + x.form_version }), x.text ? el("ul", {}, x.text.map(function (t) { return el("li", { text: t }); })) : el("p", { text: "(נוסח קודם)" }),
+        el("img", { src: x.signature, alt: "חתימה", style: "max-width:260px;background:#fff;border-radius:8px" })]));
+    }, fail(box));
+  }
+  function signPad(c, kind, reload, box) {
+    var form = cfg.forms[kind];
+    var canvas = el("canvas", { width: 520, height: 180, class: "pm-pad", "aria-label": "חתימה" });
+    var signer = input("text", { value: (c.identity && c.identity.name) || "", placeholder: "שם החותם/ת" });
+    var ctx = canvas.getContext("2d"), drawing = false, inked = false;
+    ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#1d2216";
+    function pos(e) { var r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height]; }
+    canvas.addEventListener("pointerdown", function (e) { drawing = true; canvas.setPointerCapture(e.pointerId); var p = pos(e); ctx.beginPath(); ctx.moveTo(p[0], p[1]); });
+    canvas.addEventListener("pointermove", function (e) { if (!drawing) return; var p = pos(e); ctx.lineTo(p[0], p[1]); ctx.stroke(); inked = true; });
+    canvas.addEventListener("pointerup", function () { drawing = false; });
+    var msg = el("div", {});
+    box.textContent = "";
+    box.appendChild(el("div", { class: "panel pm-sign" }, [el("h3", { text: form.title }), el("ul", {}, form.text.map(function (t) { return el("li", { text: t }); })),
+      field("שם", signer), canvas,
+      el("div", { class: "answers" }, [
+        el("button", { class: "btn", type: "button", text: "אני מסכים/ה וחותם/ת", onclick: function () {
+          if (!inked) { msg.textContent = "צריך לחתום במסגרת."; return; }
+          call("POST", "/pm/records/" + c.record_id + "/consents", { kind: kind, signer: signer.value, signature: canvas.toDataURL("image/png") }).then(reload, fail(msg));
+        } }),
+        el("button", { class: "btn no", type: "button", text: "ניקוי", onclick: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); inked = false; } }),
+        el("button", { class: "btn ghost", type: "button", text: "סגירה", onclick: function () { box.textContent = ""; } })]), msg]));
+  }
+
+  function waPanel(c, reload) {
+    var box = el("div", {});
+    var tpl = select(cfg.whatsapp.templates.filter(function (t) { return t.id !== "intake_link" && t.id !== "forms_link"; }).map(function (t) { return [t.id, t.label]; }), "reminder", { "aria-label": "תבנית" });
+    var appts = c.appointments.filter(function (a) { return a.status !== "cancelled" && a.start >= iso(new Date()); });
+    var appt = select(appts.map(function (a) { return [a.id, local(a.start)]; }), (appts[0] || {}).id, { "aria-label": "תור" });
+    var waConsent = c.consents.some(function (x) { return x.kind === "whatsapp" && !x.revoked_at; });
+    return panel("wa", "וואטסאפ", [
+      el("p", { class: waConsent ? "hint" : "flag amber", text: waConsent ? "יש הסכמה להודעות. תזכורות אוטומטיות יוצאות ביום העבודה שלפני כל תור." : "אין הסכמה חתומה להודעות וואטסאפ, ולכן לא יוצאות הודעות אוטומטיות. שליחה ידנית אפשרית." }),
+      (c.identity && c.identity.phone) ? null : el("p", { class: "flag amber", text: "אין מספר טלפון בתיק." }),
+      el("div", { class: "row" }, [field("תבנית", tpl), field("תור", appt), el("button", { class: "btn", type: "button", text: "פתיחה בוואטסאפ", onclick: function () {
+        var extra = { appt_id: appt.value || null };
+        if (tpl.value === "series_schedule" && c.series.length) extra.series_id = c.series[c.series.length - 1].id;
+        sendWa(c.record_id, tpl.value, extra, box);
+      } })]), box,
+      c.replies.length ? el("div", {}, [el("h3", { text: "תשובות" }), el("ul", { class: "pm-list" }, c.replies.map(function (r) {
+        return el("li", {}, [when(r.at) + " · ", r.kind === "button" ? (r.payload === "confirm" ? "אישר/ה" : "ביקש/ה שינוי") : el("span", { class: "quote", text: r.text || "" }), r.handled ? "" : " · ",
+          r.handled ? null : el("button", { class: "mini", type: "button", text: "טופל", onclick: function () { call("POST", "/pm/replies/" + r.id + "/handled").then(reload); } })]);
+      })), el("p", { class: "hint", text: "תשובות בטקסט חופשי נשמרות מוצפנות ולא נכנסות להערות הקליניות. אם יש בהן משהו קליני, כדאי להעתיק להערת ביקור." })]) : null,
+      c.queue.length ? el("details", {}, [el("summary", { text: "הודעות מתוזמנות ויוצאות (" + c.queue.length + ")" }), el("ul", { class: "pm-list" }, c.queue.map(function (q) {
+        return el("li", { text: templateLabel(q.template) + " · " + local(q.due) + " · " + (Q_HE[q.status] || q.status) + (q.last_error ? " · " + q.last_error : "") });
+      }))]) : null]);
+  }
+
+  function payPanel(c, reload) {
+    var a = c.account, box = el("div", {});
+    var amount = input("number", { min: 0, step: 1, placeholder: "סכום", "aria-label": "סכום", class: "gram" });
+    var method = select(cfg.pay_methods.map(function (m) { return [m, METHOD_HE[m] || m]; }), "card", { "aria-label": "אמצעי" });
+    var receipt = input("text", { placeholder: "מספר קבלה בתוכנה החיצונית", "aria-label": "מספר קבלה" });
+    var day = input("date", { value: iso(new Date()) });
+    var pkgLabel = input("text", { value: "סדרת 7 טיפולים", "aria-label": "שם החבילה" }), pkgN = input("number", { value: 7, min: 1, class: "gram", "aria-label": "מפגשים" }), pkgP = input("number", { min: 0, class: "gram", placeholder: "מחיר", "aria-label": "מחיר" });
+    return panel("pay", "תשלומים", [
+      el("div", { class: "ep" }, [el("span", { text: "חויב: " + money(a.charged) }), el("span", { text: "שולם: " + money(a.paid) }), el("span", { class: a.balance > 0 ? "pm-due" : "", text: (a.balance < 0 ? "יתרה לזכות: " + money(-a.balance) : "יתרה לתשלום: " + money(a.balance)) })]),
+      a.packages.length ? el("p", { class: "hint", text: a.packages.map(function (p) { return p.label + ": נוצלו " + p.used + " מתוך " + p.sessions + " (" + money(p.price) + ")"; }).join(" · ") }) : null,
+      el("div", { class: "row" }, [amount, method, field("תאריך", day), receipt, el("button", { class: "btn", type: "button", text: "רישום תשלום", onclick: function () {
+        call("POST", "/pm/records/" + c.record_id + "/payments", { amount: +amount.value, method: method.value, receipt_no: receipt.value, day: day.value }).then(reload, fail(box));
+      } })]),
+      el("details", { class: "pm-new" }, [el("summary", { text: "חבילה חדשה" }), el("div", { class: "row" }, [pkgLabel, field("מפגשים", pkgN), field("מחיר", pkgP),
+        el("button", { class: "btn", type: "button", text: "הוספה", onclick: function () { call("POST", "/pm/records/" + c.record_id + "/packages", { label: pkgLabel.value, sessions: +pkgN.value, price: +pkgP.value }).then(reload, fail(box)); } })])]),
+      a.payments.length ? el("details", {}, [el("summary", { text: "תשלומים (" + a.payments.length + ")" }), el("ul", { class: "pm-list" }, a.payments.map(function (p) {
+        return el("li", { text: p.day + " · " + money(p.amount) + " · " + (METHOD_HE[p.method] || p.method) + (p.receipt_no ? " · קבלה " + p.receipt_no : "") });
+      }))]) : null,
+      el("p", { class: "hint", text: "קבלות מפיקים בתוכנת החשבוניות. כאן נרשם רק הסטטוס ומספר הקבלה, ולתוכנה החיצונית לא עובר שום פרט קליני." }), box]);
+  }
+
+  var TL_HE = { record: "התיק נפתח", "doc:intake": "שאלון התקבל", "doc:review": "סיכום נשמר", "doc:report": "דוח אבחנתי נשמר", "doc:plan": "תוכנית טיפול נשמרה", appointment: "תור", note: "הערת ביקור", mymop: "מדד MYMOP", consent: "הסכמה נחתמה", consent_revoked: "הסכמה בוטלה", message: "הודעה", reply: "תשובה בוואטסאפ", payment: "תשלום", package: "חבילה" };
+  function timelinePanel(c) {
+    var list = el("ul", { class: "pm-timeline" });
+    var filter = select([["", "הכול"], ["appointment", "תורים"], ["note", "הערות"], ["doc", "מסמכים"], ["mymop", "MYMOP"], ["message", "הודעות"], ["payment", "תשלומים"]], "", { "aria-label": "סינון" });
+    var items = [];
+    function draw() {
+      list.textContent = "";
+      items.filter(function (i) { return !filter.value || i.type.indexOf(filter.value) === 0 || (filter.value === "message" && i.type === "reply"); }).forEach(function (i) {
+        var extra = i.type === "appointment" ? (KIND_HE[i.kind] || i.kind) + " · " + (STATUS_HE[i.status] || i.status) + (i.series_no ? " · מפגש " + i.series_no : "")
+          : i.type === "mymop" ? "בעיה 1: " + i.s1 + (i.s2 !== null ? ", בעיה 2: " + i.s2 : "") + ", הרגשה: " + i.wellbeing
+          : i.type === "message" ? templateLabel(i.template) + " · " + i.channel + " · " + (Q_HE[i.status] || i.status)
+          : i.type === "payment" ? money(i.amount) : i.type.indexOf("consent") === 0 ? CONSENT_HE[i.kind] : i.type === "package" ? i.label
+          : i.version ? "גרסה " + i.version : i.versions > 1 ? i.versions + " גרסאות" : "";
+        list.appendChild(el("li", {}, [el("span", { class: "pm-time", text: local(i.when) }), el("b", { text: (TL_HE[i.type] || i.type) }), extra ? " · " + extra : ""]));
+      });
+    }
+    filter.addEventListener("change", draw);
+    call("GET", "/pm/records/" + c.record_id + "/timeline").then(function (t) { items = t.items; draw(); });
+    return panel("timeline", "ציר זמן", [field("סינון", filter), list]);
+  }
+
+  // ---- management ----
+  function renderAdmin(v) {
+    v.appendChild(statsPanel());
+    v.appendChild(waAdmin());
+    v.appendChild(gcalAdmin());
+    v.appendChild(pricesAdmin());
+    v.appendChild(daysAdmin());
+    v.appendChild(backupAdmin());
+  }
+  function statsPanel() {
+    var p = panel("stats", "סטטיסטיקה של הקליניקה", [status("טוען…")]);
+    call("GET", "/pm/stats").then(function (s) {
+      p.textContent = "";
+      p.appendChild(el("h2", { text: "סטטיסטיקה של הקליניקה" }));
+      var max = Math.max.apply(null, s.months.map(function (m) { return m.visits + m.no_show; }).concat([1]));
+      p.appendChild(el("div", { class: "ep" }, [
+        el("span", { text: "ביקורים ב־12 חודשים: " + s.months.reduce(function (a, m) { return a + m.visits; }, 0) }),
+        el("span", { text: "אי הגעה: " + (s.no_show_rate === null ? "—" : Math.round(s.no_show_rate * 100) + "%") }),
+        el("span", { text: "סדרות: " + s.series.total + " (הושלמו " + s.series.completed + ")" }),
+        el("span", { text: "MYMOP: " + s.mymop.patients + " מטופלים" + (s.mymop.mean_change_s1 !== null ? ", שיפור ממוצע בבעיה 1: " + s.mymop.mean_change_s1 : "") })]));
+      p.appendChild(el("div", { class: "pm-bars" }, s.months.map(function (m) {
+        return el("div", { class: "pm-bar" }, [el("span", { class: "pm-month", text: m.month.slice(5) + "/" + m.month.slice(2, 4) }),
+          el("span", { class: "pm-track" }, [el("i", { style: "width:" + (100 * m.visits / max) + "%" }), el("i", { class: "ns", style: "width:" + (100 * m.no_show / max) + "%" })]),
+          el("span", { class: "hint", text: m.visits + " ביקורים" + (m.no_show ? " · " + m.no_show + " לא הגיעו" : "") + (m.new_records ? " · " + m.new_records + " חדשים" : "") + (m.revenue ? " · " + money(m.revenue) : "") })]);
+      })));
+      p.appendChild(el("p", { class: "hint", text: "ספירות בלבד, בלי שמות ובלי טקסט חופשי." }));
+    }, fail(p));
+    return p;
+  }
+  function waAdmin() {
+    var w = cfg.whatsapp, box = el("div", {});
+    var a = input("time", { value: w.send_hours[0] }), b = input("time", { value: w.send_hours[1] }), rem = input("time", { value: w.reminder_time });
+    var addr = input("text", { value: w.address, placeholder: "כתובת הקליניקה" });
+    var names = {};
+    var test = el("textarea", { "aria-label": "בדיקת הודעה", placeholder: "אפשר להדביק כאן טקסט ולבדוק אם יש בו מילה קלינית" });
+    var res = el("p", { class: "hint" });
+    test.addEventListener("input", function () { call("POST", "/pm/whatsapp/check", { text: test.value }).then(function (r) { res.textContent = r.hits.length ? "חסום: " + r.hits.join(", ") : "מותר: לוגיסטי בלבד"; res.className = r.hits.length ? "flag red" : "flag info"; }); });
+    return panel("wa-admin", "וואטסאפ", [
+      el("p", { class: w.cloud_api ? "flag info" : "flag amber", text: w.cloud_api ? "WhatsApp Cloud API מחובר: תזכורות יוצאות אוטומטית בשעות השליחה." : "WhatsApp Cloud API לא מוגדר (TCM_WA_TOKEN, TCM_WA_PHONE_ID). עד אז, הודעות שלא יצאו מופיעות במסך היום לשליחה ידנית." }),
+      el("p", { class: w.webhook ? "hint" : "flag amber", text: w.webhook ? "קליטת תשובות מוגדרת (/api/wa/webhook)." : "קליטת תשובות לא מוגדרת (TCM_WA_VERIFY_TOKEN, TCM_WA_APP_SECRET). ראו מדריך ההקמה." }),
+      cfg.demo ? demoWaPanel(w) : null,
+      w.cloud_api && w.test_mode ? el("p", { class: "flag info", text: "מצב בדיקה של Meta: ההודעות יוצאות מהמספר לבדיקה, רק למספרים שאישרת באפליקציה. טקסט בעברית יוצא אם הנמען כתב למספר ב־24 השעות האחרונות; אחרת יוצאת הודעת hello_world של Meta." }) : null,
+      w.cloud_api ? waConnection(w) : null,
+      el("div", { class: "row" }, [field("שליחה מ־", a), field("עד", b), field("שעת תזכורת", rem), field("כתובת", addr)]),
+      el("h3", { text: "תבניות" }),
+      el("ul", { class: "pm-list" }, w.templates.map(function (t) {
+        names[t.id] = input("text", { value: t.meta_name, "aria-label": "שם התבנית ב־Meta", class: "note" });
+        return el("li", {}, [el("b", { text: t.label + " " }), t.check.length ? badge("מילה קלינית: " + t.check.join(", "), "red") : badge("לוגיסטי"), el("div", { class: "src he", text: t.body }),
+          t.buttons.length ? el("span", { class: "hint", text: "כפתורים: " + t.buttons.map(function (x) { return x.text; }).join(" · ") + " " }) : null, field("שם ב־WhatsApp Manager", names[t.id])]);
+      })),
+      el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "שמירה", onclick: function () {
+        var mn = {}; Object.keys(names).forEach(function (k) { mn[k] = names[k].value; });
+        call("PUT", "/pm/whatsapp/config", { send_hours: [a.value, b.value], reminder_time: rem.value, address: addr.value, meta_names: mn }).then(function () { box.textContent = "נשמר."; }, fail(box));
+      } })]), box,
+      el("h3", { text: "בודק ההודעות" }), test, res]);
+  }
+  // Demo mode (no server): Meta's test number, straight from this browser. The token stays in this tab only.
+  function demoWaPanel(w) {
+    var box = el("div", {});
+    if (w.demo_live) {
+      return el("div", { class: "flag info" }, ["הדגמה מחוברת למספר הבדיקה של Meta (Phone Number ID " + w.demo_live.phone_id + "). האסימון שמור רק בלשונית הזאת, ונמחק כשסוגרים אותה. ",
+        el("button", { class: "mini", type: "button", text: "ניתוק ומחיקת האסימון", onclick: function () { call("DELETE", "/pm/whatsapp/demo-credentials").then(function () { load("admin"); }); } }),
+        el("p", { class: "hint", text: "תזכורות יוצאות רק לתיקים עם מספר אמיתי שאישרת באפליקציה ב־Meta ועם הסכמה חתומה לוואטסאפ, לא למטופלים הבדויים. בהדגמה הן יוצאות מיד כשמגיע זמנן, בלי שעות שליחה." })]);
+    }
+    var pid = input("text", { placeholder: "למשל 1444554052082077", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
+    var tok = input("password", { placeholder: "אסימון זמני (Temporary access token)", "aria-label": "אסימון", autocomplete: "off" });
+    return el("div", { class: "panel" }, [el("h3", { text: "חיבור ההדגמה למספר הבדיקה של Meta" }),
+      el("p", { class: "hint", text: "מ־developers.facebook.com ← האפליקציה ← WhatsApp ← API Setup. האסימון נשמר רק בלשונית הדפדפן הזאת (sessionStorage), נשלח רק ל־graph.facebook.com, ונמחק בסגירת הלשונית או בלחיצה על ניתוק. אל תדביק כאן אסימון קבוע." }),
+      el("p", { class: "hint", text: "שים לב: Phone Number ID הוא לא מספר הטלפון (‎+1 555…). זה מספר ארוך שמופיע ב־API Setup מתחת למספר, ליד הכיתוב Phone number ID." }),
+      el("div", { class: "row" }, [field("Phone Number ID (לא מספר הטלפון)", pid), field("אסימון זמני", tok), el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
+        call("PUT", "/pm/whatsapp/demo-credentials", { phone_id: pid.value, token: tok.value }).then(function () { tok.value = ""; load("admin"); }, fail(box));
+      } })]), box]);
+  }
+  // The Cloud API, checked from here: Meta answers for the number, the templates' approval, and a test send.
+  var TPL_HE = { APPROVED: "אושרה", PENDING: "ממתינה לאישור", REJECTED: "נדחתה", PAUSED: "מושהית", DISABLED: "מושבתת", IN_APPEAL: "בערעור" };
+  function waConnection(w) {
+    var box = el("div", {}), out = el("div", {});
+    var phone = input("tel", { placeholder: "מספר שלך לבדיקה, למשל 0501234567", "aria-label": "מספר לבדיקה", inputmode: "tel" });
+    function check() {
+      out.textContent = "בודק מול Meta…";
+      call("GET", "/pm/whatsapp/status").then(function (r) {
+        out.textContent = "";
+        if (!r.ok) { out.appendChild(el("p", { class: "flag red", text: "Meta לא אישרה את החיבור: " + r.error })); return; }
+        out.appendChild(el("p", { class: "flag info", text: "מחובר: " + (r.number || "") + (r.name ? " · " + r.name : "") + (r.quality ? " · איכות " + r.quality : "") + (r.name_status && r.name_status !== "APPROVED" ? " · שם התצוגה: " + r.name_status : "") }));
+        if (r.templates) {
+          var mine = w.templates.map(function (t) { return t.meta_name; });
+          out.appendChild(el("ul", { class: "pm-list" }, w.templates.map(function (t) {
+            var m = r.templates.filter(function (x) { return x.name === t.meta_name; })[0];
+            return el("li", {}, [t.label + " (" + t.meta_name + "): ", m ? badge((TPL_HE[m.status] || m.status) + (m.category && m.category !== "UTILITY" ? " · " + m.category : ""), m.status === "APPROVED" ? "" : m.status === "REJECTED" ? "red" : "amber")
+              : badge("לא נמצאה ב־Meta", "amber"), m && m.rejected_reason && m.rejected_reason !== "NONE" ? el("span", { class: "hint", text: " " + m.rejected_reason }) : null]);
+          })));
+          if (mine.some(function (n) { return !r.templates.some(function (x) { return x.name === n; }); })) out.appendChild(el("button", { class: "mini", type: "button", text: "שליחת התבניות החסרות לאישור", onclick: submit }));
+        } else out.appendChild(el("p", { class: "hint", text: r.templates_error ? "רשימת התבניות לא נטענה: " + r.templates_error : "כדי לראות כאן את אישור התבניות, צריך גם את TCM_WA_WABA_ID." }));
+      }, fail(out));
+    }
+    function submit() {
+      out.textContent = "שולח את התבניות ל־Meta…";
+      call("POST", "/pm/whatsapp/templates").then(function (r) {
+        out.textContent = "";
+        out.appendChild(el("ul", { class: "pm-list" }, r.results.map(function (x) { return el("li", { text: x.name + ": " + (x.error || (TPL_HE[x.status] || x.status || "נשלחה")) }); })));
+      }, fail(out));
+    }
+    return el("div", {}, [
+      el("div", { class: "answers" }, [el("button", { class: "btn ghost", type: "button", text: "בדיקת החיבור ל־Meta", onclick: check })]),
+      el("div", { class: "row" }, [phone, el("button", { class: "btn ghost", type: "button", text: "שליחת הודעת בדיקה", onclick: function () {
+        box.textContent = "שולח…";
+        call("POST", "/pm/whatsapp/test", { phone: phone.value }).then(function () { box.textContent = "נשלחה הודעת hello_world של Meta (באנגלית). אם היא הגיעה לטלפון, השליחה עובדת."; }, fail(box));
+      } })]), box, out]);
+  }
+  function gcalAdmin() {
+    var g = cfg.gcal, box = el("div", {});
+    var cals = input("text", { value: g.read_calendars.join(", "), "aria-label": "יומנים לקריאה" });
+    var mode = select([["fixed", "מילה קבועה"], ["initials", "ראשי תיבות של המטופל/ת"], ["record", "מספר התיק"]], g.title.mode, { "aria-label": "כותרת" });
+    var text = input("text", { value: g.title.text, "aria-label": "המילה" });
+    return panel("gcal", "יומן גוגל", [
+      el("p", { class: g.connected ? "flag info" : "flag amber", text: !g.configured ? "לא מוגדר: צריך TCM_GOOGLE_CLIENT_ID ו־TCM_GOOGLE_CLIENT_SECRET (מדריך ההקמה)." : g.connected ? "מחובר. סנכרון אחרון: " + (g.last_sync ? local(g.last_sync) : "עוד לא") + (g.last_error ? " · שגיאה: " + g.last_error : "") : "מוגדר, עוד לא מחובר." }),
+      el("div", { class: "answers" }, [
+        g.configured && !g.connected ? el("button", { class: "btn", type: "button", text: "התחברות ליומן גוגל", onclick: function () { call("GET", "/pm/gcal/start").then(function (r) { location.href = r.url; }, fail(box)); } }) : null,
+        g.connected ? el("button", { class: "btn ghost", type: "button", text: "סנכרון עכשיו", onclick: function () { box.textContent = "מסנכרן…"; call("POST", "/pm/gcal/sync").then(function (r) { box.textContent = "נקראו " + r.pulled + " אירועים, נכתבו " + r.pushed + "."; }, fail(box)); } }) : null,
+        g.connected ? el("button", { class: "btn no", type: "button", text: "ניתוק", onclick: function () { call("POST", "/pm/gcal/disconnect").then(function () { load("admin"); }); } }) : null]),
+      field("יומנים לקריאה (מזהים מופרדים בפסיק, primary = היומן הראשי)", cals),
+      el("div", { class: "row" }, [field("כותרת לתורים שהמערכת כותבת", mode), field("המילה", text)]),
+      el("p", { class: "hint", text: "תורים שהמערכת יוצרת נכתבים ליומן נפרד בשם \"קליניקה\". הכותרת לא כוללת סוג טיפול או מידע קליני, ומספר התיק נשמר בשדה פרטי של האירוע." }),
+      el("div", { class: "answers" }, [el("button", { class: "btn", type: "button", text: "שמירה", onclick: function () {
+        call("PUT", "/pm/gcal/config", { read_calendars: cals.value.split(",").map(function (x) { return x.trim(); }), title: { mode: mode.value, text: text.value } }).then(function () { box.textContent = "נשמר."; }, fail(box));
+      } })]), box]);
+  }
+  function pricesAdmin() {
+    var box = el("div", {});
+    return panel("prices", "סוגי ביקור ומחירון", [el("ul", { class: "pm-list" }, cfg.kinds.map(function (k) {
+      var label = input("text", { value: k.label, "aria-label": "שם" }), minutes = input("number", { value: k.minutes, class: "gram", "aria-label": "דקות" }), price = input("number", { value: k.price, class: "gram", "aria-label": "מחיר" });
+      return el("li", { class: "row" }, [label, field("דקות", minutes), field("מחיר ₪", price), el("button", { class: "mini", type: "button", text: "שמירה", onclick: function () {
+        call("PUT", "/pm/prices", { kind: k.kind, label: label.value, minutes: +minutes.value, price: +price.value }).then(function () { box.textContent = "נשמר: " + label.value; }, fail(box));
+      } })]);
+    })), el("p", { class: "hint", text: "המחיר נקבע לתור ברגע הקביעה. תור בתוך חבילה לא מחויב בנפרד." }), box]);
+  }
+  function daysAdmin() {
+    var box = el("div", {});
+    var checks = [6, 0, 1, 2, 3, 4, 5].map(function (d) { var c = el("input", { type: "checkbox", checked: cfg.workdays.indexOf(d) !== -1 ? "checked" : null }); c.dataset.d = d; return el("label", { class: "opt" }, [c, DAYS_HE[d]]); });
+    var day = input("date", {}), label = input("text", { placeholder: "סיבה (חופשה, כנס)", "aria-label": "סיבה" });
+    var off = Object.keys(cfg.days_off).sort().filter(function (d) { return d >= iso(new Date()); }).slice(0, 30);
+    return panel("days", "ימי עבודה וחופשות", [el("div", { class: "checks" }, checks),
+      el("button", { class: "mini", type: "button", text: "שמירת ימי העבודה", onclick: function () {
+        call("PUT", "/pm/workdays", { days: checks.map(function (l) { var c = l.querySelector("input"); return c.checked ? +c.dataset.d : null; }).filter(function (x) { return x !== null; }) }).then(function () { box.textContent = "נשמר."; }, fail(box));
+      } }),
+      el("p", { class: "hint", text: "החגים מחושבים מקומית מלוח השנה העברי (ראש השנה, יום כיפור, סוכות, שמיני עצרת, פסח, שביעי של פסח, שבועות, יום העצמאות)." }),
+      el("div", { class: "row" }, [day, label, el("button", { class: "mini", type: "button", text: "הוספת יום חופש", onclick: function () { call("PUT", "/pm/days-off", { day: day.value, label: label.value || "חופש" }).then(function () { load("admin"); }, fail(box)); } })]),
+      el("p", { class: "hint", text: "הקרובים: " + off.map(function (d) { return d.slice(8) + "." + d.slice(5, 7) + " " + cfg.days_off[d]; }).join(" · ") }), box]);
+  }
+  function backupAdmin() {
+    var b = cfg.backup, box = el("div", {});
+    return panel("backup", "גיבוי", [
+      el("p", { class: b.latest && b.age_hours < 30 ? "hint" : "flag amber", text: b.latest ? "גיבוי אחרון: " + b.latest + " (לפני " + Math.round(b.age_hours) + " שעות)" : "עוד אין גיבוי." }),
+      b.error ? el("p", { class: "flag red", text: "שגיאת גיבוי: " + b.error }) : null,
+      el("p", { class: "hint", text: "השרת מגבה פעם ביום כשהוא דולק, מוצפן במפתח גיבוי נפרד, ושומר 14 גיבויים. את תיקיית המפתחות צריך לשמור בנפרד (למשל דיסק און קי בכספת), אחרת אי אפשר לקרוא את הגיבוי." }),
+      el("div", { class: "answers" }, [
+        el("button", { class: "btn", type: "button", text: "גיבוי עכשיו", onclick: function () { box.textContent = "מגבה…"; call("POST", "/pm/backup").then(function (r) { box.textContent = "נשמר: " + r.file; }, fail(box)); } }),
+        el("button", { class: "btn ghost", type: "button", text: "בדיקת שחזור של האחרון", onclick: function () { box.textContent = "בודק…"; call("POST", "/pm/backup/check").then(function (r) { box.textContent = "תקין (" + r.integrity + "): " + r.counts.records + " תיקים, " + r.documents_opened + " מסמכים נפתחו."; }, fail(box)); } })]),
+      box]);
+  }
+
+  // ---- install ----
+  var tries = 0;
+  function install() {
+    var nav = document.querySelector("nav.tabs");
+    var recTab = document.getElementById("tab-records");
+    if (!recTab && tries++ < 50) { setTimeout(install, 100); return; }   // records.js adds its tab first
+    // The clinic's own tabs sit together, right after "תיקים".
+    var after = recTab;
+    [["today", "היום"], ["cal", "יומן"], ["admin", "ניהול"]].forEach(function (t) {
+      tabs[t[0]] = el("button", { role: "tab", id: "tab-pm-" + t[0], "aria-selected": "false", type: "button", text: t[1], onclick: function () { show(t[0]); } });
+      nav.insertBefore(tabs[t[0]], after ? after.nextSibling : null);
+      after = tabs[t[0]];
+    });
+    ["today", "cal", "card", "admin"].forEach(function (k) {
+      views[k] = el("section", { id: "view-pm-" + k, class: "pm-view", hidden: "" });
+      document.querySelector(".wrap").appendChild(views[k]);
+    });
+    nav.addEventListener("click", function (e) {
+      var b = e.target.closest("button[role=tab]");
+      if (b && b.id.indexOf("tab-pm-") !== 0) Object.keys(views).forEach(function (k) { views[k].hidden = true; });
+    });
+    var css = document.createElement("style");
+    css.textContent = [
+      ".pm-view[hidden]{display:none}.pm-view{display:grid;gap:16px}",
+      ".pm-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.pm-list li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pm-list li.off{opacity:.6}",
+      ".pm-appts{list-style:none;margin:0;padding:0;display:grid;gap:8px}.pm-appt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:10px 14px;border-radius:18px;background:var(--glass);border:1px solid var(--edge)}",
+      ".pm-appt.st-cancelled{opacity:.55;text-decoration:line-through}.pm-appt.st-done{border-color:var(--jade)}.pm-appt.st-change_requested{border-color:var(--amber)}",
+      ".pm-time{font-variant-numeric:tabular-nums;white-space:nowrap}.pm-appt .pm-time{font-size:1.35rem;font-weight:300;letter-spacing:-.01em}",
+      "@media(max-width:640px){.pm-appt{grid-template-columns:auto minmax(0,1fr)}.pm-appt>.mini-row{grid-column:1/-1;flex-wrap:wrap}}",
+      ".pm-week{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.pm-day{background:var(--glass);border:1px solid var(--edge);border-radius:18px;padding:10px;display:grid;gap:6px;align-content:start;min-height:120px}",
+      ".pm-day.off{background:color-mix(in srgb,var(--amber-soft) 50%,var(--glass))}.pm-day.today{border-color:color-mix(in srgb,var(--jade) 60%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--jade) 12%,transparent)}.pm-dayhead{font-size:.95rem}",
+      ".pm-chip{background:var(--jade-soft);border-radius:12px;padding:4px 10px;font-size:.9rem}.pm-chip.ext{background:transparent;border:1px dashed var(--edge)}.pm-chip.st-cancelled{opacity:.5;text-decoration:line-through}.pm-chip.st-change_requested{box-shadow:inset 3px 0 0 var(--amber)}",
+      ".pm-chip summary{color:var(--ink)}.pm-chipbody{display:grid;gap:6px;padding:6px 0}",
+      ".pm-new{border:1px dashed var(--edge);border-radius:18px;padding:8px 12px}.pm-new[open]{border-style:solid;background:var(--glass)}.pm-new .row{align-items:end}",
+      ".pm-rail{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}.pm-rail a{flex:none;text-decoration:none;color:var(--muted);font-size:.88rem;padding:6px 14px;border-radius:999px;border:1px solid var(--edge);background:var(--glass)}.pm-rail a:hover{color:var(--ink);border-color:color-mix(in srgb,var(--jade) 55%,transparent)}",
+      ".pm-cardhead{position:sticky;top:64px;z-index:3;background:var(--glass);border-color:var(--edge);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}",
+      ".pm-series{display:flex;flex-wrap:wrap;gap:6px}.pm-series .slot{background:var(--jade-soft);border-radius:10px;padding:4px 10px;font-size:.9rem}.pm-series .slot.first{background:var(--jade);color:var(--jade-ink)}.pm-series .slot.fu{background:var(--surface)}",
+      ".pm-note{border:1px solid var(--edge);border-radius:18px;padding:8px 12px;background:var(--glass)}.pm-notefield{margin:4px 0}",
+      ".pm-chart{width:100%;max-width:640px;height:auto}.pm-pad{width:100%;max-width:520px;height:auto;background:#fffdf8;border-radius:12px;touch-action:none;border:1px solid var(--line)}",
+      ".pm-due{border-color:var(--amber)!important;color:var(--amber)}.pm-bars{display:grid;gap:6px}.pm-bar{display:grid;grid-template-columns:4em minmax(0,1fr);gap:2px 10px;align-items:center}.pm-bar .hint{grid-column:2}",
+      ".pm-track{display:flex;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}.pm-track i{display:block;background:var(--jade)}.pm-track i.ns{background:var(--cinnabar)}.pm-month{font-variant-numeric:tabular-nums;color:var(--muted)}",
+      ".pm-timeline{list-style:none;margin:0;padding:0;display:grid;gap:4px}.pm-timeline li{display:flex;gap:10px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--edge)}.pm-timeline .pm-time{color:var(--muted);min-width:9.5em}",
+      ".badge{font-size:.78rem;border-radius:999px;padding:1px 8px;background:var(--jade-soft);color:var(--jade);white-space:nowrap}.badge.red{background:var(--cinnabar-soft);color:var(--cinnabar)}.badge.amber{background:var(--amber-soft);color:var(--amber)}",
+      // Titles in the opening screen's language: thin, with a glowing ring like the figure's points.
+      ".pm-view .panel>h2:first-child,.pm-view .panel>.row:first-child>h2{font-weight:300;font-size:clamp(1.3rem,2vw,1.6rem);letter-spacing:-.01em;margin:0}",
+      ".pm-view .panel>h2:first-child::before,.pm-view .panel>.row:first-child>h2::before{content:'';display:inline-block;width:9px;height:9px;margin-inline-end:10px;vertical-align:.12em;border-radius:50%;border:1.5px solid var(--jade);box-shadow:0 0 0 3px color-mix(in srgb,var(--jade) 14%,transparent),0 0 10px color-mix(in srgb,var(--jade) 45%,transparent)}",
+      ".pm-view .panel h3{font-weight:400;font-size:1.02rem;color:var(--muted);letter-spacing:.01em}",
+      ".reclink{direction:ltr;unicode-bidi:isolate;font-family:var(--font-mono);font-size:.8rem;word-break:break-all}"
+    ].join("");
+    document.head.appendChild(css);
+    var m = /^#pm-(today|cal|admin)$/.exec(location.hash || "");
+    if (m) show(m[1]);
+  }
+
+  window.TCMPractice = { show: show, card: function (rid) { show("card", rid); } };
   if (location.protocol === "file:") return;
   fetch(API + "/health", { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; })
     .then(function (j) { if (j && j.service === "tcm-clinic-server") install(); }, function () { /* no server: static prototype */ });
@@ -4614,6 +6169,9 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
     plan: function () { close(function () { click("tab-clin"); var t = document.getElementById("tx"); if (t) setTimeout(function () { t.scrollIntoView({ block: "start" }); }, 60); }); },
     records: function () { close(function () { click("tab-records"); }); },
     approvals: function () { close(function () { click("tab-approvals"); }); },
+    today: function () { close(function () { click("tab-pm-today"); }); },
+    cal: function () { close(function () { click("tab-pm-cal"); }); },
+    admin: function () { close(function () { click("tab-pm-admin"); }); },
     theme: function () { click("theme-toggle"); syncTheme(); }
   };
   items.forEach(function (b) { b.addEventListener("click", function () { var f = go[b.getAttribute("data-go")]; if (f) f(); }); });
@@ -4624,6 +6182,7 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
     items.forEach(function (b) {
       var g = b.getAttribute("data-go");
       if ((g === "records" || g === "approvals") && document.getElementById("tab-" + g)) b.hidden = false;
+      if ((g === "today" || g === "cal" || g === "admin") && document.getElementById("tab-pm-" + g)) b.hidden = false;   // practice.js
     });
     if (viewer && viewer.ready) place(viewer);
   }

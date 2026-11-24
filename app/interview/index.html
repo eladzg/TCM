@@ -47,7 +47,7 @@ body {
   padding-block: 0 56px;
 }
 .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
-.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])), .wrap:has(.pm-view:not([hidden])) { max-width: 1180px; }
 header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
 .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
@@ -327,7 +327,7 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
 .comp-cap a { color: inherit; pointer-events: auto; }
 @media (min-width: 1100px) {
   body:not(.intro-on) .wrap { margin-left: auto; margin-right: clamp(16px, 3vw, 72px); }
-  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
+  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])), body:not(.intro-on) .wrap:has(.pm-view:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
   .companion { pointer-events: auto;
     background: radial-gradient(28% 55% at var(--fig-x) 50%, color-mix(in srgb, var(--b3d-halo) 9%, transparent), transparent 85%); }
   .comp-fig { -webkit-mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); }
@@ -444,6 +444,9 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
       <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
       <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="r" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
+      <button type="button" class="im" data-at="SP10" data-mirror="1" data-side="l" data-go="cal" hidden><b>יומן</b><span>שבוע התורים, סדרות טיפול, סנכרון גוגל</span></button>
+      <button type="button" class="im" data-at="SP6" data-mirror="1" data-side="r" data-go="admin" hidden><b>ניהול הקליניקה</b><span>וואטסאפ, מחירים, ימי עבודה, גיבוי</span></button>
       <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
     </nav>
     <div class="intro-foot">
@@ -494,7 +497,9 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 <script src="points3d.js"></script>
 <script src="treatment.js"></script>
 <script src="app.js"></script>
+<script src="demo_server.js"></script>
 <script src="records.js"></script>
+<script src="practice.js"></script>
 <script src="approvals.js"></script>
 <script src="voice_config.js"></script>
 <script src="voice_flow.js"></script>

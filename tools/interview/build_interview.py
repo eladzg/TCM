@@ -395,7 +395,7 @@ def write_standalone(path, keep_document=False):
     By default the document skeleton is dropped for the artifact host; keep_document keeps it, for
     a file opened directly or served from GitHub Pages."""
     html = (APP / "index.html").read_text(encoding="utf-8")
-    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("demo_cases.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("records.js", ""), ("approvals.js", ""), ("voice_config.js", ""),
+    scripts = [("kb.js", ""), ("he_dict.js", ""), ("i18n.js", ""), ("engine.js", ""), ("demo_cases.js", ""), ("treatment_kb.js", ""), ("body_map.js", ""), ("points3d.js", ""), ("treatment.js", ""), ("app.js", ""), ("demo_server.js", ""), ("records.js", ""), ("practice.js", ""), ("approvals.js", ""), ("voice_config.js", ""),
                ("voice_flow.js", ""), ("voice_ui.js", ' type="module"'), ("design.js", ""), ("hero_points.js", ""), ("companion.js", ""), ("intro.js", ""), ("hero3d.js", ' type="module"'), ("body3d.js", ' type="module"')]
     for name, attrs in scripts:
         tag = f'<script{attrs} src="{name}"></script>'
@@ -418,6 +418,28 @@ def write_standalone(path, keep_document=False):
     path.write_text(html, encoding="utf-8")
 
 
+def write_patient_pages(folder):
+    """The patient pages for GitHub Pages (docs/app/), each one self-contained. There is no clinic server
+    there, so patient_demo.js answers demo links ("demo-…") in the browser and says nothing is sent."""
+    from server import forms_he  # standard library only
+    demo_forms = json.dumps({"forms": forms_he.FORMS, "mymop": forms_he.MYMOP}, ensure_ascii=False).replace("</", "<\\/")
+    pages = {"patient.html": ["patient.js", "kb.js", "engine.js", "app.js"], "forms.html": ["forms.js"]}
+    folder.mkdir(parents=True, exist_ok=True)
+    for page, names in pages.items():
+        html = (APP / page).read_text(encoding="utf-8")
+        for name in names:
+            tag = f'<script src="{name}"></script>'
+            if tag not in html:
+                raise SystemExit(f"{page} has no {tag}")
+            code = (APP / name).read_text(encoding="utf-8").replace("</script", "<\\/script")
+            html = html.replace(tag, f"<script>\n{code}\n</script>")
+        shim = (APP / "patient_demo.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
+        pre = f"<script>window.TCM_DEMO_FORMS = {demo_forms};</script>\n<script>\n{shim}\n</script>\n"
+        i = html.index("<script>\n", html.index('<div class="wrap"'))
+        html = html[:i] + pre + html[i:]
+        (folder / page).write_text(html, encoding="utf-8")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--standalone", type=Path, help="also write a single self-contained HTML file here")
@@ -438,6 +460,7 @@ def main(argv=None):
         print(f"standalone -> {args.standalone}")
     if args.page:
         write_standalone(args.page, keep_document=True)
+        write_patient_pages(args.page.parent / "app")
         print(f"page -> {args.page}")
 
 
