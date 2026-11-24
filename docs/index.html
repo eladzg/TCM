@@ -342,17 +342,9 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
 body.intro-on { padding-left: 0; padding-right: 0; padding-bottom: 0; }
 body.intro-on .wrap { max-width: none; }
 body.intro-on .wrap > :not(#intro) { display: none; }
-.intro { position: relative; height: 460svh; transition: opacity .35s ease, transform .35s ease; }
+.intro { position: relative; height: 100svh; min-height: 520px; transition: opacity .35s ease, transform .35s ease; }
 .intro-stick { position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; }
 .intro-fig canvas { touch-action: pan-y; }
-.intro-hint { position: absolute; z-index: 2; left: 50%; bottom: 74px; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px;
-  font-size: .85rem; color: var(--muted); pointer-events: none; transition: opacity .4s ease; }
-.intro-hint i { width: 1px; height: 46px; background: linear-gradient(var(--jade), transparent); transform-origin: top; animation: hintline 2.2s ease-in-out infinite; }
-@keyframes hintline { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
-.intro-hint.gone { opacity: 0; }
-.intro-bar { position: absolute; z-index: 2; top: 0; bottom: 0; left: max(10px, 1.2vw); width: 2px; margin: auto 0; height: 34vh; border-radius: 2px;
-  background: color-mix(in srgb, var(--ink) 12%, transparent); pointer-events: none; }
-.intro-bar i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: inherit; background: var(--jade); transform-origin: top; transform: scaleY(0); }
 .intro.leaving { opacity: 0; transform: scale(.985); }
 .intro-fig { position: absolute; inset: 0; }
 .intro-fig { background: radial-gradient(36% 50% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 12%, transparent), transparent 75%); }
@@ -398,7 +390,6 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 /* Without WebGL the menu is a plain column under the title. */
 .intro.flat { height: auto; }
 .intro.flat .intro-stick { position: relative; height: auto; min-height: 100svh; display: grid; align-content: center; justify-items: center; padding: 140px 16px 90px; }
-.intro.flat .intro-hint, .intro.flat .intro-bar { display: none; }
 .intro.flat .intro-menu { position: static; display: grid; gap: 10px; width: min(420px, 100%); }
 .intro.flat .im { position: static; visibility: visible; opacity: 1; transform: none !important; white-space: normal; max-width: none; width: 100%; }
 .intro.flat .intro-lines, .intro.flat .intro-rings { display: none; }
@@ -410,9 +401,8 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
   .im b { font-size: .95rem; }
   .intro-foot { justify-content: center; text-align: center; }
   .intro-stats { font-size: .8rem; }
-  .intro-hint { bottom: 112px; }
 }
-@media (prefers-reduced-motion: reduce) { .intro, .im, .intro-rings i, .intro-lines line { transition: none; } .intro-rings i.on, .intro-hint i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .intro, .im, .intro-rings i, .intro-lines line { transition: none; } .intro-rings i.on { animation: none; } }
 </style>
 </head>
 <body>
@@ -443,7 +433,7 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <button type="button" class="im" data-at="CV12" data-side="r" data-go="summary"><b>סיכום למטפל</b><span>ממצאים, לשון ודופק, תבניות</span></button>
       <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
       <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
-      <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LR8" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
       <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="r" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
       <button type="button" class="im" data-at="SP10" data-mirror="1" data-side="l" data-go="cal" hidden><b>יומן</b><span>שבוע התורים, סדרות טיפול, סנכרון גוגל</span></button>
       <button type="button" class="im" data-at="SP6" data-mirror="1" data-side="r" data-go="admin" hidden><b>ניהול הקליניקה</b><span>וואטסאפ, מחירים, ימי עבודה, גיבוי</span></button>
@@ -453,8 +443,6 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <p class="intro-stats"><b id="st-points">361</b> נקודות · <b>14</b> מרידיאנים · <b id="st-patterns">1,734</b> תבניות · <b id="st-formulas">329</b> נוסחאות · <b id="st-safety">150</b> כללי בטיחות</p>
       <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
     </div>
-    <div class="intro-hint" id="intro-hint" aria-hidden="true">גללו למטה, לאורך הגוף<i></i></div>
-    <div class="intro-bar" aria-hidden="true"><i id="intro-progress"></i></div>
   </div>
   </section>
   <header class="top">
@@ -6014,11 +6002,10 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
 
 </script>
 <script>
-// The opening screen: the glass body, very large, every channel on it. It opens on the crown; scrolling
-// carries the camera down the body and then back, until the whole body stands on the screen. The system's
-// menu sits along the body: each option is a glass pill tied by a hairline to a glowing ring on an
-// acupuncture point (the start at the crown, the summary at the chest, the plan at the middle, and so on
-// down), and it shows while its point is on the screen, so the options are revealed as the body is.
+// The opening screen: the whole body as a cloud of dots, every channel on it, standing in a still
+// three-quarter turn (a drag turns it; it comes back to this pose). The system's menu sits along the body:
+// each option is a glass pill tied by a hairline to a glowing ring on an acupuncture point (the start at
+// the crown, the summary at the chest, the plan at the middle, and so on down), all of them at once.
 // It shows once per browser session; the brand in the header brings it back.
 (function () {
   "use strict";
@@ -6037,7 +6024,6 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
   var ringsBox = document.getElementById("intro-rings");
   var lines = document.getElementById("intro-lines");
   var stick = document.getElementById("intro-stick");
-  var hint = document.getElementById("intro-hint"), bar = document.getElementById("intro-progress");
   var SVG = "http://www.w3.org/2000/svg";
   items.forEach(function (b) {
     b._ring = document.createElement("i");
@@ -6069,12 +6055,14 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
         var q = v.screen(b.getAttribute("data-at"), -1);
         if (q && p && ((side === "r") ? q.x > p.x : q.x < p.x)) p = q;
       }
-      var shown = !!p && p.x > 0 && p.x < W && p.y > H * 0.1 && p.y < bottom - 10;
-      b.classList.toggle("in", shown);
-      b._ring.classList.toggle("out", !shown); b._line.classList.toggle("out", !shown);
+      // Every option always shows; one whose point falls off the screen (a hand on a phone) keeps its
+      // place in the column without a ring or a line.
+      var seen = !!p && p.x > 0 && p.x < W && p.y > H * 0.1 && p.y < bottom - 10;
+      b.classList.toggle("in", !!p);
+      b._ring.classList.toggle("out", !seen); b._line.classList.toggle("out", !seen);
       if (!p) return;
-      if (!shown) { b._ring.style.transform = "translate(" + p.x.toFixed(1) + "px," + p.y.toFixed(1) + "px)"; return; }
-      cols[side].push({ b: b, p: p, h: b.offsetHeight, w: b.offsetWidth });
+      var at = seen ? p : { x: Math.max(0, Math.min(W, p.x)), y: Math.max(H * 0.1, Math.min(bottom - 10, p.y)) };
+      cols[side].push({ b: b, p: at, h: b.offsetHeight, w: b.offsetWidth, seen: seen });
     });
     ["r", "l"].forEach(function (side) {
       var list = cols[side].sort(function (a, c) { return a.p.y - c.p.y; });
@@ -6090,7 +6078,7 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
         it.b.style.transform = "translate(" + Math.round(x) + "px," + Math.round(it.y) + "px)";
         it.b.style.visibility = "visible";
         var ex = side === "r" ? x : x + it.w, ey = it.y + it.h / 2;
-        it.b._ring.style.display = ""; it.b._line.style.display = "";
+        it.b._ring.style.display = it.seen ? "" : "none"; it.b._line.style.display = it.seen ? "" : "none";
         it.b._ring.style.transform = "translate(" + it.p.x.toFixed(1) + "px," + it.p.y.toFixed(1) + "px)";
         var L = it.b._line;
         L.setAttribute("x1", it.p.x.toFixed(1)); L.setAttribute("y1", it.p.y.toFixed(1));
@@ -6099,29 +6087,14 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
     });
   }
 
-  // ---- the scroll drives the camera: the crown, close; down the body; then back to the whole figure ----
-  var CENTRE = -0.075;
-  function smooth(a) { return a * a * (3 - 2 * a); }
-  function progress() {
-    var room = intro.offsetHeight - stick.clientHeight;
-    return room > 0 ? Math.max(0, Math.min(1, -intro.getBoundingClientRect().top / room)) : 1;
-  }
+  // ---- one still pose: the whole body, turned three-quarters, every option on it at once ----
+  var CENTRE = -0.075, TURN = 0.55;
   function frame(now) {
     if (!viewer || intro.hidden) return;
-    var t = progress(), W = stick.clientWidth || 1, H = stick.clientHeight || 1, aspect = W / H;
-    var narrow = Math.max(1, 0.75 / aspect);               // a phone needs the camera further back
-    var near = 0.1 * narrow, mid = 0.17 * narrow;
+    var W = stick.clientWidth || 1, H = stick.clientHeight || 1, aspect = W / H;
     var full = aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385;
-    var keys = [[0, -0.004, near], [0.6, -0.11, mid], [1, CENTRE + 0.01, full]];
-    var i = t < keys[1][0] ? 0 : 1, a = keys[i], b = keys[i + 1];
-    var k = smooth((t - a[0]) / (b[0] - a[0]));
-    var turn = -0.6 * (1 - smooth(Math.min(1, t / 0.3)));   // the head in three-quarter view, turning to face us
-    viewer.frame(a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, now, turn);
-    if (hint) hint.classList.toggle("gone", t > 0.03);
-    if (bar) bar.style.transform = "scaleY(" + t.toFixed(3) + ")";
+    viewer.frame(CENTRE + 0.01, full, now, TURN);
   }
-  var ticking = false;
-  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; frame(false); }); } }, { passive: true });
   window.addEventListener("resize", function () { frame(true); });
 
   var viewer = null, flatTimer = 0;
