@@ -144,7 +144,7 @@
     db.queue = db.queue.filter(function (q) { return !(q.appt_id === a.id && q.status === "pending"); });
     if (!hasConsent(db, a.record_id, "whatsapp")) return;
     var hm = db.wa.reminder_time.split(":"), d = at(prevWorkday(db, parse(a.start)), +hm[0], +hm[1]);
-    db.queue.push({ id: rid("Q"), record_id: a.record_id, appt_id: a.id, template: "reminder", due_at: Math.floor(d.getTime() / 1000), status: d.getTime() / 1000 < now() ? "missed" : "pending", last_error: null, sent_at: null });
+    db.queue.push({ id: rid("Q"), record_id: a.record_id, appt_id: a.id, template: "reminder", due_at: Math.floor(d.getTime() / 1000), status: a.ts <= now() ? "missed" : "pending", last_error: null, sent_at: null });
   }
   function plan(db, start, time, length, perWeek) {
     var out = [], moved = [], d = parse(start), hm = time.split(":");
@@ -279,6 +279,9 @@
       c.backup = { latest: db.backup.file, age_hours: (now() - db.backup.at) / 3600, error: null };
       c.jobs = { running: false, last: {}, error: null };
       c.demo = true;
+      var L = live();
+      c.whatsapp.cloud_api = !!L; c.whatsapp.test_mode = !!L; c.whatsapp.webhook = false;
+      c.whatsapp.demo_live = L ? { phone_id: L.phone_id } : null;
       return c;
     }],
     ["GET", /^\/pm\/today$/, function (m, b, q) {
@@ -498,6 +501,28 @@
                  improved_1_or_more: changes.filter(function (c) { return c >= 1; }).length },
         series: { total: db.series.length, completed: db.series.filter(function (s) { return db.appts.filter(function (a) { return a.series_id === s.id && a.series_no > 0; }).every(function (a) { return a.status === "done"; }); }).length } };
     }],
+    ["PUT", /^\/pm\/whatsapp\/demo-credentials$/, function (m, b) {
+      var id = String(b.phone_id || "").replace(/\D/g, ""), tok = String(b.token || "").trim();
+      if (!id || !tok) throw E(422, "צריך Phone Number ID ואסימון");
+      try { sessionStorage.setItem(LIVE_KEY, JSON.stringify({ phone_id: id, token: tok })); } catch (e) { throw E(500, "הדפדפן לא שומר נתונים בלשונית"); }
+      return { ok: true };
+    }],
+    ["DELETE", /^\/pm\/whatsapp\/demo-credentials$/, function () { try { sessionStorage.removeItem(LIVE_KEY); } catch (e) { /* ignore */ } return { ok: true }; }],
+    ["GET", /^\/pm\/whatsapp\/status$/, function () {
+      var L = live();
+      if (!L) return { ok: false, error: "לא הוזנו Phone Number ID ואסימון" };
+      return graph("GET", "/" + L.phone_id + "?fields=display_phone_number,verified_name,quality_rating", null).then(function (n) {
+        return { ok: true, number: n.display_phone_number, name: n.verified_name, quality: n.quality_rating, templates: null, templates_error: "במצב בדיקה לא צריך תבניות" };
+      }, function (e) { return { ok: false, error: e.message }; });
+    }],
+    ["POST", /^\/pm\/whatsapp\/test$/, function (m, b) {
+      if (!live()) throw E(409, "לא הוזנו Phone Number ID ואסימון");
+      var to = waNumber(b.phone);
+      if (!to) throw E(422, "מספר לא תקין");
+      return graph("POST", "/" + live().phone_id + "/messages", { messaging_product: "whatsapp", to: to, type: "template", template: { name: "hello_world", language: { code: "en_US" } } })
+        .then(function (r) { return { id: ((r.messages || [])[0] || {}).id }; });
+    }],
+    ["POST", /^\/pm\/whatsapp\/templates$/, function () { throw E(409, "במצב בדיקה של Meta לא צריך לשלוח תבניות לאישור"); }],
     ["POST", /^\/pm\/whatsapp\/check$/, function (m, b) { return { hits: check(b.text) }; }],
     ["PUT", /^\/pm\/whatsapp\/config$/, function (m, b) {
       if (b.send_hours) db.wa.send_hours = b.send_hours; if (b.reminder_time) db.wa.reminder_time = b.reminder_time;
@@ -547,12 +572,72 @@
     for (var i = 0; i < routes.length; i++) {
       var rt = routes[i], m = rt[0] === method && rt[1].exec(path);
       if (!m) continue;
-      try { var out = rt[2](m, body || {}, query); save(); banner(); return reply(200, out); }
+      try {
+        var out = rt[2](m, body || {}, query);
+        save(); banner();
+        if (out && typeof out.then === "function") {
+          return out.then(function (o) { save(); return reply(200, o); }, function (e) { save(); return reply(e.status || 502, { detail: e.message }); });
+        }
+        if (method !== "GET") setTimeout(liveTick, 50);
+        return reply(200, out);
+      }
       catch (e) { return reply(e.status || 500, { detail: e.message }); }
     }
     return reply(404, { detail: "not in the demo" });
   }
   function reply(status, body) { return new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } }); }
+
+  // ---- live WhatsApp from the demo: Meta's test number, called straight from this browser ----
+  // The Phone Number ID and the temporary token live only in this tab's sessionStorage (never in the page,
+  // the repository or any server). graph.facebook.com answers browsers (CORS *). Test-number rules: Hebrew
+  // goes as plain text, which Meta allows within 24 hours of the recipient writing to the number; when Meta
+  // refuses it, Meta's approved "hello_world" goes instead. Invented patients (050-00000xx) are never sent to.
+  var LIVE_KEY = "tcm-demo-wa-live", GRAPH = "https://graph.facebook.com/v26.0";
+  function live() { try { return JSON.parse(sessionStorage.getItem(LIVE_KEY) || "null"); } catch (e) { return null; } }
+  function waNumber(p) {
+    var d = String(p || "").replace(/\D/g, "");
+    if (d.indexOf("00") === 0) d = d.slice(2);
+    if (d.charAt(0) === "0") d = "972" + d.slice(1);
+    return d.length >= 11 && d.length <= 15 ? d : null;
+  }
+  function invented(phone) { return /^0?50-?0{5}\d\d$/.test(String(phone || "").replace(/\s/g, "")); }
+  function graph(method, path, body) {
+    var L = live();
+    return realFetch(GRAPH + path, { method: method, headers: Object.assign({ Authorization: "Bearer " + L.token }, body ? { "Content-Type": "application/json" } : {}),
+                                     body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.ok) return j;
+          var er = j.error || {}, e = new Error("Meta " + r.status + (er.code ? " (code " + er.code + ")" : "") + ": " + (((er.error_data || {}).details) || er.message || "error"));
+          e.status = 502; throw e;
+        });
+      });
+  }
+  function sendLive(to, text) {
+    var pid = live().phone_id;
+    return graph("POST", "/" + pid + "/messages", { messaging_product: "whatsapp", to: to, type: "text", text: { body: text, preview_url: false } })
+      .catch(function () { return graph("POST", "/" + pid + "/messages", { messaging_product: "whatsapp", to: to, type: "template", template: { name: "hello_world", language: { code: "en_US" } } }); });
+  }
+  var ticking = false;
+  function liveTick() {
+    if (!db || !live() || ticking) return;
+    var t = now(), due = db.queue.filter(function (q) { return q.status === "pending" && q.due_at <= t; });
+    due.forEach(function (q) {
+      var a = db.appts.filter(function (x) { return x.id === q.appt_id; })[0];
+      if (a && a.ts <= t) q.status = "missed";
+    });
+    var r, a, list = due.filter(function (q) { return q.status === "pending"; });
+    var q = list.filter(function (x) { var rr = rec(x.record_id); return rr && rr.identity && !invented(rr.identity.phone) && waNumber(rr.identity.phone) && hasConsent(db, x.record_id, "whatsapp"); })[0];
+    save();
+    if (!q) return;
+    r = rec(q.record_id); a = db.appts.filter(function (x) { return x.id === q.appt_id; })[0];
+    ticking = true;
+    sendLive(waNumber(r.identity.phone), render(q.template, r, a, {})).then(function () {
+      q.status = "sent"; q.sent_at = now();
+      db.messages.push({ id: rid("M"), record_id: q.record_id, template: q.template, channel: "cloud_api", status: "sent", at: now() });
+    }, function (e) { q.status = "failed"; q.last_error = e.message.slice(0, 300); }).then(function () { ticking = false; save(); setTimeout(liveTick, 500); });
+  }
+  setInterval(function () { if (db) liveTick(); }, 30000);
 
   // A clear label on every screen while the demo answers.
   var shown = false;

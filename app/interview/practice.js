@@ -593,6 +593,7 @@
     return panel("wa-admin", "וואטסאפ", [
       el("p", { class: w.cloud_api ? "flag info" : "flag amber", text: w.cloud_api ? "WhatsApp Cloud API מחובר: תזכורות יוצאות אוטומטית בשעות השליחה." : "WhatsApp Cloud API לא מוגדר (TCM_WA_TOKEN, TCM_WA_PHONE_ID). עד אז, הודעות שלא יצאו מופיעות במסך היום לשליחה ידנית." }),
       el("p", { class: w.webhook ? "hint" : "flag amber", text: w.webhook ? "קליטת תשובות מוגדרת (/api/wa/webhook)." : "קליטת תשובות לא מוגדרת (TCM_WA_VERIFY_TOKEN, TCM_WA_APP_SECRET). ראו מדריך ההקמה." }),
+      cfg.demo ? demoWaPanel(w) : null,
       w.cloud_api && w.test_mode ? el("p", { class: "flag info", text: "מצב בדיקה של Meta: ההודעות יוצאות מהמספר לבדיקה, רק למספרים שאישרת באפליקציה. טקסט בעברית יוצא אם הנמען כתב למספר ב־24 השעות האחרונות; אחרת יוצאת הודעת hello_world של Meta." }) : null,
       w.cloud_api ? waConnection(w) : null,
       el("div", { class: "row" }, [field("שליחה מ־", a), field("עד", b), field("שעת תזכורת", rem), field("כתובת", addr)]),
@@ -607,6 +608,22 @@
         call("PUT", "/pm/whatsapp/config", { send_hours: [a.value, b.value], reminder_time: rem.value, address: addr.value, meta_names: mn }).then(function () { box.textContent = "נשמר."; }, fail(box));
       } })]), box,
       el("h3", { text: "בודק ההודעות" }), test, res]);
+  }
+  // Demo mode (no server): Meta's test number, straight from this browser. The token stays in this tab only.
+  function demoWaPanel(w) {
+    var box = el("div", {});
+    if (w.demo_live) {
+      return el("div", { class: "flag info" }, ["הדגמה מחוברת למספר הבדיקה של Meta (Phone Number ID " + w.demo_live.phone_id + "). האסימון שמור רק בלשונית הזאת, ונמחק כשסוגרים אותה. ",
+        el("button", { class: "mini", type: "button", text: "ניתוק ומחיקת האסימון", onclick: function () { call("DELETE", "/pm/whatsapp/demo-credentials").then(function () { load("admin"); }); } }),
+        el("p", { class: "hint", text: "תזכורות יוצאות רק לתיקים עם מספר אמיתי שאישרת באפליקציה ב־Meta ועם הסכמה חתומה לוואטסאפ, לא למטופלים הבדויים. בהדגמה הן יוצאות מיד כשמגיע זמנן, בלי שעות שליחה." })]);
+    }
+    var pid = input("text", { placeholder: "Phone Number ID", "aria-label": "Phone Number ID", inputmode: "numeric", autocomplete: "off" });
+    var tok = input("password", { placeholder: "אסימון זמני (Temporary access token)", "aria-label": "אסימון", autocomplete: "off" });
+    return el("div", { class: "panel" }, [el("h3", { text: "חיבור ההדגמה למספר הבדיקה של Meta" }),
+      el("p", { class: "hint", text: "מ־developers.facebook.com ← האפליקציה ← WhatsApp ← API Setup. האסימון נשמר רק בלשונית הדפדפן הזאת (sessionStorage), נשלח רק ל־graph.facebook.com, ונמחק בסגירת הלשונית או בלחיצה על ניתוק. אל תדביק כאן אסימון קבוע." }),
+      el("div", { class: "row" }, [pid, tok, el("button", { class: "btn", type: "button", text: "חיבור", onclick: function () {
+        call("PUT", "/pm/whatsapp/demo-credentials", { phone_id: pid.value, token: tok.value }).then(function () { tok.value = ""; load("admin"); }, fail(box));
+      } })]), box]);
   }
   // The Cloud API, checked from here: Meta answers for the number, the templates' approval, and a test send.
   var TPL_HE = { APPROVED: "אושרה", PENDING: "ממתינה לאישור", REJECTED: "נדחתה", PAUSED: "מושהית", DISABLED: "מושבתת", IN_APPEAL: "בערעור" };
