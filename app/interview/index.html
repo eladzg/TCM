@@ -309,25 +309,28 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
 .h3d-tip b { font-weight: 500; }
 .h3d-tip .loc { direction: ltr; text-align: left; font-size: .76rem; color: var(--muted); }
 .h3d-tip .ch { font-size: .78rem; color: var(--jade); }
-/* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
-.companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
+/* ---- the companion: the figure lives in the page itself, behind the work. On wide screens the content
+   leans to the right and the figure stands in the open space beside it, fading softly into the panels;
+   on narrow screens it is a faint backdrop. ---- */
+.companion { position: fixed; z-index: 0; inset: 0; pointer-events: none; --fig-x: 50%; }
 .companion[hidden], body.intro-on .companion { display: none; }
 .wrap { position: relative; z-index: 1; }
 .comp-fig { position: absolute; inset: 0; }
 .comp-fig .h3d, .comp-fig canvas { display: block; width: 100%; height: 100%; }
-.comp-tags { position: absolute; inset: 0; overflow: hidden; }
+.comp-tags { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .comp-tags[hidden] { display: none; }
 .comp-tags span { position: absolute; left: 0; top: 0; font: 500 .72rem/1 var(--font-mono); color: var(--ink); background: var(--glass); border: 1px solid var(--edge);
   padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
 .comp-tags span.warn { color: var(--cinnabar); border-color: var(--cinnabar); }
-.comp-cap { position: absolute; left: 16px; right: 16px; bottom: 14px; margin: 0; display: grid; gap: 2px; font-size: .78rem; color: var(--muted); }
+.comp-cap { position: absolute; left: 20px; bottom: 16px; width: min(380px, calc(2 * var(--fig-x) - 60px)); margin: 0; display: grid; gap: 2px; font-size: .76rem; color: var(--muted); }
 .comp-cap b { font-weight: 500; color: var(--ink); font-size: .85rem; }
 .comp-cap a { color: inherit; pointer-events: auto; }
 @media (min-width: 1100px) {
-  :root { --comp-w: clamp(320px, 30vw, 540px); }
-  body:not(.intro-on) { padding-left: calc(var(--comp-w) + 12px); }
-  .companion { pointer-events: auto; border-right: 1px solid var(--edge);
-    background: radial-gradient(60% 45% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 10%, transparent), transparent 80%); }
+  body:not(.intro-on) .wrap { margin-left: auto; margin-right: clamp(16px, 3vw, 72px); }
+  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
+  .companion { pointer-events: auto;
+    background: radial-gradient(28% 55% at var(--fig-x) 50%, color-mix(in srgb, var(--b3d-halo) 9%, transparent), transparent 85%); }
+  .comp-fig { -webkit-mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); }
 }
 @media (max-width: 1099px) {
   .companion { opacity: .28; }
