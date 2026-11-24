@@ -526,9 +526,17 @@
     if (!BM || !acu.length && !press.length) return null;
     var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
     var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, warn: warn, label: T.label })]);
-    var B3 = root.TCMBody3D;
+    var B3 = root.TCMBody3D, C = root.TCMCompanion;
     var body = [];
-    if (B3 && B3.available) {
+    var sel = { acu: acu, shiatsu: press, warn: warn };
+    if (C && C.column()) {
+      // Wide screens: the figure beside the page shows these points; no second figure here.
+      if (slot === "plan") C.focus(sel, "נקודות התכנית");
+      body.push(el("p", { class: "hint" }, ["הנקודות מודגשות על הדמות שבצד המסך: הן פועמות, הקוד של כל אחת מופיע לידה, והמרידיאנים שלהן בולטים. ",
+        el("button", { type: "button", class: "btn ghost", text: "הצגה על הדמות", onclick: function () { C.focus(sel, title || "נקודות התכנית"); } })]),
+        legend(all, warn),
+        el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
+    } else if (B3 && B3.available) {
       var host3 = el("div", { class: "b3d-host" });
       if (!viewers[slot]) viewers[slot] = B3.create(host3, { label: T.label });
       else host3.appendChild(viewers[slot].element);

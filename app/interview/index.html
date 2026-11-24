@@ -280,17 +280,51 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
-/* ---- the opening screen: the body fills the screen, the system's menu sits along it ---- */
+/* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
+.companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
+.companion[hidden], body.intro-on .companion { display: none; }
+.wrap { position: relative; z-index: 1; }
+.comp-fig { position: absolute; inset: 0; }
+.comp-fig .h3d, .comp-fig canvas { display: block; width: 100%; height: 100%; }
+.comp-tags { position: absolute; inset: 0; overflow: hidden; }
+.comp-tags[hidden] { display: none; }
+.comp-tags span { position: absolute; left: 0; top: 0; font: 500 .72rem/1 var(--font-mono); color: var(--ink); background: var(--glass); border: 1px solid var(--edge);
+  padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.comp-tags span.warn { color: var(--cinnabar); border-color: var(--cinnabar); }
+.comp-cap { position: absolute; left: 16px; right: 16px; bottom: 14px; margin: 0; display: grid; gap: 2px; font-size: .78rem; color: var(--muted); }
+.comp-cap b { font-weight: 500; color: var(--ink); font-size: .85rem; }
+.comp-cap a { color: inherit; pointer-events: auto; }
+@media (min-width: 1100px) {
+  :root { --comp-w: clamp(320px, 30vw, 540px); }
+  body:not(.intro-on) { padding-left: calc(var(--comp-w) + 12px); }
+  .companion { pointer-events: auto; border-right: 1px solid var(--edge);
+    background: radial-gradient(60% 45% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 10%, transparent), transparent 80%); }
+}
+@media (max-width: 1099px) {
+  .companion { opacity: .28; }
+  .comp-cap { display: none; }
+}
+/* ---- the opening screen: the body, very large, from the crown down as the page scrolls; the system's menu
+   is revealed along it, and at the end the whole body stands with every option ---- */
 #intro[hidden] { display: none; }
 body.intro-on { padding-left: 0; padding-right: 0; padding-bottom: 0; }
 body.intro-on .wrap { max-width: none; }
 body.intro-on .wrap > :not(#intro) { display: none; }
-.intro { position: relative; height: 100svh; min-height: 560px; overflow: hidden; transition: opacity .35s ease, transform .35s ease; }
+.intro { position: relative; height: 460svh; transition: opacity .35s ease, transform .35s ease; }
+.intro-stick { position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; }
+.intro-fig canvas { touch-action: pan-y; }
+.intro-hint { position: absolute; z-index: 2; left: 50%; bottom: 74px; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px;
+  font-size: .85rem; color: var(--muted); pointer-events: none; transition: opacity .4s ease; }
+.intro-hint i { width: 1px; height: 46px; background: linear-gradient(var(--jade), transparent); transform-origin: top; animation: hintline 2.2s ease-in-out infinite; }
+@keyframes hintline { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+.intro-hint.gone { opacity: 0; }
+.intro-bar { position: absolute; z-index: 2; top: 0; bottom: 0; left: max(10px, 1.2vw); width: 2px; margin: auto 0; height: 34vh; border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent); pointer-events: none; }
+.intro-bar i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: inherit; background: var(--jade); transform-origin: top; transform: scaleY(0); }
 .intro.leaving { opacity: 0; transform: scale(.985); }
 .intro-fig { position: absolute; inset: 0; }
-.intro-fig .b3d, .intro-fig .b3d-stage { height: 100%; }
-.intro-fig .b3d-bar { display: none; }
-.intro-fig .b3d-stage { border-radius: 0; background: radial-gradient(38% 52% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 20%, transparent), transparent 75%); }
+.intro-fig { background: radial-gradient(36% 50% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 12%, transparent), transparent 75%); }
+.intro-fig .h3d, .intro-fig canvas { display: block; width: 100%; height: 100%; }
 .intro-lines, .intro-rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .intro-lines line { stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1; }
 .intro-lines line.on { stroke: var(--jade); }
@@ -308,7 +342,12 @@ body.intro-on .wrap > :not(#intro) { display: none; }
 .im { position: absolute; left: 0; top: 0; pointer-events: auto; font: inherit; color: var(--ink); text-align: start; cursor: pointer; display: grid; gap: 1px;
   padding: 10px 20px; min-height: 52px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge);
   backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
-  visibility: hidden; transition: background .2s, border-color .2s, box-shadow .2s; white-space: nowrap; }
+  visibility: hidden; opacity: 0; transition: opacity .45s ease, background .2s, border-color .2s, box-shadow .2s; white-space: nowrap; }
+.im.in { opacity: 1; }
+.im:not(.in) { pointer-events: none; }
+.intro.flat .im { pointer-events: auto; }
+.intro-rings i, .intro-lines line { transition: opacity .45s ease; }
+.intro-rings i.out, .intro-lines line.out { opacity: 0; }
 .im b { font-weight: 500; font-size: 1.05rem; }
 .im span { font-size: .82rem; color: var(--muted); }
 .im:hover, .im:focus-visible, .im.on { border-color: color-mix(in srgb, var(--jade) 70%, transparent); background: color-mix(in srgb, var(--jade) 14%, var(--glass)); }
@@ -325,9 +364,11 @@ body.intro-on .wrap > :not(#intro) { display: none; }
 .intro-credit a { color: inherit; }
 header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 /* Without WebGL the menu is a plain column under the title. */
-.intro.flat { height: auto; min-height: 100svh; display: grid; align-content: center; justify-items: center; padding: 140px 16px 90px; }
+.intro.flat { height: auto; }
+.intro.flat .intro-stick { position: relative; height: auto; min-height: 100svh; display: grid; align-content: center; justify-items: center; padding: 140px 16px 90px; }
+.intro.flat .intro-hint, .intro.flat .intro-bar { display: none; }
 .intro.flat .intro-menu { position: static; display: grid; gap: 10px; width: min(420px, 100%); }
-.intro.flat .im { position: static; visibility: visible; transform: none !important; white-space: normal; max-width: none; width: 100%; }
+.intro.flat .im { position: static; visibility: visible; opacity: 1; transform: none !important; white-space: normal; max-width: none; width: 100%; }
 .intro.flat .intro-lines, .intro.flat .intro-rings { display: none; }
 @media (max-width: 700px) {
   .intro-lead { display: none; }
@@ -337,13 +378,20 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
   .im b { font-size: .95rem; }
   .intro-foot { justify-content: center; text-align: center; }
   .intro-stats { font-size: .8rem; }
+  .intro-hint { bottom: 112px; }
 }
-@media (prefers-reduced-motion: reduce) { .intro, .im { transition: none; } .intro-rings i.on { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .intro, .im, .intro-rings i, .intro-lines line { transition: none; } .intro-rings i.on, .intro-hint i { animation: none; } }
 </style>
 </head>
 <body>
+<aside id="companion" class="companion" dir="rtl" lang="he" aria-label="הדמות">
+  <div class="comp-fig"></div>
+  <div class="comp-tags" hidden></div>
+  <p class="comp-cap"><b>14 מרידיאנים · 361 נקודות</b><span>גוררים כדי לסובב. דמות: Male base muscular anatomy מאת Harshit Prajapati, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</span></p>
+</aside>
 <div class="wrap" dir="rtl" lang="he">
   <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
+  <div class="intro-stick" id="intro-stick">
     <div class="intro-fig" id="intro-fig"></div>
     <svg class="intro-lines" id="intro-lines" aria-hidden="true"></svg>
     <div class="intro-rings" id="intro-rings" aria-hidden="true"></div>
@@ -363,14 +411,17 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
       <button type="button" class="im" data-at="CV12" data-side="r" data-go="summary"><b>סיכום למטפל</b><span>ממצאים, לשון ודופק, תבניות</span></button>
       <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
       <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
-      <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
-      <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="l" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
-      <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="r" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
+      <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="LI4" data-mirror="1" data-side="r" data-go="today" hidden><b>היום בקליניקה</b><span>תורים, הודעות ומשימות</span></button>
+      <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
     </nav>
     <div class="intro-foot">
       <p class="intro-stats"><b id="st-points">361</b> נקודות · <b>14</b> מרידיאנים · <b id="st-patterns">1,734</b> תבניות · <b id="st-formulas">329</b> נוסחאות · <b id="st-safety">150</b> כללי בטיחות</p>
       <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
     </div>
+    <div class="intro-hint" id="intro-hint" aria-hidden="true">גללו למטה, לאורך הגוף<i></i></div>
+    <div class="intro-bar" aria-hidden="true"><i id="intro-progress"></i></div>
+  </div>
   </section>
   <header class="top">
     <div class="brand">
@@ -418,7 +469,10 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 <script src="voice_flow.js"></script>
 <script type="module" src="voice_ui.js"></script>
 <script src="design.js"></script>
+<script src="hero_points.js"></script>
+<script src="companion.js"></script>
 <script src="intro.js"></script>
+<script type="module" src="hero3d.js"></script>
 <script type="module" src="body3d.js"></script>
 </body>
 </html>
