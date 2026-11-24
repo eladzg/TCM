@@ -280,6 +280,30 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
+/* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
+.companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
+.companion[hidden], body.intro-on .companion { display: none; }
+.wrap { position: relative; z-index: 1; }
+.comp-fig { position: absolute; inset: 0; }
+.comp-fig .h3d, .comp-fig canvas { display: block; width: 100%; height: 100%; }
+.comp-tags { position: absolute; inset: 0; overflow: hidden; }
+.comp-tags[hidden] { display: none; }
+.comp-tags span { position: absolute; left: 0; top: 0; font: 500 .72rem/1 var(--font-mono); color: var(--ink); background: var(--glass); border: 1px solid var(--edge);
+  padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.comp-tags span.warn { color: var(--cinnabar); border-color: var(--cinnabar); }
+.comp-cap { position: absolute; left: 16px; right: 16px; bottom: 14px; margin: 0; display: grid; gap: 2px; font-size: .78rem; color: var(--muted); }
+.comp-cap b { font-weight: 500; color: var(--ink); font-size: .85rem; }
+.comp-cap a { color: inherit; pointer-events: auto; }
+@media (min-width: 1100px) {
+  :root { --comp-w: clamp(320px, 30vw, 540px); }
+  body:not(.intro-on) { padding-left: calc(var(--comp-w) + 12px); }
+  .companion { pointer-events: auto; border-right: 1px solid var(--edge);
+    background: radial-gradient(60% 45% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 10%, transparent), transparent 80%); }
+}
+@media (max-width: 1099px) {
+  .companion { opacity: .28; }
+  .comp-cap { display: none; }
+}
 /* ---- the opening screen: the body, very large, from the crown down as the page scrolls; the system's menu
    is revealed along it, and at the end the whole body stands with every option ---- */
 #intro[hidden] { display: none; }
@@ -360,6 +384,11 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 </style>
 </head>
 <body>
+<aside id="companion" class="companion" dir="rtl" lang="he" aria-label="הדמות">
+  <div class="comp-fig"></div>
+  <div class="comp-tags" hidden></div>
+  <p class="comp-cap"><b>14 מרידיאנים · 361 נקודות</b><span>גוררים כדי לסובב. דמות: Male base muscular anatomy מאת Harshit Prajapati, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</span></p>
+</aside>
 <div class="wrap" dir="rtl" lang="he">
   <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
   <div class="intro-stick" id="intro-stick">
@@ -439,6 +468,7 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 <script type="module" src="voice_ui.js"></script>
 <script src="design.js"></script>
 <script src="hero_points.js"></script>
+<script src="companion.js"></script>
 <script src="intro.js"></script>
 <script type="module" src="hero3d.js"></script>
 <script type="module" src="body3d.js"></script>

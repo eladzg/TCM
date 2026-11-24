@@ -24,8 +24,9 @@ function cssColor(name, fallback) {
 }
 
 const VS = `
-attribute vec3 color; attribute vec3 aRand; attribute float aU;
-uniform float uTime, uForm, uScale, uSize, uMax, uFlow, uBreath, uAspect;
+attribute vec3 color; attribute vec3 aRand; attribute float aU; attribute float aCh; attribute float aSel;
+uniform float uTime, uForm, uScale, uSize, uMax, uFlow, uBreath, uAspect, uFocus;
+uniform float uHi[14];
 uniform vec2 uMouse; uniform float uMouseOn;
 varying vec3 vCol; varying float vA;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
@@ -54,6 +55,14 @@ void main() {
   gl_PointSize = min(gl_PointSize * (1. + pt * .7), uMax * 1.3);
   vCol = color * (1. + glint * 1.8 + pt * .3);
   vA = mix(.06, 1., front) * (.35 + .85 * lit) * (.55 + .45 * f);
+  // Focus: the channels of the chosen points lead, the rest fall back; the chosen points pulse.
+  float hi = aCh > -.5 ? uHi[int(aCh + .5)] : 0.;
+  vA *= uFlow > 0. ? mix(1., mix(.14, 1.3, hi), uFocus) : mix(1., .6, uFocus);
+  gl_PointSize *= uFlow > 0. ? mix(1., mix(.8, 1.3, hi), uFocus) : 1.;
+  float sel = step(.5, aSel) * uFocus;
+  gl_PointSize = mix(gl_PointSize, min(gl_PointSize * (2.4 + .5 * sin(uTime * 2.6)), uMax * 2.6), sel);
+  vCol = mix(vCol, mix(vec3(1., .97, .86), vec3(.95, .55, .45), step(1.5, aSel)), sel * .6);
+  vA = mix(vA, 1.4, sel);
 }`;
 const FS = `
 uniform float uAlpha; varying vec3 vCol; varying float vA;
@@ -68,7 +77,7 @@ function material(o) {
     uniforms: {
       uTime: { value: 0 }, uForm: { value: 0 }, uScale: { value: 800 }, uSize: { value: o.size }, uMax: { value: o.max },
       uFlow: { value: o.flow ? 1 : 0 }, uBreath: { value: 1 }, uAspect: { value: 1 }, uAlpha: { value: o.alpha },
-      uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }
+      uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }, uFocus: { value: 0 }, uHi: { value: new Array(14).fill(0) }
     },
     vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, depthTest: false
   });
@@ -91,17 +100,22 @@ function bodyCloud() {
   g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 3));
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   g.setAttribute("aU", new THREE.BufferAttribute(new Float32Array(n), 1));
+  g.setAttribute("aCh", new THREE.BufferAttribute(new Float32Array(n).fill(-1), 1));
+  g.setAttribute("aSel", new THREE.BufferAttribute(new Float32Array(n), 1));
   return g;
 }
 
 // The channels as dots along their lines (both sides), and the points as bigger dots.
+const CHS = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR", "CV", "GV"];
 function channelCloud() {
-  const pos = [], nor = [], col = [], u = [];
-  const add = (p, nn, c, uu) => { pos.push(p.x, p.y, p.z); nor.push(nn.x, nn.y, nn.z); col.push(c.r, c.g, c.b); u.push(uu); };
+  const pos = [], nor = [], col = [], u = [], chi = [], where = {};
+  let cur = -1;
+  const add = (p, nn, c, uu) => { pos.push(p.x, p.y, p.z); nor.push(nn.x, nn.y, nn.z); col.push(c.r, c.g, c.b); u.push(uu); chi.push(cur); };
   const color = (ch) => new THREE.Color(BM ? BM.channels([ch + "1"])[0].color : "#b9cf9c");
   const out = new THREE.Vector3(0, 0, 1);
   if (PATHS) Object.keys(PATHS).forEach((ch) => {
     const c = color(ch);
+    cur = CHS.indexOf(ch);
     (ch === "CV" || ch === "GV" ? [1] : [1, -1]).forEach((side) => {
       PATHS[ch].forEach((pl) => {
         let len = 0;
@@ -120,7 +134,11 @@ function channelCloud() {
   Object.keys(P3).forEach((id) => {
     const p = P3[id], ch = (/^([A-Z]+)/.exec(id) || [])[1];
     const c = color(ch).lerp(new THREE.Color(1, 1, 1), 0.15);
-    (/^(CV|GV)/.test(id) ? [1] : [1, -1]).forEach((s) => add(new THREE.Vector3(p[0] * s, p[1], p[2]), new THREE.Vector3(p[3] * s, p[4], p[5]), c, -1));
+    cur = CHS.indexOf(ch); where[id] = [];
+    (/^(CV|GV)/.test(id) ? [1] : [1, -1]).forEach((s) => {
+      where[id].push(u.length);
+      add(new THREE.Vector3(p[0] * s, p[1], p[2]), new THREE.Vector3(p[3] * s, p[4], p[5]), c, -1);
+    });
   });
   const g = new THREE.BufferGeometry(), n = u.length;
   const rnd = new Float32Array(n * 3); for (let i = 0; i < rnd.length; i++) rnd[i] = Math.random();
@@ -129,7 +147,10 @@ function channelCloud() {
   g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   g.setAttribute("aU", new THREE.Float32BufferAttribute(u, 1));
   g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 3));
+  g.setAttribute("aCh", new THREE.Float32BufferAttribute(chi, 1));
+  g.setAttribute("aSel", new THREE.BufferAttribute(new Float32Array(n), 1));
   g.userData.lineCount = lineCount;
+  g.userData.where = where;
   return g;
 }
 
@@ -172,7 +193,7 @@ function create(host, opts) {
 
   // ---- motion: drag with inertia, a slow sway, a faint lean toward the pointer, the camera on a rail ----
   let yaw = 0, vy = 0, drag = null, lastDrag = 0, goalYaw = null, mx = 0, my = 0, sx = 0, sy = 0;
-  let camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0, mouseOn = 0, mouseGoal = 0;
+  let focusOn = 0, focusGoal = 0, camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0, mouseOn = 0, mouseGoal = 0;
   const goalPos = new THREE.Vector3(), mouse = new THREE.Vector2(9, 9);
   const el = renderer.domElement;
   el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX }; vy = 0; goalYaw = null; request(); });
@@ -203,6 +224,8 @@ function create(host, opts) {
       camera.lookAt(0, camera.position.y, 0);
     }
     if (form < 1) { form = Math.min(1, (now - t0) / 2200); moving = true; }
+    focusOn += (focusGoal - focusOn) * (still ? 1 : 0.06);
+    if (Math.abs(focusGoal - focusOn) > 0.002) moving = true;
     mouseOn += (mouseGoal * (still ? 0 : 1) - mouseOn) * 0.08;
     if (Math.abs(mouseGoal - mouseOn) > 0.01) moving = true;
     sx += ((still ? 0 : mx * 0.05) - sx) * 0.03;
@@ -213,7 +236,7 @@ function create(host, opts) {
     const t = (now - t0) / 1000;
     mats.forEach((m) => {
       m.uniforms.uTime.value = still ? 0 : t; m.uniforms.uForm.value = form;
-      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uMouse.value.copy(mouse); m.uniforms.uMouseOn.value = mouseOn;
+      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uFocus.value = focusOn; m.uniforms.uMouse.value.copy(mouse); m.uniforms.uMouseOn.value = mouseOn;
     });
     return moving || !still;
   }
@@ -255,7 +278,21 @@ function create(host, opts) {
     if (now) { camera.position.set(0, y, dist); camera.lookAt(0, y, 0); turn = t || 0; }
     request();
   }
-  const api = { frame, screen, element: wrap, ready: Promise.resolve() };
+  // Bring the chosen points forward: sel = {acu: [ids], shiatsu: [ids], warn: [ids]}, or null to let go.
+  function focus(sel) {
+    const g = lines.geometry, a = g.getAttribute("aSel"), where = g.userData.where, hi = lineMat.uniforms.uHi.value;
+    a.array.fill(0); hi.fill(0);
+    const ids = sel ? (sel.acu || []).concat(sel.shiatsu || []) : [];
+    const warn = sel && sel.warn ? sel.warn : [];
+    ids.forEach((id) => {
+      (where[id] || []).forEach((i) => { a.array[i] = warn.indexOf(id) >= 0 ? 2 : 1; });
+      const k = CHS.indexOf((/^([A-Z]+)/.exec(id) || [])[1]); if (k >= 0) hi[k] = 1;
+    });
+    a.needsUpdate = true;
+    focusGoal = ids.length ? 1 : 0;
+    request();
+  }
+  const api = { frame, screen, focus, element: wrap, ready: Promise.resolve() };
   applyTheme(); size();
   scene.updateMatrixWorld(true);
   return api;

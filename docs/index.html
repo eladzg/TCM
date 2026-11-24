@@ -280,6 +280,30 @@ li.session { border-radius: 16px; background: var(--surface-2); }
   .wrap .recbar { top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
+/* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
+.companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
+.companion[hidden], body.intro-on .companion { display: none; }
+.wrap { position: relative; z-index: 1; }
+.comp-fig { position: absolute; inset: 0; }
+.comp-fig .h3d, .comp-fig canvas { display: block; width: 100%; height: 100%; }
+.comp-tags { position: absolute; inset: 0; overflow: hidden; }
+.comp-tags[hidden] { display: none; }
+.comp-tags span { position: absolute; left: 0; top: 0; font: 500 .72rem/1 var(--font-mono); color: var(--ink); background: var(--glass); border: 1px solid var(--edge);
+  padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.comp-tags span.warn { color: var(--cinnabar); border-color: var(--cinnabar); }
+.comp-cap { position: absolute; left: 16px; right: 16px; bottom: 14px; margin: 0; display: grid; gap: 2px; font-size: .78rem; color: var(--muted); }
+.comp-cap b { font-weight: 500; color: var(--ink); font-size: .85rem; }
+.comp-cap a { color: inherit; pointer-events: auto; }
+@media (min-width: 1100px) {
+  :root { --comp-w: clamp(320px, 30vw, 540px); }
+  body:not(.intro-on) { padding-left: calc(var(--comp-w) + 12px); }
+  .companion { pointer-events: auto; border-right: 1px solid var(--edge);
+    background: radial-gradient(60% 45% at 50% 48%, color-mix(in srgb, var(--b3d-halo) 10%, transparent), transparent 80%); }
+}
+@media (max-width: 1099px) {
+  .companion { opacity: .28; }
+  .comp-cap { display: none; }
+}
 /* ---- the opening screen: the body, very large, from the crown down as the page scrolls; the system's menu
    is revealed along it, and at the end the whole body stands with every option ---- */
 #intro[hidden] { display: none; }
@@ -360,6 +384,11 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 </style>
 </head>
 <body>
+<aside id="companion" class="companion" dir="rtl" lang="he" aria-label="הדמות">
+  <div class="comp-fig"></div>
+  <div class="comp-tags" hidden></div>
+  <p class="comp-cap"><b>14 מרידיאנים · 361 נקודות</b><span>גוררים כדי לסובב. דמות: Male base muscular anatomy מאת Harshit Prajapati, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</span></p>
+</aside>
 <div class="wrap" dir="rtl" lang="he">
   <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
   <div class="intro-stick" id="intro-stick">
@@ -1836,9 +1865,17 @@ window.TCM_PATHS3D = {"BL":[[[-0.00198,0.00147,0.00915],[-0.00235,0.00224,0.0099
     if (!BM || !acu.length && !press.length) return null;
     var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
     var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, warn: warn, label: T.label })]);
-    var B3 = root.TCMBody3D;
+    var B3 = root.TCMBody3D, C = root.TCMCompanion;
     var body = [];
-    if (B3 && B3.available) {
+    var sel = { acu: acu, shiatsu: press, warn: warn };
+    if (C && C.column()) {
+      // Wide screens: the figure beside the page shows these points; no second figure here.
+      if (slot === "plan") C.focus(sel, "נקודות התכנית");
+      body.push(el("p", { class: "hint" }, ["הנקודות מודגשות על הדמות שבצד המסך: הן פועמות, הקוד של כל אחת מופיע לידה, והמרידיאנים שלהן בולטים. ",
+        el("button", { type: "button", class: "btn ghost", text: "הצגה על הדמות", onclick: function () { C.focus(sel, title || "נקודות התכנית"); } })]),
+        legend(all, warn),
+        el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
+    } else if (B3 && B3.available) {
       var host3 = el("div", { class: "b3d-host" });
       if (!viewers[slot]) viewers[slot] = B3.create(host3, { label: T.label });
       else host3.appendChild(viewers[slot].element);
@@ -4286,6 +4323,84 @@ window.TCM_HERO_POINTS = {n: 75291, lo: [-0.099525, -0.162677, -0.017223], hi: [
 
 </script>
 <script>
+// The figure that stays with the reader through the whole system: the same cloud of dots as the opening
+// screen, in a column at the side of wide screens and as a faint backdrop on narrow ones. It follows the
+// page as it scrolls (head at the top, legs further down) and answers what is on the page: on the
+// clinician summary the points of the treatment plan pulse on it and their channels lead, with their
+// codes beside them. The treatment plan asks for this through TCMCompanion.focus().
+(function () {
+  "use strict";
+  var aside = document.getElementById("companion");
+  if (!aside) return;
+  var fig = aside.querySelector(".comp-fig"), tags = aside.querySelector(".comp-tags"), cap = aside.querySelector(".comp-cap b");
+  var wide = window.matchMedia ? matchMedia("(min-width: 1100px)") : { matches: false };
+  var clin = document.getElementById("view-clin");
+  var viewer = null, want = null, wantTitle = "", CENTRE = -0.075;
+
+  function smooth(a) { return a * a * (3 - 2 * a); }
+  function frame(now) {
+    if (!viewer) return;
+    var room = document.documentElement.scrollHeight - window.innerHeight;
+    var t = room > 0 ? Math.max(0, Math.min(1, window.scrollY / room)) : 0;
+    var aspect = (fig.clientWidth || 1) / (fig.clientHeight || 1);
+    var full = aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385;
+    viewer.frame(-0.035 - smooth(t) * 0.085, full * 0.72, now, 0);
+  }
+  var ticking = false;
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; frame(false); }); } }, { passive: true });
+
+  // Codes of the focused points beside them (the patient's right side and the midline).
+  var tagEls = {};
+  function place(v) {
+    if (!wide.matches || !want) { tags.hidden = true; return; }
+    tags.hidden = false;
+    var W = fig.clientWidth, H = fig.clientHeight;
+    Object.keys(tagEls).forEach(function (id) {
+      var p = v.screen(id, 1), e = tagEls[id];
+      if (!p || p.x < 0 || p.x > W || p.y < 0 || p.y > H) { e.style.visibility = "hidden"; return; }
+      e.style.visibility = "visible";
+      e.style.transform = "translate(" + Math.round(p.x + 8) + "px," + Math.round(p.y - 9) + "px)";
+    });
+  }
+  function apply() {
+    var on = want && clin && !clin.hidden;
+    if (viewer) viewer.focus(on ? want : null);
+    tags.textContent = ""; tagEls = {};
+    if (on) (want.acu || []).concat(want.shiatsu || []).forEach(function (id) {
+      if (tagEls[id]) return;
+      var e = document.createElement("span");
+      e.textContent = id;
+      if ((want.warn || []).indexOf(id) >= 0) e.className = "warn";
+      tags.appendChild(e); tagEls[id] = e;
+    });
+    if (cap) {
+      var n = on ? Object.keys(tagEls).length : 0;
+      cap.textContent = n ? (wantTitle || "נקודות התכנית") + ": " + n + " נקודות, הערוצים שלהן מודגשים" : "14 מרידיאנים · 361 נקודות";
+    }
+  }
+  if (clin) new MutationObserver(apply).observe(clin, { attributes: true, attributeFilter: ["hidden"] });
+
+  function start() {
+    var H = window.TCMHero3D;
+    if (viewer || !H) return;
+    if (!H.available) { aside.hidden = true; return; }
+    viewer = H.create(fig, { height: function () { return fig.clientHeight; }, onframe: place });
+    frame(true);
+    apply();
+  }
+  window.addEventListener("tcm-hero3d-ready", start);
+  start();
+
+  window.TCMCompanion = {
+    // True when the figure has its own column (wide screens), so a block can lean on it instead of
+    // drawing a figure of its own.
+    column: function () { return wide.matches && !!window.TCMHero3D && window.TCMHero3D.available; },
+    focus: function (sel, title) { want = sel && ((sel.acu || []).length || (sel.shiatsu || []).length) ? sel : null; wantTitle = title || ""; apply(); }
+  };
+})();
+
+</script>
+<script>
 // The opening screen: the glass body, very large, every channel on it. It opens on the crown; scrolling
 // carries the camera down the body and then back, until the whole body stands on the screen. The system's
 // menu sits along the body: each option is a glass pill tied by a hairline to a glowing ring on an
@@ -4501,8 +4616,9 @@ function cssColor(name, fallback) {
 }
 
 const VS = `
-attribute vec3 color; attribute vec3 aRand; attribute float aU;
-uniform float uTime, uForm, uScale, uSize, uMax, uFlow, uBreath, uAspect;
+attribute vec3 color; attribute vec3 aRand; attribute float aU; attribute float aCh; attribute float aSel;
+uniform float uTime, uForm, uScale, uSize, uMax, uFlow, uBreath, uAspect, uFocus;
+uniform float uHi[14];
 uniform vec2 uMouse; uniform float uMouseOn;
 varying vec3 vCol; varying float vA;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
@@ -4531,6 +4647,14 @@ void main() {
   gl_PointSize = min(gl_PointSize * (1. + pt * .7), uMax * 1.3);
   vCol = color * (1. + glint * 1.8 + pt * .3);
   vA = mix(.06, 1., front) * (.35 + .85 * lit) * (.55 + .45 * f);
+  // Focus: the channels of the chosen points lead, the rest fall back; the chosen points pulse.
+  float hi = aCh > -.5 ? uHi[int(aCh + .5)] : 0.;
+  vA *= uFlow > 0. ? mix(1., mix(.14, 1.3, hi), uFocus) : mix(1., .6, uFocus);
+  gl_PointSize *= uFlow > 0. ? mix(1., mix(.8, 1.3, hi), uFocus) : 1.;
+  float sel = step(.5, aSel) * uFocus;
+  gl_PointSize = mix(gl_PointSize, min(gl_PointSize * (2.4 + .5 * sin(uTime * 2.6)), uMax * 2.6), sel);
+  vCol = mix(vCol, mix(vec3(1., .97, .86), vec3(.95, .55, .45), step(1.5, aSel)), sel * .6);
+  vA = mix(vA, 1.4, sel);
 }`;
 const FS = `
 uniform float uAlpha; varying vec3 vCol; varying float vA;
@@ -4545,7 +4669,7 @@ function material(o) {
     uniforms: {
       uTime: { value: 0 }, uForm: { value: 0 }, uScale: { value: 800 }, uSize: { value: o.size }, uMax: { value: o.max },
       uFlow: { value: o.flow ? 1 : 0 }, uBreath: { value: 1 }, uAspect: { value: 1 }, uAlpha: { value: o.alpha },
-      uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }
+      uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }, uFocus: { value: 0 }, uHi: { value: new Array(14).fill(0) }
     },
     vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, depthTest: false
   });
@@ -4568,17 +4692,22 @@ function bodyCloud() {
   g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 3));
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   g.setAttribute("aU", new THREE.BufferAttribute(new Float32Array(n), 1));
+  g.setAttribute("aCh", new THREE.BufferAttribute(new Float32Array(n).fill(-1), 1));
+  g.setAttribute("aSel", new THREE.BufferAttribute(new Float32Array(n), 1));
   return g;
 }
 
 // The channels as dots along their lines (both sides), and the points as bigger dots.
+const CHS = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR", "CV", "GV"];
 function channelCloud() {
-  const pos = [], nor = [], col = [], u = [];
-  const add = (p, nn, c, uu) => { pos.push(p.x, p.y, p.z); nor.push(nn.x, nn.y, nn.z); col.push(c.r, c.g, c.b); u.push(uu); };
+  const pos = [], nor = [], col = [], u = [], chi = [], where = {};
+  let cur = -1;
+  const add = (p, nn, c, uu) => { pos.push(p.x, p.y, p.z); nor.push(nn.x, nn.y, nn.z); col.push(c.r, c.g, c.b); u.push(uu); chi.push(cur); };
   const color = (ch) => new THREE.Color(BM ? BM.channels([ch + "1"])[0].color : "#b9cf9c");
   const out = new THREE.Vector3(0, 0, 1);
   if (PATHS) Object.keys(PATHS).forEach((ch) => {
     const c = color(ch);
+    cur = CHS.indexOf(ch);
     (ch === "CV" || ch === "GV" ? [1] : [1, -1]).forEach((side) => {
       PATHS[ch].forEach((pl) => {
         let len = 0;
@@ -4597,7 +4726,11 @@ function channelCloud() {
   Object.keys(P3).forEach((id) => {
     const p = P3[id], ch = (/^([A-Z]+)/.exec(id) || [])[1];
     const c = color(ch).lerp(new THREE.Color(1, 1, 1), 0.15);
-    (/^(CV|GV)/.test(id) ? [1] : [1, -1]).forEach((s) => add(new THREE.Vector3(p[0] * s, p[1], p[2]), new THREE.Vector3(p[3] * s, p[4], p[5]), c, -1));
+    cur = CHS.indexOf(ch); where[id] = [];
+    (/^(CV|GV)/.test(id) ? [1] : [1, -1]).forEach((s) => {
+      where[id].push(u.length);
+      add(new THREE.Vector3(p[0] * s, p[1], p[2]), new THREE.Vector3(p[3] * s, p[4], p[5]), c, -1);
+    });
   });
   const g = new THREE.BufferGeometry(), n = u.length;
   const rnd = new Float32Array(n * 3); for (let i = 0; i < rnd.length; i++) rnd[i] = Math.random();
@@ -4606,7 +4739,10 @@ function channelCloud() {
   g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   g.setAttribute("aU", new THREE.Float32BufferAttribute(u, 1));
   g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 3));
+  g.setAttribute("aCh", new THREE.Float32BufferAttribute(chi, 1));
+  g.setAttribute("aSel", new THREE.BufferAttribute(new Float32Array(n), 1));
   g.userData.lineCount = lineCount;
+  g.userData.where = where;
   return g;
 }
 
@@ -4649,7 +4785,7 @@ function create(host, opts) {
 
   // ---- motion: drag with inertia, a slow sway, a faint lean toward the pointer, the camera on a rail ----
   let yaw = 0, vy = 0, drag = null, lastDrag = 0, goalYaw = null, mx = 0, my = 0, sx = 0, sy = 0;
-  let camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0, mouseOn = 0, mouseGoal = 0;
+  let focusOn = 0, focusGoal = 0, camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0, mouseOn = 0, mouseGoal = 0;
   const goalPos = new THREE.Vector3(), mouse = new THREE.Vector2(9, 9);
   const el = renderer.domElement;
   el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX }; vy = 0; goalYaw = null; request(); });
@@ -4680,6 +4816,8 @@ function create(host, opts) {
       camera.lookAt(0, camera.position.y, 0);
     }
     if (form < 1) { form = Math.min(1, (now - t0) / 2200); moving = true; }
+    focusOn += (focusGoal - focusOn) * (still ? 1 : 0.06);
+    if (Math.abs(focusGoal - focusOn) > 0.002) moving = true;
     mouseOn += (mouseGoal * (still ? 0 : 1) - mouseOn) * 0.08;
     if (Math.abs(mouseGoal - mouseOn) > 0.01) moving = true;
     sx += ((still ? 0 : mx * 0.05) - sx) * 0.03;
@@ -4690,7 +4828,7 @@ function create(host, opts) {
     const t = (now - t0) / 1000;
     mats.forEach((m) => {
       m.uniforms.uTime.value = still ? 0 : t; m.uniforms.uForm.value = form;
-      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uMouse.value.copy(mouse); m.uniforms.uMouseOn.value = mouseOn;
+      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uFocus.value = focusOn; m.uniforms.uMouse.value.copy(mouse); m.uniforms.uMouseOn.value = mouseOn;
     });
     return moving || !still;
   }
@@ -4732,7 +4870,21 @@ function create(host, opts) {
     if (now) { camera.position.set(0, y, dist); camera.lookAt(0, y, 0); turn = t || 0; }
     request();
   }
-  const api = { frame, screen, element: wrap, ready: Promise.resolve() };
+  // Bring the chosen points forward: sel = {acu: [ids], shiatsu: [ids], warn: [ids]}, or null to let go.
+  function focus(sel) {
+    const g = lines.geometry, a = g.getAttribute("aSel"), where = g.userData.where, hi = lineMat.uniforms.uHi.value;
+    a.array.fill(0); hi.fill(0);
+    const ids = sel ? (sel.acu || []).concat(sel.shiatsu || []) : [];
+    const warn = sel && sel.warn ? sel.warn : [];
+    ids.forEach((id) => {
+      (where[id] || []).forEach((i) => { a.array[i] = warn.indexOf(id) >= 0 ? 2 : 1; });
+      const k = CHS.indexOf((/^([A-Z]+)/.exec(id) || [])[1]); if (k >= 0) hi[k] = 1;
+    });
+    a.needsUpdate = true;
+    focusGoal = ids.length ? 1 : 0;
+    request();
+  }
+  const api = { frame, screen, focus, element: wrap, ready: Promise.resolve() };
   applyTheme(); size();
   scene.updateMatrixWorld(true);
   return api;
