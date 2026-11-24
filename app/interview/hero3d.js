@@ -27,7 +27,7 @@ const VS = `
 attribute vec3 color; attribute vec3 aRand; attribute float aU; attribute float aCh; attribute float aSel;
 uniform float uTime, uForm, uScale, uSize, uMax, uFlow, uBreath, uAspect, uFocus;
 uniform float uHi[14];
-uniform vec2 uMouse; uniform float uMouseOn;
+uniform float uHov;
 varying vec3 vCol; varying float vA;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
 void main() {
@@ -41,11 +41,6 @@ void main() {
   vec3 n = normalize(normalMatrix * normal);
   float facing = dot(n, normalize(-mv.xyz));
   vec4 cp = projectionMatrix * mv;
-  vec2 nd = cp.xy / cp.w;
-  vec2 d = (nd - uMouse) * vec2(uAspect, 1.);
-  float r = length(d);
-  float push = uMouseOn * smoothstep(.16, 0., r) * .045;
-  cp.xy += normalize(d + 1e-5) / vec2(uAspect, 1.) * push * cp.w;
   gl_Position = cp;
   float front = smoothstep(-.1, .45, facing);
   float lit = max(dot(n, normalize(vec3(-.45, .55, .7))), 0.);
@@ -63,6 +58,9 @@ void main() {
   gl_PointSize = mix(gl_PointSize, min(gl_PointSize * (2.4 + .5 * sin(uTime * 2.6)), uMax * 2.6), sel);
   vCol = mix(vCol, mix(vec3(1., .97, .86), vec3(.95, .55, .45), step(1.5, aSel)), sel * .6);
   vA = mix(vA, 1.4, sel);
+  // The channel under the pointer lights up.
+  float hov = uFlow > 0. && abs(aCh - uHov) < .5 ? 1. : 0.;
+  vA *= 1. + hov * 1.2; gl_PointSize *= 1. + hov * .35; vCol = mix(vCol, vec3(1.), hov * .15);
 }`;
 const FS = `
 uniform float uAlpha; varying vec3 vCol; varying float vA;
@@ -77,7 +75,7 @@ function material(o) {
     uniforms: {
       uTime: { value: 0 }, uForm: { value: 0 }, uScale: { value: 800 }, uSize: { value: o.size }, uMax: { value: o.max },
       uFlow: { value: o.flow ? 1 : 0 }, uBreath: { value: 1 }, uAspect: { value: 1 }, uAlpha: { value: o.alpha },
-      uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }, uFocus: { value: 0 }, uHi: { value: new Array(14).fill(0) }
+      uHov: { value: -1 }, uFocus: { value: 0 }, uHi: { value: new Array(14).fill(0) }
     },
     vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, depthTest: false
   });
@@ -193,21 +191,84 @@ function create(host, opts) {
 
   // ---- motion: drag with inertia, a slow sway, a faint lean toward the pointer, the camera on a rail ----
   let yaw = 0, vy = 0, drag = null, lastDrag = 0, goalYaw = null, mx = 0, my = 0, sx = 0, sy = 0;
-  let focusOn = 0, focusGoal = 0, camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0, mouseOn = 0, mouseGoal = 0;
-  const goalPos = new THREE.Vector3(), mouse = new THREE.Vector2(9, 9);
+  let focusOn = 0, focusGoal = 0, camGoal = null, turn = 0, form = reduced() ? 1 : 0, t0 = performance.now(), visible = true, raf = 0;
+  const goalPos = new THREE.Vector3();
   const el = renderer.domElement;
   el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX }; vy = 0; goalYaw = null; request(); });
   window.addEventListener("pointermove", (e) => {
     mx = e.clientX / window.innerWidth * 2 - 1; my = e.clientY / window.innerHeight * 2 - 1;
-    const r = el.getBoundingClientRect();
-    mouse.set((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2);
-    mouseGoal = e.pointerType === "mouse" && e.clientY >= r.top && e.clientY <= r.bottom ? 1 : 0;
+    if (!drag && e.pointerType === "mouse") { if (e.target === el) hoverAt(e.clientX, e.clientY); else if (hovKey) hoverAt(-1e4, -1e4); }
     if (drag) { const dx = e.clientX - drag.x; drag.x = e.clientX; vy = dx * 0.006; yaw += vy; }
     request();
   }, { passive: true });
   const end = () => { if (drag) { drag = null; lastDrag = performance.now(); } };
   window.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
-  el.addEventListener("pointerleave", () => { mouseGoal = 0; request(); });
+  el.addEventListener("pointerleave", () => hoverAt(-1e4, -1e4));
+
+  // ---- hover: the point or channel under the pointer names itself ----
+  const tip = document.createElement("div");
+  tip.className = "h3d-tip"; tip.hidden = true; tip.setAttribute("role", "status");
+  wrap.appendChild(tip);
+  const ELEM = { LU: "מתכת", LI: "מתכת", ST: "אדמה", SP: "אדמה", HT: "אש", SI: "אש", PC: "אש", TE: "אש", BL: "מים", KI: "מים", GB: "עץ", LR: "עץ" };
+  const YIN = { LU: "יין, יד", PC: "יין, יד", HT: "יין, יד", LI: "יאנג, יד", TE: "יאנג, יד", SI: "יאנג, יד",
+    SP: "יין, רגל", LR: "יין, רגל", KI: "יין, רגל", ST: "יאנג, רגל", GB: "יאנג, רגל", BL: "יאנג, רגל" };
+  const chName = (ch) => { const c = BM && BM.channels([ch + "1"])[0]; return c ? c.he : ch; };
+  const chInfo = (ch) => ch === "CV" ? "כלי מיוחד · קו האמצע הקדמי" : ch === "GV" ? "כלי מיוחד · קו האמצע האחורי"
+    : chName(ch) + " · יסוד " + ELEM[ch] + " · " + YIN[ch];
+  const wp = new THREE.Vector3(), wn = new THREE.Vector3(), cam = new THREE.Vector3();
+  let hovKey = null, pend = null;
+  function hoverAt(x, y) {
+    if (pend === null) requestAnimationFrame(() => { const q = pend; pend = null; pick(q[0], q[1]); });
+    pend = [x, y];
+  }
+  function near(arr, i, rect, x, y, lim) {
+    wp.set(arr[i * 3], arr[i * 3 + 1], arr[i * 3 + 2]).applyMatrix4(inner.matrixWorld);
+    const nrm = lines.geometry.getAttribute("normal").array;
+    wn.set(nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]).applyQuaternion(rig.quaternion);
+    if (cam.subVectors(camera.position, wp).dot(wn) < 0) return Infinity;   // on the far side of the body
+    wp.project(camera);
+    const dx = (wp.x + 1) / 2 * rect.width - x, dy = (1 - wp.y) / 2 * rect.height - y, d = Math.hypot(dx, dy);
+    return d < lim ? d : Infinity;
+  }
+  function pick(cx, cy) {
+    const rect = el.getBoundingClientRect(), x = cx - rect.left, y = cy - rect.top;
+    let best = null;
+    if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height && form >= 1) {
+      const g = lines.geometry, pos = g.getAttribute("position").array, chA = g.getAttribute("aCh").array, where = g.userData.where;
+      let bd = Infinity;
+      Object.keys(where).forEach((id) => where[id].forEach((i) => {
+        const d = near(pos, i, rect, x, y, 11); if (d < bd) { bd = d; best = { id, ch: (/^([A-Z]+)/.exec(id) || [])[1] }; }
+      }));
+      if (!best) for (let i = 0; i < g.userData.lineCount; i += 2) {
+        const d = near(pos, i, rect, x, y, 6); if (d < bd) { bd = d; best = { ch: CHS[chA[i]] }; }
+      }
+    }
+    const key = best ? (best.id || best.ch) : null;
+    if (key !== hovKey) {
+      hovKey = key;
+      lineMat.uniforms.uHov.value = best ? CHS.indexOf(best.ch) : -1;
+      tip.textContent = "";
+      if (best) {
+        const T = window.TCMTreatment, add = (cls, text) => { const e = document.createElement(cls === "b" ? "b" : "span"); if (cls !== "b") e.className = cls; e.textContent = text; tip.appendChild(e); };
+        if (best.id) {
+          add("b", T && T.label ? T.label(best.id) : best.id);
+          const loc = T && T.tx && T.tx.points[best.id] ? T.tx.points[best.id].loc || "" : "";
+          if (loc) add("loc", loc.length > 180 ? loc.slice(0, 177) + "…" : loc);
+          add("ch", chInfo(best.ch));
+        } else {
+          add("b", best.ch + " · " + chName(best.ch));
+          add("ch", chInfo(best.ch));
+        }
+      }
+      tip.hidden = !best;
+      el.style.cursor = best ? "help" : "";
+      request();
+    }
+    if (best) {
+      const left = Math.min(Math.max(8, x + 16), rect.width - tip.offsetWidth - 8), top = Math.min(Math.max(8, y + 14), rect.height - tip.offsetHeight - 8);
+      tip.style.transform = "translate(" + Math.round(left) + "px," + Math.round(top) + "px)";
+    }
+  }
 
   function step(now) {
     const still = reduced();
@@ -226,8 +287,6 @@ function create(host, opts) {
     if (form < 1) { form = Math.min(1, (now - t0) / 2200); moving = true; }
     focusOn += (focusGoal - focusOn) * (still ? 1 : 0.06);
     if (Math.abs(focusGoal - focusOn) > 0.002) moving = true;
-    mouseOn += (mouseGoal * (still ? 0 : 1) - mouseOn) * 0.08;
-    if (Math.abs(mouseGoal - mouseOn) > 0.01) moving = true;
     sx += ((still ? 0 : mx * 0.05) - sx) * 0.03;
     sy += ((still ? 0 : my * 0.025) - sy) * 0.03;
     const sway = still ? 0 : Math.sin(now * 0.00035) * 0.02;
@@ -236,7 +295,7 @@ function create(host, opts) {
     const t = (now - t0) / 1000;
     mats.forEach((m) => {
       m.uniforms.uTime.value = still ? 0 : t; m.uniforms.uForm.value = form;
-      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uFocus.value = focusOn; m.uniforms.uMouse.value.copy(mouse); m.uniforms.uMouseOn.value = mouseOn;
+      m.uniforms.uBreath.value = still ? 0 : 1; m.uniforms.uFocus.value = focusOn;
     });
     return moving || !still;
   }

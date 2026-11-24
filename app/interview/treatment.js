@@ -323,6 +323,7 @@
   // ---------------- browser UI ----------------
   var I = root.TCMI18n;
   var T = createTreatment(root.TCM_TX, I.he);
+  api.label = T.label; api.tx = T.tx;   // for the figure's hover cards (hero3d.js)
   var tx = root.TCM_TX;
   var plan = null;          // the plan being edited
   var userPicked = false;   // the clinician chose the patterns, so a re-ranking does not move them
