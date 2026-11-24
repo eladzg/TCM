@@ -323,6 +323,7 @@
   // ---------------- browser UI ----------------
   var I = root.TCMI18n;
   var T = createTreatment(root.TCM_TX, I.he);
+  api.label = T.label; api.tx = T.tx;   // for the figure's hover cards (hero3d.js)
   var tx = root.TCM_TX;
   var plan = null;          // the plan being edited
   var userPicked = false;   // the clinician chose the patterns, so a re-ranking does not move them
@@ -526,15 +527,23 @@
     if (!BM || !acu.length && !press.length) return null;
     var all = acu.concat(press.filter(function (id) { return acu.indexOf(id) === -1; }));
     var flat = el("div", { class: "bm-wrap" }, [BM.figure({ acu: acu, shiatsu: press, warn: warn, label: T.label })]);
-    var B3 = root.TCMBody3D;
+    var B3 = root.TCMBody3D, C = root.TCMCompanion;
     var body = [];
-    if (B3 && B3.available) {
+    var sel = { acu: acu, shiatsu: press, warn: warn };
+    if (C && C.column()) {
+      // Wide screens: the figure beside the page shows these points; no second figure here.
+      if (slot === "plan") C.focus(sel, "נקודות התכנית");
+      body.push(el("p", { class: "hint" }, ["הנקודות מודגשות על הדמות שבצד המסך: הן פועמות, הקוד של כל אחת מופיע לידה, והמרידיאנים שלהן בולטים. ",
+        el("button", { type: "button", class: "btn ghost", text: "הצגה על הדמות", onclick: function () { C.focus(sel, title || "נקודות התכנית"); } })]),
+        legend(all, warn),
+        el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));
+    } else if (B3 && B3.available) {
       var host3 = el("div", { class: "b3d-host" });
       if (!viewers[slot]) viewers[slot] = B3.create(host3, { label: T.label });
       else host3.appendChild(viewers[slot].element);
       viewers[slot].show({ acu: acu, shiatsu: press, warn: warn });
       body.push(host3, legend(all, warn),
-        el("p", { class: "hint", text: "גוררים כדי לסובב ומגלגלים כדי להתקרב. הקווים מראים את מהלך המרידיאנים בשני צדי הגוף, והחצים את כיוון הזרימה (לפי סדר מספרי הנקודות). מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
+        el("p", { class: "hint", text: "גוררים לכל כיוון כדי לסובב ומגלגלים כדי להתקרב. המרידיאנים של הנקודות שנבחרו מודגשים בשני צדי הגוף, והחצים מראים את כיוון הזרימה (לפי סדר מספרי הנקודות). כל שאר המרידיאנים והנקודות מוצגים בעמעום, וריחוף על נקודה מציג את שמה. מיקום הנקודות על הדמות משוער; המיקום המדויק מופיע בתיאור של כל נקודה (AcuAtlas)." }),
         el("p", { class: "hint credit" }, ["דמות: ", el("a", { href: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66", target: "_blank", rel: "noopener", text: "Male base muscular anatomy" }),
           " מאת Harshit Prajapati, ברישיון ", el("a", { href: "https://creativecommons.org/licenses/by/4.0/", target: "_blank", rel: "noopener", text: "CC BY 4.0" })]),
         el("details", {}, [el("summary", { text: "תרשים סכמטי דו־ממדי" }), flat]));

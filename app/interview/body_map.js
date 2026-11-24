@@ -44,8 +44,11 @@
 
   var NAME_HE = { LU: "ריאה", LI: "מעי גס", ST: "קיבה", SP: "טחול", HT: "לב", SI: "מעי דק", BL: "שלפוחית השתן", KI: "כליה",
                   PC: "קרום הלב", TE: "המחמם המשולש", GB: "כיס המרה", LR: "כבד", CV: "מרידיאן ההיריון (רן)", GV: "המרידיאן השולט (דו)" };
-  var COLOR = { LU: "#7a8a99", LI: "#8c6d3f", ST: "#c27c0e", SP: "#a8862b", HT: "#c0392b", SI: "#d35400", BL: "#2c6e9b", KI: "#1f4e79",
-                PC: "#a93266", TE: "#8e44ad", GB: "#2e8b57", LR: "#1e7a46", CV: "#6f6f6f", GV: "#8a8a8a" };
+  // Grouped by the five phases, in earthy mid-tones that read on the light and the dark theme:
+  // metal (LU, LI) stone, earth (ST, SP) ochre, fire (HT, SI, PC, TE) terracotta to rose, water (BL, KI)
+  // slate blue, wood (GB, LR) leaf green; the midline vessels (CV, GV) in bark and heather.
+  var COLOR = { LU: "#9c9a86", LI: "#b09f7c", ST: "#c9a227", SP: "#a8842f", HT: "#c4583e", SI: "#d9774a", BL: "#4f8fa8", KI: "#3a6f8f",
+                PC: "#b5546b", TE: "#cf8f45", GB: "#6fa14f", LR: "#4f8a3c", CV: "#a07c9a", GV: "#8a6e4b" };
 
   // Left half of the body outline, top (neck) to crotch; mirrored for the right half.
   var HALF = [[92, 58], [92, 70], [64, 78], [56, 90], [50, 125], [40, 160], [30, 226], [22, 244], [21, 262], [26, 273], [37, 272], [40, 250], [42, 232],

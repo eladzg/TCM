@@ -3,58 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ראיון אינטייק TCM</title>
+<title>יועץ קליני לרפואה סינית</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<script>try { if (localStorage.getItem("tcm-theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one reading column; a chat for the patient, a worksheet for the clinician, switched by two tabs. */
+/* Design: "the journey" in earth and moss. A calm warm-dark ground (light linen on request), sage as the
+   one accent, glass bars for navigation, quiet solid panels for dense clinical content, and the body as
+   glass with a soft halo. Red and amber stay reserved for safety and draft marks.
+   Layout: a sticky glass bar (brand, the four stations of the work as pills, sample case, theme);
+   the patient chat in one reading column; the clinician summary wide, with its own section rail. */
 :root {
-  --paper: #f4f6f5;
-  --surface: #ffffff;
-  --ink: #1d2a28;
-  --muted: #5b6b68;
-  --line: #d6dfdc;
-  --jade: #2b6a5c;
-  --jade-soft: #e2efeb;
-  --patient: #eef1f8;
-  --cinnabar: #b23a2a;
-  --cinnabar-soft: #f8e6e2;
-  --amber: #8a5a00;
-  --amber-soft: #f6ecd6;
-  --font-display: "Frank Ruhl Libre", "David Libre", Georgia, serif;
-  --font-body: "Assistant", "Segoe UI", Arial, sans-serif;
+  color-scheme: dark;
+  --paper: #1a1812; --surface: #26221a; --surface-2: #2e2a20; --ink: #f0eadc; --muted: #b9ae97; --line: #3d372a;
+  --jade: #b9cf9c; --jade-ink: #1d2216; --jade-soft: #303624; --patient: #343a26;
+  --cinnabar: #f0957f; --cinnabar-soft: #3d2620; --amber: #e6c27a; --amber-soft: #3a301b;
+  --glass: rgba(46, 42, 30, .62); --edge: rgba(255, 246, 224, .12);
+  --glow-1: #3b3626; --glow-2: #263020;
+  --b3d-glass: #6d7f55; --b3d-rim: #f3e7cc; --b3d-halo: #a9bb88;
+  --font-display: "Heebo", "Segoe UI", Arial, sans-serif;
+  --font-body: "Heebo", "Segoe UI", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-    --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-    --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #141a19; --surface: #1c2422; --ink: #e4ebe9; --muted: #9aaba7; --line: #2f3b38;
-  --jade: #7cc2b0; --jade-soft: #21332f; --patient: #222a36; --cinnabar: #f08a78; --cinnabar-soft: #3a2320;
-  --amber: #e3b866; --amber-soft: #352c1a; color-scheme: dark;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --paper: #f3efe6; --surface: #fffdf8; --surface-2: #f8f4ea; --ink: #2a2619; --muted: #6b6352; --line: #ddd5c4;
+  --jade: #4f6b3a; --jade-ink: #fffdf8; --jade-soft: #e6ebd9; --patient: #ebe7d6;
+  --cinnabar: #b5432c; --cinnabar-soft: #f6e3dc; --amber: #8a5a00; --amber-soft: #f4ead2;
+  --glass: rgba(255, 252, 244, .7); --edge: rgba(80, 70, 40, .14);
+  --glow-1: #e6e2cf; --glow-2: #e9eedd;
+  --b3d-glass: #8a9a70; --b3d-rim: #4f6b3a; --b3d-halo: #9fb07c;
 }
 * { box-sizing: border-box; }
+html { scroll-padding-top: 140px; }
 body {
-  margin: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  margin: 0; color: var(--ink); background: var(--paper);
+  background-image: radial-gradient(90% 60% at 80% -10%, var(--glow-1), transparent 70%), radial-gradient(70% 50% at 10% 0%, var(--glow-2), transparent 70%);
+  background-attachment: fixed;
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6; font-weight: 400;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 48px;
+  padding-block: 0 56px;
 }
-.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
-header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; margin: 0; text-wrap: balance; }
-.sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
-.draft { display: inline-block; font-size: .75rem; letter-spacing: .04em; color: var(--amber); background: var(--amber-soft); border-radius: 4px; padding: 1px 8px; font-weight: 600; }
-nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
-nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; }
-nav.tabs button[aria-selected="true"] { color: var(--jade); border-bottom-color: var(--jade); }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+.wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
+h1 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.7rem, 3.2vw, 2.3rem); line-height: 1.1; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .9rem; margin: 4px 0 0; max-width: 62ch; }
+.draft { display: inline-block; font-size: .75rem; color: var(--amber); background: var(--amber-soft); border-radius: 999px; padding: 1px 10px; font-weight: 500; }
+nav.tabs { position: sticky; top: 10px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; justify-self: center; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); max-width: 100%; }
+nav.tabs button { font: inherit; font-weight: 500; background: none; border: 0; color: var(--muted); padding: 9px 18px; min-height: 42px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
+nav.tabs button:hover { color: var(--ink); background: color-mix(in srgb, var(--jade) 12%, transparent); }
+nav.tabs button[aria-selected="true"] { color: var(--jade-ink); background: var(--jade); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+a { color: var(--jade); }
+.theme-btn { font: inherit; font-size: .9rem; border: 1px solid var(--edge); background: var(--glass); color: var(--ink); border-radius: 999px; min-height: 40px; padding: 6px 14px; cursor: pointer; }
+.rail { position: sticky; top: 72px; z-index: 4; display: flex; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 999px; justify-self: center; max-width: 100%;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); scrollbar-width: none; }
+.rail a { flex: none; text-decoration: none; color: var(--muted); font-size: .88rem; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.rail a:hover { color: var(--ink); }
+.rail a[aria-current="true"] { color: var(--ink); background: var(--jade-soft); }
+.rail[hidden] { display: none; }
 
 /* chat */
 .chat { display: grid; gap: 10px; }
@@ -206,19 +220,254 @@ table.herbs tr.risk-amber td:first-child { box-shadow: inset -4px 0 0 var(--ambe
 input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
 .flag .en { direction: ltr; unicode-bidi: isolate; }
 @media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
+/* ---- earth and moss: components ---- */
+h2 { font-family: var(--font-display); font-weight: 300; font-size: clamp(1.4rem, 2.2vw, 1.75rem); line-height: 1.15; letter-spacing: -.01em; }
+h3 { font-weight: 500; }
+.panel, .dx { background: var(--surface); border: 1px solid var(--edge); border-radius: 22px; padding: 18px 20px; box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 10px 30px rgba(0, 0, 0, .12); }
+.dx.primary { border-color: color-mix(in srgb, var(--jade) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--jade) 25%, transparent), 0 12px 36px color-mix(in srgb, var(--jade) 14%, transparent); }
+.dx-name { font-weight: 500; font-size: 1.1rem; }
+.bar { height: 6px; background: var(--jade-soft); border-radius: 3px; }
+.msg { border-radius: 20px; padding: 11px 16px; line-height: 1.6; }
+.msg.sys { background: var(--surface); border: 1px solid var(--edge); }
+.msg.pt { background: var(--patient); color: var(--ink); }
+.msg.alert { border-radius: 16px; }
+.chip { border-radius: 999px; }
+.btn { border-radius: 999px; min-height: 44px; padding: 9px 20px; font-weight: 500; background: var(--jade); color: var(--jade-ink); border-color: var(--jade); transition: filter .15s, background .15s; }
+.btn:hover:not(:disabled) { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--jade); }
+.btn.no { border-color: var(--line); background: transparent; color: var(--ink); }
+label.opt { border-radius: 999px; padding: 7px 14px; border-color: var(--line); background: var(--surface-2); min-height: 40px; transition: border-color .15s, background .15s; }
+label.opt:hover { border-color: color-mix(in srgb, var(--jade) 50%, var(--line)); }
+input[type="number"], input[type="text"], input[type="password"], input[type="search"], textarea, select, input.gram, input[type="text"].note {
+  font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+select { min-height: 42px; padding: 6px 12px; }
+.mini { background: var(--surface-2); border-color: var(--line); min-height: 30px; padding: 2px 12px; }
+.mini[aria-pressed="true"] { background: var(--jade-soft); border-color: var(--jade); color: var(--ink); }
+.ep span { border-radius: 999px; padding: 4px 14px; border-color: var(--line); background: var(--surface-2); }
+.src, pre.json { background: var(--paper); border-radius: 12px; }
+.scenario, .flag { border-radius: 14px; }
+.txrow { border-radius: 16px; border-color: var(--line); background: var(--surface-2); }
+details > summary { padding: 4px 0; }
+table.herbs th, table.herbs td { border-color: var(--line); }
+li.session { border-radius: 16px; background: var(--surface-2); }
+.voicebar { border-radius: 999px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.wrap .recbar { top: 72px; border-radius: 22px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+/* The clinician summary: wide, with the pattern cards in pairs. */
+#view-clin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.wrap > *, #view-clin > *, .panel > *, .dx > *, .txwrap > *, .tx > * { min-width: 0; }
+#view-clin[hidden], .rail[hidden] { display: none; }
+@media (min-width: 1000px) {
+  #view-clin { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-clin > * { grid-column: 1 / -1; }
+  #view-clin > .dx { grid-column: auto; }
+}
+/* The body: glass on a soft glow, labels as small pills in the channel's colour. */
+.b3d-stage { background: radial-gradient(60% 55% at 50% 45%, color-mix(in srgb, var(--b3d-halo) 16%, transparent), transparent 70%); border-radius: 22px; }
+.b3d-stage canvas { cursor: grab; }
+.b3d-stage canvas:active { cursor: grabbing; }
+.b3d-label { font: 500 11px var(--font-mono); color: var(--ink); padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--ch, var(--line)); transform: translateY(-14px); }
+.b3d-tip { position: absolute; left: 0; top: 0; transform: translate(14px, -50%); pointer-events: none; white-space: nowrap; font-size: .82rem; padding: 3px 10px; border-radius: 999px; background: var(--surface); color: var(--ink); border: 1px solid var(--edge); box-shadow: 0 4px 14px rgba(0, 0, 0, .2); }
+.b3d-tip[hidden] { display: none; }
+.b3d-bar { justify-content: center; }
+.bm-body { fill: var(--surface-2); stroke: var(--muted); }
+@media (max-width: 640px) {
+  header.top { padding-top: 14px; }
+  .brand svg { width: 36px; height: 36px; }
+  nav.tabs { top: 6px; border-radius: 22px; justify-content: center; }
+  nav.tabs button { padding: 7px 12px; font-size: .92rem; min-height: 40px; }
+  .rail { top: 62px; }
+  .panel, .dx { padding: 14px 15px; border-radius: 18px; }
+  .wrap .recbar { top: 112px; }
+}
+@media (prefers-reduced-motion: reduce) { .wrap, nav.tabs button, .btn, label.opt { transition: none; } }
+/* ---- one language with the opening screen: thin titles, glass and hairlines, glowing rings ---- */
+header.top { padding-bottom: 14px; border-bottom: 1px solid var(--edge); }
+header.top h1 { font-weight: 300; font-size: clamp(1.6rem, 2.6vw, 2.4rem); letter-spacing: -.015em; }
+header.top .sub { font-size: .92rem; }
+header.top .kbsrc { display: block; margin-top: 4px; font: .74rem/1.5 var(--font-mono); color: var(--muted); letter-spacing: .02em; }
+header.top select, header.top .btn, header.top .theme-btn { border-radius: 999px; min-height: 42px; }
+header.top select, header.top .theme-btn, .btn.ghost, .btn.no { background: var(--glass); border-color: var(--edge); }
+.btn.ghost { border-color: color-mix(in srgb, var(--jade) 55%, transparent); }
+.btn:not(.ghost):not(.no) { box-shadow: 0 0 0 5px color-mix(in srgb, var(--jade) 14%, transparent), 0 8px 24px color-mix(in srgb, var(--jade) 18%, transparent); }
+.btn:not(.ghost):not(.no):hover:not(:disabled) { box-shadow: 0 0 0 8px color-mix(in srgb, var(--jade) 18%, transparent), 0 8px 28px color-mix(in srgb, var(--jade) 24%, transparent); }
+nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb, var(--jade) 18%, transparent), 0 6px 20px color-mix(in srgb, var(--jade) 22%, transparent); }
+.panel, .dx, .msg.sys { background: color-mix(in srgb, var(--surface) 76%, transparent); border-color: var(--edge); }
+.msg { border-radius: 20px; padding: 11px 16px; }
+.msg.sys { border-start-start-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .1); }
+.msg.pt { background: color-mix(in srgb, var(--jade) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--jade) 30%, transparent); border-start-end-radius: 6px; }
+/* A glowing ring before each block's title, like the rings on the figure's points. */
+.panel > h3:first-child::before, .panel > .txhead h3::before, #view-clin > h2::before, .chat ~ h2::before {
+  content: ""; display: inline-block; width: 9px; height: 9px; margin-inline-end: 10px; vertical-align: .08em; border-radius: 50%;
+  border: 1.5px solid var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 14%, transparent), 0 0 10px color-mix(in srgb, var(--jade) 45%, transparent); }
+.panel > h3:first-child, .panel > .txhead h3 { font-weight: 400; font-size: 1.12rem; letter-spacing: -.005em; }
+.hint, .msg .meta { font-size: .82rem; }
+.h3d { position: relative; }
+.h3d-tip { position: absolute; left: 0; top: 0; z-index: 4; max-width: 300px; display: grid; gap: 3px; padding: 9px 13px; border-radius: 14px; pointer-events: none;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
+  color: var(--ink); font-size: .85rem; line-height: 1.45; }
+.h3d-tip[hidden] { display: none; }
+.h3d-tip b { font-weight: 500; }
+.h3d-tip .loc { direction: ltr; text-align: left; font-size: .76rem; color: var(--muted); }
+.h3d-tip .ch { font-size: .78rem; color: var(--jade); }
+/* ---- the companion: the figure lives in the page itself, behind the work. On wide screens the content
+   leans to the right and the figure stands in the open space beside it, fading softly into the panels;
+   on narrow screens it is a faint backdrop. ---- */
+.companion { position: fixed; z-index: 0; inset: 0; pointer-events: none; --fig-x: 50%; }
+.companion[hidden], body.intro-on .companion { display: none; }
+.wrap { position: relative; z-index: 1; }
+.comp-fig { position: absolute; inset: 0; }
+.comp-fig .h3d, .comp-fig canvas { display: block; width: 100%; height: 100%; }
+.comp-tags { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.comp-tags[hidden] { display: none; }
+.comp-tags span { position: absolute; left: 0; top: 0; font: 500 .72rem/1 var(--font-mono); color: var(--ink); background: var(--glass); border: 1px solid var(--edge);
+  padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.comp-tags span.warn { color: var(--cinnabar); border-color: var(--cinnabar); }
+.comp-cap { position: absolute; left: 20px; bottom: 16px; width: min(380px, calc(2 * var(--fig-x) - 60px)); margin: 0; display: grid; gap: 2px; font-size: .76rem; color: var(--muted); }
+.comp-cap b { font-weight: 500; color: var(--ink); font-size: .85rem; }
+.comp-cap a { color: inherit; pointer-events: auto; }
+@media (min-width: 1100px) {
+  body:not(.intro-on) .wrap { margin-left: auto; margin-right: clamp(16px, 3vw, 72px); }
+  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
+  .companion { pointer-events: auto;
+    background: radial-gradient(28% 55% at var(--fig-x) 50%, color-mix(in srgb, var(--b3d-halo) 9%, transparent), transparent 85%); }
+  .comp-fig { -webkit-mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); }
+}
+@media (max-width: 1099px) {
+  .companion { opacity: .28; }
+  .comp-cap { display: none; }
+}
+/* ---- the opening screen: the body, very large, from the crown down as the page scrolls; the system's menu
+   is revealed along it, and at the end the whole body stands with every option ---- */
+#intro[hidden] { display: none; }
+body.intro-on { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+body.intro-on .wrap { max-width: none; }
+body.intro-on .wrap > :not(#intro) { display: none; }
+.intro { position: relative; height: 460svh; transition: opacity .35s ease, transform .35s ease; }
+.intro-stick { position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; }
+.intro-fig canvas { touch-action: pan-y; }
+.intro-hint { position: absolute; z-index: 2; left: 50%; bottom: 74px; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px;
+  font-size: .85rem; color: var(--muted); pointer-events: none; transition: opacity .4s ease; }
+.intro-hint i { width: 1px; height: 46px; background: linear-gradient(var(--jade), transparent); transform-origin: top; animation: hintline 2.2s ease-in-out infinite; }
+@keyframes hintline { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+.intro-hint.gone { opacity: 0; }
+.intro-bar { position: absolute; z-index: 2; top: 0; bottom: 0; left: max(10px, 1.2vw); width: 2px; margin: auto 0; height: 34vh; border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent); pointer-events: none; }
+.intro-bar i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: inherit; background: var(--jade); transform-origin: top; transform: scaleY(0); }
+.intro.leaving { opacity: 0; transform: scale(.985); }
+.intro-fig { position: absolute; inset: 0; }
+.intro-fig { background: radial-gradient(36% 50% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 12%, transparent), transparent 75%); }
+.intro-fig .h3d, .intro-fig canvas { display: block; width: 100%; height: 100%; }
+.intro-lines, .intro-rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.intro-lines line { stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1; }
+.intro-lines line.on { stroke: var(--jade); }
+.intro-rings i { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: radial-gradient(circle, var(--jade-ink) 0 2.5px, var(--jade) 3.5px 6px, color-mix(in srgb, var(--jade) 25%, transparent) 7px);
+  border: 1px solid color-mix(in srgb, var(--jade) 60%, transparent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--jade) 12%, transparent), 0 0 18px color-mix(in srgb, var(--jade) 45%, transparent); }
+.intro-rings i.on { animation: ringpulse 1.6s ease-out infinite; }
+@keyframes ringpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--jade) 50%, transparent), 0 0 18px var(--jade); } 100% { box-shadow: 0 0 0 18px transparent, 0 0 18px var(--jade); } }
+.intro-head { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(22px, 3vw) 0; pointer-events: none; }
+.intro-head > * { pointer-events: auto; }
+.intro-title { font-weight: 300; font-size: clamp(1.6rem, 2.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.015em; margin: 0; }
+.intro-lead { margin: 6px 0 0; color: var(--muted); font-size: .95rem; max-width: 34ch; }
+.intro-menu { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.im { position: absolute; left: 0; top: 0; pointer-events: auto; font: inherit; color: var(--ink); text-align: start; cursor: pointer; display: grid; gap: 1px;
+  padding: 10px 20px; min-height: 52px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge);
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+  visibility: hidden; opacity: 0; transition: opacity .45s ease, background .2s, border-color .2s, box-shadow .2s; white-space: nowrap; }
+.im.in { opacity: 1; }
+.im:not(.in) { pointer-events: none; }
+.intro.flat .im { pointer-events: auto; }
+.intro-rings i, .intro-lines line { transition: opacity .45s ease; }
+.intro-rings i.out, .intro-lines line.out { opacity: 0; }
+.im b { font-weight: 500; font-size: 1.05rem; }
+.im span { font-size: .82rem; color: var(--muted); }
+.im:hover, .im:focus-visible, .im.on { border-color: color-mix(in srgb, var(--jade) 70%, transparent); background: color-mix(in srgb, var(--jade) 14%, var(--glass)); }
+.im.primary { background: var(--jade); color: var(--jade-ink); border-color: var(--jade); box-shadow: 0 0 0 7px color-mix(in srgb, var(--jade) 18%, transparent), 0 10px 34px color-mix(in srgb, var(--jade) 28%, transparent); }
+.im.primary span { color: color-mix(in srgb, var(--jade-ink) 75%, transparent); }
+.im.primary:hover, .im.primary:focus-visible { box-shadow: 0 0 0 10px color-mix(in srgb, var(--jade) 22%, transparent), 0 10px 38px color-mix(in srgb, var(--jade) 32%, transparent); }
+.im[hidden] { display: none; }
+.intro-foot { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 4px 18px;
+  padding: 0 max(22px, 3vw) max(14px, env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+.intro-foot > * { pointer-events: auto; margin: 0; }
+.intro-stats { font-size: .9rem; color: var(--muted); }
+.intro-stats b { color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+.intro-credit { font-size: .76rem; color: var(--muted); }
+.intro-credit a { color: inherit; }
+header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
+/* Without WebGL the menu is a plain column under the title. */
+.intro.flat { height: auto; }
+.intro.flat .intro-stick { position: relative; height: auto; min-height: 100svh; display: grid; align-content: center; justify-items: center; padding: 140px 16px 90px; }
+.intro.flat .intro-hint, .intro.flat .intro-bar { display: none; }
+.intro.flat .intro-menu { position: static; display: grid; gap: 10px; width: min(420px, 100%); }
+.intro.flat .im { position: static; visibility: visible; opacity: 1; transform: none !important; white-space: normal; max-width: none; width: 100%; }
+.intro.flat .intro-lines, .intro.flat .intro-rings { display: none; }
+@media (max-width: 700px) {
+  .intro-lead { display: none; }
+  .intro-head .draft { display: none; }
+  .im { padding: 8px 14px; min-height: 46px; max-width: 46vw; white-space: normal; }
+  .im span { display: none; }
+  .im b { font-size: .95rem; }
+  .intro-foot { justify-content: center; text-align: center; }
+  .intro-stats { font-size: .8rem; }
+  .intro-hint { bottom: 112px; }
+}
+@media (prefers-reduced-motion: reduce) { .intro, .im, .intro-rings i, .intro-lines line { transition: none; } .intro-rings i.on, .intro-hint i { animation: none; } }
 </style>
 </head>
 <body>
+<aside id="companion" class="companion" dir="rtl" lang="he" aria-label="הדמות">
+  <div class="comp-fig"></div>
+  <div class="comp-tags" hidden></div>
+  <p class="comp-cap"><b>14 מרידיאנים · 361 נקודות</b><span>גוררים כדי לסובב. דמות: Male base muscular anatomy מאת Harshit Prajapati, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</span></p>
+</aside>
 <div class="wrap" dir="rtl" lang="he">
+  <section id="intro" class="intro" aria-labelledby="intro-title" hidden>
+  <div class="intro-stick" id="intro-stick">
+    <div class="intro-fig" id="intro-fig"></div>
+    <svg class="intro-lines" id="intro-lines" aria-hidden="true"></svg>
+    <div class="intro-rings" id="intro-rings" aria-hidden="true"></div>
+    <div class="intro-head">
+      <div class="brand">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
+        <div>
+          <h2 id="intro-title" class="intro-title">יועץ קליני לרפואה סינית</h2>
+          <p class="intro-lead">ראיון, תבניות, תכנית טיפול ובטיחות. המערכת מציעה, המטפל מחליט.</p>
+        </div>
+      </div>
+      <span class="draft">אב-טיפוס · טיוטה</span>
+    </div>
+    <nav class="intro-menu" id="intro-menu" aria-label="אפשרויות המערכת">
+      <button type="button" class="im primary" data-at="GV20" data-side="r" data-go="start"><b>התחלת ראיון</b><span>שאלון המטופל, בעברית</span></button>
+      <button type="button" class="im" data-at="CV17" data-side="l" data-go="demo"><b>מקרה לדוגמה</b><span>כל המהלך על מטופל לדוגמה</span></button>
+      <button type="button" class="im" data-at="CV12" data-side="r" data-go="summary"><b>סיכום למטפל</b><span>ממצאים, לשון ודופק, תבניות</span></button>
+      <button type="button" class="im" data-at="CV4" data-side="l" data-go="plan"><b>תכנית טיפול</b><span>דיקור, שיאצו, צמחים ובטיחות</span></button>
+      <button type="button" class="im" data-at="GB34" data-mirror="1" data-side="r" data-go="records" hidden><b>תיקים</b><span>מטופלים וקישור לשאלון</span></button>
+      <button type="button" class="im" data-at="LR3" data-mirror="1" data-side="l" data-go="approvals" hidden><b>אישור קליני</b><span>אישור המאגר וחתימה</span></button>
+      <button type="button" class="im" data-at="ST36" data-mirror="1" data-side="l" data-go="theme"><b id="intro-theme">מצב בהיר</b><span>צבעי התצוגה</span></button>
+    </nav>
+    <div class="intro-foot">
+      <p class="intro-stats"><b id="st-points">361</b> נקודות · <b>14</b> מרידיאנים · <b id="st-patterns">1,734</b> תבניות · <b id="st-formulas">329</b> נוסחאות · <b id="st-safety">150</b> כללי בטיחות</p>
+      <p class="intro-credit">דמות: Male base muscular anatomy מאת Harshit Prajapati, ברישיון <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. מיקום הנקודות משוער.</p>
+    </div>
+    <div class="intro-hint" id="intro-hint" aria-hidden="true">גללו למטה, לאורך הגוף<i></i></div>
+    <div class="intro-bar" aria-hidden="true"><i id="intro-progress"></i></div>
+  </div>
+  </section>
   <header class="top">
-    <div>
-      <h1>ראיון אינטייק TCM</h1>
-      <p class="sub">אב-טיפוס: ראיון מטופל בעברית והצעת תבניות לפי WHO 2022, התקן הסיני GB/T 16751.2 ורשומות קליניות מ-TCM-SD. <span class="draft">טיוטה · משקלות טיוטה לאישור המטפל</span></p>
+    <div class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M14 30c3-1 5-3 6-6M34 18c-3 1-5 3-6 6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg>
+      <div>
+      <h1>יועץ קליני לרפואה סינית</h1>
+      <p class="sub">ראיון מטופל בעברית, תבניות, תכנית טיפול ובטיחות. המערכת מציעה, המטפל מחליט. <span class="draft">אב-טיפוס · משקלות טיוטה לאישור המטפל</span>
+        <span class="kbsrc">WHO 2022 · GB/T 16751.2 · TCM-SD</span></p>
+      </div>
     </div>
     <div class="row">
       <button class="btn" id="voice-start" type="button" hidden>שיחה קולית</button>
       <select id="demo-case" aria-label="מקרה לדוגמה"></select>
       <button class="btn ghost" id="demo" type="button">מילוי מקרה לדוגמה</button>
+      <button class="theme-btn" id="theme-toggle" type="button" aria-pressed="false">מצב בהיר</button>
     </div>
   </header>
   <nav class="tabs" role="tablist">
@@ -250,6 +499,11 @@ input.gram { width: 5.5em; font: inherit; color: var(--ink); background: var(--s
 <script src="voice_config.js"></script>
 <script src="voice_flow.js"></script>
 <script type="module" src="voice_ui.js"></script>
+<script src="design.js"></script>
+<script src="hero_points.js"></script>
+<script src="companion.js"></script>
+<script src="intro.js"></script>
+<script type="module" src="hero3d.js"></script>
 <script type="module" src="body3d.js"></script>
 </body>
 </html>

@@ -772,6 +772,13 @@ def manual(b, P):
         "LI4": lambda: b.hand((X_WRIST + X_MCP) / 2, 0.0060, (0, 0.85, 0.5)),  # radial side of the midpoint of the 2nd metacarpal
         "LI5": lambda: b.arm(X_WRIST - 0.0004, 118),                      # anatomical snuffbox, radial end of the dorsal crease
         "LI11": lambda: b.arm(X_ELBOW + 0.0004, 78),                      # lateral end of the cubital crease
+        # LI6-LI10 on the line LI5-LI11, kept on the radial side of the back of the forearm (the text
+        # alone drifts toward the ulnar side as the forearm turns)
+        "LI6": lambda: b.arm(X_WRIST + 3 * CUN_FORE, 118 - 18 * 3 / 12),
+        "LI7": lambda: b.arm(X_WRIST + 5 * CUN_FORE, 118 - 18 * 5 / 12),
+        "LI8": lambda: b.arm(X_WRIST + 8 * CUN_FORE, 118 - 18 * 8 / 12),
+        "LI9": lambda: b.arm(X_WRIST + 9 * CUN_FORE, 118 - 18 * 9 / 12),
+        "LI10": lambda: b.arm(X_WRIST + 10 * CUN_FORE, 118 - 18 * 10 / 12),
         "LI12": lambda: b.arm(X_ELBOW + 1.0 * cu, 118),                   # above the lateral epicondyle
         "LI15": lambda: b.s.snap((ACROMION[0] - 0.0012, ACROMION[1] - 0.0012, 0.0030), (0, 0.45, 1), 0.006),
         "LI16": lambda: b.s.outer((ACROMION[0] + 0.0060, -0.010, -0.0025), (0, 1, 0)),
@@ -809,7 +816,8 @@ def manual(b, P):
         "SP4": lambda: b.foot(0.52, 0, "M", fh=0.28),
         "SP5": lambda: b.foot(0.30, 0, "M", fh=0.62),
         "SP9": lambda: b.leg(Y_SP9, -100),
-        "SP11": lambda: b.leg(Y_PUBIS - (Y_PUBIS - Y_PAT_BASE) / 3, -62),
+        # over the femoral artery, between sartorius and adductor longus: the front-medial face of the thigh
+        "SP11": lambda: b.leg(Y_PUBIS - (Y_PUBIS - Y_PAT_BASE) / 3, -30),
         "SP12": lambda: b.trunk(Y_PUBIS + 0.0004, 3.5, "F"),
         "SP15": lambda: b.trunk(Y_NAVEL, 4, "F"),
         "SP21": lambda: b.midaxillary(ics_y(6)),
@@ -933,6 +941,9 @@ def manual(b, P):
         "LR7": lambda: b.leg(Y_SP9, -128),
         "LR8": lambda: b.leg(Y_POP + 0.0004, -118),
         "LR9": lambda: b.leg(Y_PAT_BASE + 4 * ct, -105),
+        # 2 and 3 cun below ST30, on the front of the groin over adductor longus (the text alone lands between the legs)
+        "LR11": lambda: b.front(-0.0060, Y_PUBIS - 2 * ct),
+        "LR10": lambda: b.front(-0.0058, Y_PUBIS - 3 * ct),
         "LR12": lambda: b.trunk(Y_PUBIS, 2.5, "F"),
         "LR13": lambda: b.trunk_phi(Y_NAVEL + 2 * cv, 76),
         # --- Conception vessel
