@@ -157,11 +157,15 @@ function create(container, opts) {
   controls.zoomSpeed = 0.6;
   controls.minDistance = 0.08;
   controls.maxDistance = 0.8;
+  if (opts.hero) controls.enableZoom = false;   // the opening screen scrolls the page instead
+  if (opts.hero) renderer.domElement.style.touchAction = "pan-y";   // a finger still scrolls the page
   camera.position.set(0, CENTRE + 0.01, 0.42);
 
   // ---- motion ----
   let visible = true, raf = 0;   // the render loop's state (below)
   let yaw = 0, pit = 0, vy = 0, vp = 0, drag = null, goalYaw = null, camHome = 0, mx = 0, my = 0, sx = 0, sy = 0, lastDrag = 0;
+  let camGoal = null;   // {y, dist}: where an outside driver (the opening screen's scroll) wants the camera
+  const goalPos = new THREE.Vector3(), goalTgt = new THREE.Vector3();
   const homeDist = () => (opts.dist ? opts.dist(camera.aspect || 1) : 0.42);
   renderer.domElement.addEventListener("pointerdown", (e) => {
     drag = { x: e.clientX, y: e.clientY }; vy = vp = 0; goalYaw = null;
@@ -204,7 +208,12 @@ function create(container, opts) {
       yaw += (goalYaw - yaw) * 0.06;
       if (Math.abs(goalYaw - yaw) < 0.001) { yaw = goalYaw; goalYaw = null; } else moving = true;
     }
-    if (camHome > 0) {
+    if (camGoal) {
+      goalPos.set(0, camGoal.y, camGoal.dist); goalTgt.set(0, camGoal.y, 0);
+      const k = reduced() ? 1 : 0.14;
+      camera.position.lerp(goalPos, k); controls.target.lerp(goalTgt, k);
+      if (camera.position.distanceTo(goalPos) > 1e-5) moving = true;
+    } else if (camHome > 0) {
       const home = new THREE.Vector3(0, CENTRE + 0.01, homeDist());
       camera.position.lerp(home, 0.08); controls.target.lerp(target, 0.08);
       if (camera.position.distanceTo(home) < 0.001) camHome = 0;
@@ -248,7 +257,8 @@ function create(container, opts) {
     const w = stage.clientWidth || 600, h = opts.height ? Math.round(opts.height(w)) : Math.round(Math.min(640, Math.max(380, w * 1.0)));
     renderer.setSize(w, h); labels.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
-    if (opts.dist) { camera.position.set(0, CENTRE + 0.01, homeDist()); controls.target.copy(target); }
+    if (camGoal) { camera.position.set(0, camGoal.y, camGoal.dist); controls.target.set(0, camGoal.y, 0); }
+    else if (opts.dist) { camera.position.set(0, CENTRE + 0.01, homeDist()); controls.target.copy(target); }
     request();
   }
 
@@ -310,7 +320,8 @@ function create(container, opts) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
-    allPts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.0055, map: dotTexture(), vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
+    // On the opening screen the camera comes very close, so there the dots keep one size on the screen.
+    allPts = new THREE.Points(geo, new THREE.PointsMaterial({ size: opts.hero ? 7 : 0.0055, sizeAttenuation: !opts.hero, map: dotTexture(), vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
     allPts.renderOrder = 4; allLayer.add(allPts);
   }
   const ray = new THREE.Raycaster(); ray.params.Points.threshold = 0.0016;
@@ -363,7 +374,13 @@ function create(container, opts) {
     sp.copy(v.pos).applyMatrix4(inner.matrixWorld).project(camera);
     return { x: (sp.x + 1) / 2 * renderer.domElement.clientWidth, y: (1 - sp.y) / 2 * renderer.domElement.clientHeight };
   }
-  Object.assign(api, { show: (sel) => show(sel), element: wrap, screen, stage });
+  // An outside driver frames the body: the camera glides to look level at height y from distance dist.
+  function frame(y, dist, now) {
+    camGoal = { y, dist };
+    if (now) { camera.position.set(0, y, dist); controls.target.set(0, y, 0); }
+    request();
+  }
+  Object.assign(api, { show: (sel) => show(sel), element: wrap, screen, stage, frame });
 
   function clear() {
     marks.children.slice().forEach((c) => {

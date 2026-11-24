@@ -1,6 +1,8 @@
-// The opening screen: the glass body fills the screen, every channel on it, and the system's menu sits
-// along the body: each option is a glass pill tied by a hairline to a glowing ring on an acupuncture
-// point (the start at the crown, the summary at the chest, the plan at the middle, and so on down).
+// The opening screen: the glass body, very large, every channel on it. It opens on the crown; scrolling
+// carries the camera down the body and then back, until the whole body stands on the screen. The system's
+// menu sits along the body: each option is a glass pill tied by a hairline to a glowing ring on an
+// acupuncture point (the start at the crown, the summary at the chest, the plan at the middle, and so on
+// down), and it shows while its point is on the screen, so the options are revealed as the body is.
 // It shows once per browser session; the brand in the header brings it back.
 (function () {
   "use strict";
@@ -18,6 +20,8 @@
   var items = Array.prototype.slice.call(menu.querySelectorAll(".im"));
   var ringsBox = document.getElementById("intro-rings");
   var lines = document.getElementById("intro-lines");
+  var stick = document.getElementById("intro-stick");
+  var hint = document.getElementById("intro-hint"), bar = document.getElementById("intro-progress");
   var SVG = "http://www.w3.org/2000/svg";
   items.forEach(function (b) {
     b._ring = document.createElement("i");
@@ -35,7 +39,7 @@
   // Place the pills beside their points. Wide screens: a column on each side of the body, at a steady
   // distance from it; phones: pinned to the screen's edges. Pills on one side never overlap.
   function place(v) {
-    var W = intro.clientWidth, H = intro.clientHeight;
+    var W = stick.clientWidth, H = stick.clientHeight;
     if (!W || !H) return;
     var phone = W < 700, gap = phone ? 8 : 14, top = phone ? 92 : 110, bottom = H - (phone ? 70 : 64);
     lines.setAttribute("viewBox", "0 0 " + W + " " + H);
@@ -48,7 +52,11 @@
         var q = v.screen(b.getAttribute("data-at"), -1);
         if (q && p && ((side === "r") ? q.x > p.x : q.x < p.x)) p = q;
       }
+      var shown = !!p && p.x > 0 && p.x < W && p.y > H * 0.1 && p.y < H * 0.92;
+      b.classList.toggle("in", shown);
+      b._ring.classList.toggle("out", !shown); b._line.classList.toggle("out", !shown);
       if (!p) return;
+      if (!shown) { b._ring.style.transform = "translate(" + p.x.toFixed(1) + "px," + p.y.toFixed(1) + "px)"; return; }
       cols[side].push({ b: b, p: p, h: b.offsetHeight, w: b.offsetWidth });
     });
     ["r", "l"].forEach(function (side) {
@@ -74,6 +82,30 @@
     });
   }
 
+  // ---- the scroll drives the camera: the crown, close; down the body; then back to the whole figure ----
+  var CENTRE = -0.075;
+  function smooth(a) { return a * a * (3 - 2 * a); }
+  function progress() {
+    var room = intro.offsetHeight - stick.clientHeight;
+    return room > 0 ? Math.max(0, Math.min(1, -intro.getBoundingClientRect().top / room)) : 1;
+  }
+  function frame(now) {
+    if (!viewer || intro.hidden) return;
+    var t = progress(), W = stick.clientWidth || 1, H = stick.clientHeight || 1, aspect = W / H;
+    var narrow = Math.max(1, 0.75 / aspect);               // a phone needs the camera further back
+    var near = 0.12 * narrow, mid = 0.17 * narrow;
+    var full = aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385;
+    var keys = [[0, -0.004, near], [0.6, -0.11, mid], [1, CENTRE + 0.01, full]];
+    var i = t < keys[1][0] ? 0 : 1, a = keys[i], b = keys[i + 1];
+    var k = smooth((t - a[0]) / (b[0] - a[0]));
+    viewer.frame(a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, now);
+    if (hint) hint.classList.toggle("gone", t > 0.03);
+    if (bar) bar.style.transform = "scaleY(" + t.toFixed(3) + ")";
+  }
+  var ticking = false;
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; frame(false); }); } }, { passive: true });
+  window.addEventListener("resize", function () { frame(true); });
+
   var viewer = null, flatTimer = 0;
   function flat() { intro.classList.add("flat"); }
   function figure() {
@@ -85,10 +117,10 @@
     viewer = B3.create(host, {
       hero: true,
       label: T && T.label ? T.label : null,
-      height: function () { return intro.clientHeight; },
-      dist: function (aspect) { return aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385; },
+      height: function () { return stick.clientHeight; },
       onframe: place
     });
+    frame(true);
     viewer.show({ acu: [], shiatsu: [], warn: [] });
     if (viewer.ready && viewer.ready.catch) viewer.ready.catch(flat);
   }
@@ -98,6 +130,7 @@
     document.body.classList.add("intro-on");
     window.scrollTo(0, 0);
     figure();
+    frame(true);
   }
   function close(then) {
     try { sessionStorage.setItem(KEY, "1"); } catch (e) { /* storage off */ }
