@@ -154,6 +154,8 @@
     records: function () { close(function () { click("tab-records"); }); },
     approvals: function () { close(function () { click("tab-approvals"); }); },
     today: function () { close(function () { click("tab-pm-today"); }); },
+    cal: function () { close(function () { click("tab-pm-cal"); }); },
+    admin: function () { close(function () { click("tab-pm-admin"); }); },
     theme: function () { click("theme-toggle"); syncTheme(); }
   };
   items.forEach(function (b) { b.addEventListener("click", function () { var f = go[b.getAttribute("data-go")]; if (f) f(); }); });
@@ -164,7 +166,7 @@
     items.forEach(function (b) {
       var g = b.getAttribute("data-go");
       if ((g === "records" || g === "approvals") && document.getElementById("tab-" + g)) b.hidden = false;
-      if (g === "today" && document.getElementById("tab-pm-today")) b.hidden = false;   // practice.js
+      if ((g === "today" || g === "cal" || g === "admin") && document.getElementById("tab-pm-" + g)) b.hidden = false;   // practice.js
     });
     if (viewer && viewer.ready) place(viewer);
   }
