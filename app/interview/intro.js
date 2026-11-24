@@ -41,7 +41,8 @@
   function place(v) {
     var W = stick.clientWidth, H = stick.clientHeight;
     if (!W || !H) return;
-    var phone = W < 700, gap = phone ? 8 : 14, top = phone ? 92 : 110, bottom = H - (phone ? 70 : 64);
+    var foot = intro.querySelector(".intro-foot"), fh = foot ? foot.offsetHeight : 60;
+    var phone = W < 700, gap = phone ? 8 : 14, top = phone ? 92 : 110, bottom = H - fh - 8;
     lines.setAttribute("viewBox", "0 0 " + W + " " + H);
     var cols = { r: [], l: [] };
     items.forEach(function (b) {
@@ -52,7 +53,7 @@
         var q = v.screen(b.getAttribute("data-at"), -1);
         if (q && p && ((side === "r") ? q.x > p.x : q.x < p.x)) p = q;
       }
-      var shown = !!p && p.x > 0 && p.x < W && p.y > H * 0.1 && p.y < H * 0.92;
+      var shown = !!p && p.x > 0 && p.x < W && p.y > H * 0.1 && p.y < bottom - 10;
       b.classList.toggle("in", shown);
       b._ring.classList.toggle("out", !shown); b._line.classList.toggle("out", !shown);
       if (!p) return;
@@ -93,12 +94,13 @@
     if (!viewer || intro.hidden) return;
     var t = progress(), W = stick.clientWidth || 1, H = stick.clientHeight || 1, aspect = W / H;
     var narrow = Math.max(1, 0.75 / aspect);               // a phone needs the camera further back
-    var near = 0.12 * narrow, mid = 0.17 * narrow;
+    var near = 0.1 * narrow, mid = 0.17 * narrow;
     var full = aspect < 0.75 ? 0.38 + (0.75 - aspect) * 0.25 : 0.385;
     var keys = [[0, -0.004, near], [0.6, -0.11, mid], [1, CENTRE + 0.01, full]];
     var i = t < keys[1][0] ? 0 : 1, a = keys[i], b = keys[i + 1];
     var k = smooth((t - a[0]) / (b[0] - a[0]));
-    viewer.frame(a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, now);
+    var turn = -0.6 * (1 - smooth(Math.min(1, t / 0.3)));   // the head in three-quarter view, turning to face us
+    viewer.frame(a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, now, turn);
     if (hint) hint.classList.toggle("gone", t > 0.03);
     if (bar) bar.style.transform = "scaleY(" + t.toFixed(3) + ")";
   }
@@ -109,20 +111,15 @@
   var viewer = null, flatTimer = 0;
   function flat() { intro.classList.add("flat"); }
   function figure() {
-    var B3 = window.TCMBody3D, host = document.getElementById("intro-fig");
+    var B3 = window.TCMHero3D, host = document.getElementById("intro-fig");
     if (viewer || intro.hidden || !host) return;
     if (!B3) { if (!flatTimer) flatTimer = setTimeout(function () { if (!viewer) flat(); }, 6000); return; }
     if (!B3.available) return flat();
-    var T = window.TCMTreatment;
     viewer = B3.create(host, {
-      hero: true,
-      label: T && T.label ? T.label : null,
       height: function () { return stick.clientHeight; },
       onframe: place
     });
     frame(true);
-    viewer.show({ acu: [], shiatsu: [], warn: [] });
-    if (viewer.ready && viewer.ready.catch) viewer.ready.catch(flat);
   }
 
   function open() {
@@ -181,7 +178,7 @@
     brand.addEventListener("click", open);
     brand.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
   }
-  window.addEventListener("tcm-body3d-ready", figure);
+  window.addEventListener("tcm-hero3d-ready", figure);
 
   var seen = false;
   try { seen = sessionStorage.getItem(KEY) === "1"; } catch (e) { /* storage off */ }

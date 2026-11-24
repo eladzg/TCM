@@ -288,7 +288,7 @@ body.intro-on .wrap { max-width: none; }
 body.intro-on .wrap > :not(#intro) { display: none; }
 .intro { position: relative; height: 460svh; transition: opacity .35s ease, transform .35s ease; }
 .intro-stick { position: sticky; top: 0; height: 100svh; min-height: 520px; overflow: hidden; }
-.intro-fig .b3d-stage, .intro-fig canvas { touch-action: pan-y; }
+.intro-fig canvas { touch-action: pan-y; }
 .intro-hint { position: absolute; z-index: 2; left: 50%; bottom: 74px; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px;
   font-size: .85rem; color: var(--muted); pointer-events: none; transition: opacity .4s ease; }
 .intro-hint i { width: 1px; height: 46px; background: linear-gradient(var(--jade), transparent); transform-origin: top; animation: hintline 2.2s ease-in-out infinite; }
@@ -299,9 +299,8 @@ body.intro-on .wrap > :not(#intro) { display: none; }
 .intro-bar i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: inherit; background: var(--jade); transform-origin: top; transform: scaleY(0); }
 .intro.leaving { opacity: 0; transform: scale(.985); }
 .intro-fig { position: absolute; inset: 0; }
-.intro-fig .b3d, .intro-fig .b3d-stage { height: 100%; }
-.intro-fig .b3d-bar { display: none; }
-.intro-fig .b3d-stage { border-radius: 0; background: radial-gradient(38% 52% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 20%, transparent), transparent 75%); }
+.intro-fig { background: radial-gradient(36% 50% at 50% 50%, color-mix(in srgb, var(--b3d-halo) 12%, transparent), transparent 75%); }
+.intro-fig .h3d, .intro-fig canvas { display: block; width: 100%; height: 100%; }
 .intro-lines, .intro-rings { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .intro-lines line { stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 1; }
 .intro-lines line.on { stroke: var(--jade); }
@@ -439,7 +438,9 @@ header.top .brand[role="button"] { cursor: pointer; border-radius: 14px; }
 <script src="voice_flow.js"></script>
 <script type="module" src="voice_ui.js"></script>
 <script src="design.js"></script>
+<script src="hero_points.js"></script>
 <script src="intro.js"></script>
+<script type="module" src="hero3d.js"></script>
 <script type="module" src="body3d.js"></script>
 </body>
 </html>
