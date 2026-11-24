@@ -50,7 +50,9 @@ void main() {
   float lit = max(dot(n, normalize(vec3(-.45, .55, .7))), 0.);
   gl_PointSize = clamp(uSize * (0.75 + aRand.z * 0.5) * (.55 + .45 * front) * uScale / -mv.z, 1., uMax);
   float glint = uFlow > 0. ? pow(fract(aU * 18. - uTime * .22), 10.) : 0.;
-  vCol = color * (1. + glint * 1.6);
+  float pt = uFlow > 0. && aU < -.5 ? 1. : 0.;   // an acupuncture point, not a step along a channel
+  gl_PointSize = min(gl_PointSize * (1. + pt * .7), uMax * 1.3);
+  vCol = color * (1. + glint * 1.8 + pt * .3);
   vA = mix(.06, 1., front) * (.35 + .85 * lit) * (.55 + .45 * f);
 }`;
 const FS = `
@@ -117,7 +119,7 @@ function channelCloud() {
   const lineCount = u.length;
   Object.keys(P3).forEach((id) => {
     const p = P3[id], ch = (/^([A-Z]+)/.exec(id) || [])[1];
-    const c = color(ch).lerp(new THREE.Color(1, 1, 1), 0.35);
+    const c = color(ch).lerp(new THREE.Color(1, 1, 1), 0.15);
     (/^(CV|GV)/.test(id) ? [1] : [1, -1]).forEach((s) => add(new THREE.Vector3(p[0] * s, p[1], p[2]), new THREE.Vector3(p[3] * s, p[4], p[5]), c, -1));
   });
   const g = new THREE.BufferGeometry(), n = u.length;
@@ -148,8 +150,8 @@ function create(host, opts) {
   rig.position.set(0, CENTRE, 0); inner.position.set(0, -CENTRE, 0);
   rig.add(inner); scene.add(rig);
 
-  const bodyMat = material({ size: 0.00062, max: 4.5, alpha: 0.62 });
-  const lineMat = material({ size: 0.0009, max: 6, alpha: 0.8, flow: true });
+  const bodyMat = material({ size: 0.00042, max: 3, alpha: 0.3 });   // the skin: fine, dense and half see-through
+  const lineMat = material({ size: 0.0011, max: 7, alpha: 1, flow: true });   // the channels and points stand out
   const body = new THREE.Points(bodyCloud(), bodyMat);
   const lines = new THREE.Points(channelCloud(), lineMat);
   body.frustumCulled = lines.frustumCulled = false;
@@ -164,7 +166,7 @@ function create(host, opts) {
     for (let i = 0; i < c.count; i++) c.setXYZ(i, ink.r, ink.g, ink.b);
     c.needsUpdate = true;
     mats.forEach((m) => { m.blending = light ? THREE.NormalBlending : THREE.AdditiveBlending; m.needsUpdate = true; });
-    bodyMat.uniforms.uAlpha.value = light ? 0.5 : 0.62;
+    bodyMat.uniforms.uAlpha.value = light ? 0.26 : 0.3;
     request();
   }
 
@@ -229,7 +231,7 @@ function create(host, opts) {
     renderer.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     const scale = h * renderer.getPixelRatio() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    mats.forEach((m) => { m.uniforms.uScale.value = scale; m.uniforms.uAspect.value = w / h; m.uniforms.uMax.value = (m === bodyMat ? 4.5 : 6) * renderer.getPixelRatio(); });
+    mats.forEach((m) => { m.uniforms.uScale.value = scale; m.uniforms.uAspect.value = w / h; m.uniforms.uMax.value = (m === bodyMat ? 3 : 7) * renderer.getPixelRatio(); });
     if (camGoal) { camera.position.set(0, camGoal.y, camGoal.dist); camera.lookAt(0, camGoal.y, 0); }
     request();
   }
