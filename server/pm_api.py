@@ -272,7 +272,7 @@ def install(app, store, settings, clinician, body, patient_token):
             extra["link"] = settings.public_base.rstrip("/") + str(d["link_path"])[:200]
         if d.get("link"):
             extra["link"] = str(d["link"])[:300]
-        return guard(wa.manual, actor, rid, d.get("template"), d.get("appt_id"), extra)
+        return guard(wa.manual if d.get("manual") else wa.direct, actor, rid, d.get("template"), d.get("appt_id"), extra)
 
     @app.post("/api/pm/whatsapp/check")
     async def wa_check(request: Request, actor: str = Depends(clinician)):

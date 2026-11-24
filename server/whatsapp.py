@@ -280,6 +280,42 @@ class WhatsApp:
             self.pm.audit(c, actor, "wa_manual:" + template, rid)
         return {"blocked": [], "text": text, "link": link}
 
+    # ---- a send the clinician asks for: through the Cloud API when it is set up ----
+    def direct(self, actor, rid, template, appt_id=None, extra=None):
+        """With the Cloud API set up, the message goes from the clinic's number; otherwise (or when Meta
+        refuses it) the answer carries the wa.me link for sending by hand, and says why. On Meta's test
+        number the Hebrew text goes as a plain message, which Meta delivers only within 24 hours of the
+        recipient's last message to the number: no hello_world stand-in here, since a link must arrive whole."""
+        if not self.cloud:
+            return self.manual(actor, rid, template, appt_id, extra)
+        params, phone = self.params_for(rid, appt_id, extra)
+        text, hits = render(template, params)
+        if hits:
+            return {"blocked": hits, "text": text}
+        to = normalize_phone(phone)
+        reason = None
+        if not to:
+            reason = "no usable phone number in the record"
+        else:
+            try:
+                if getattr(self.s, "wa_test_mode", False):
+                    body = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text, "preview_url": False}}
+                    res = self.http(f"{self.graph}/{self.s.wa_phone_id}/messages", body, self._auth())
+                    mid = ((res or {}).get("messages") or [{}])[0].get("id")
+                else:
+                    mid = self.send_template(phone, template, params)
+            except Exception as e:  # noqa: BLE001 - Meta's reason goes back to the screen, with the manual link
+                reason = str(e)[:400]
+            else:
+                with self.pm.db() as c:
+                    self.log(c, rid, template, "cloud_api", "sent")
+                    self.pm.audit(c, actor, "wa_direct:" + template, rid)
+                return {"blocked": [], "sent": True, "id": mid, "text": text, "test_mode": bool(getattr(self.s, "wa_test_mode", False))}
+        out = self.manual(actor, rid, template, appt_id, extra)
+        out["sent"] = False
+        out["error"] = reason
+        return out
+
     # ---- the reminder queue ----
     def schedule_reminder(self, appt_id):
         """Queue the reminder for the working day before the visit, at the reminder time (10:00 by
@@ -563,7 +599,9 @@ def _open(req):
             err = {}
         detail = (err.get("error_data") or {}).get("details") or err.get("error_user_msg") or err.get("message") or e.reason
         hint = {100: "Meta does not know this id: is TCM_WA_PHONE_ID the Phone number ID from API Setup, not the phone number itself? ",
-                190: "The token expired or is wrong: make a new one. "}.get(err.get("code"), "")
+                190: "The token expired or is wrong: make a new one. ",
+                131030: "This number is not on the test number's recipient list (API Setup, To). ",
+                131047: "More than 24 hours since the recipient last wrote to this number, so Meta allows only an approved template. "}.get(err.get("code"), "")
         raise MetaError(hint + f"Meta {e.code}" + (f" (code {err.get('code')})" if err.get("code") else "") + f": {detail}") from None
 
 

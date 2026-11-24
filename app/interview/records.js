@@ -99,19 +99,50 @@
     });
   }
 
+  // What a "send in WhatsApp" answer means, shown in box. Connected to the Cloud API, the system sends it
+  // itself; Meta's refusal comes back with the reason and a button for sending by hand. Not connected,
+  // WhatsApp opens with the message ready (wa.me), as before.
+  function openLink(url) { var a = el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }); document.body.appendChild(a); a.click(); a.remove(); }
+  function waReason(msg) {
+    msg = String(msg || "");
+    if (/131047/.test(msg)) return "עברו יותר מ־24 שעות מאז שהנמען כתב למספר הבדיקה של Meta, ולכן Meta לא מעבירה הודעה חופשית. כדי לפתוח חלון של 24 שעות, שלחו מהטלפון של הנמען הודעה כלשהי למספר הבדיקה ונסו שוב.";
+    if (/131030/.test(msg)) return "המספר לא ברשימת הנמענים של מספר הבדיקה. מוסיפים אותו ב־Meta, ב־API Setup, בשדה To.";
+    if (/code 190|\b190\b|האסימון/.test(msg)) return "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ולחבר מחדש בלשונית ניהול הקליניקה.";
+    if (/^invented/.test(msg)) return "זה מטופל/ת בדוי/ה (050-00000xx), וההדגמה לא שולחת אליו. כדי לנסות, צרו תיק חדש עם המספר שלכם, מספר שנמצא ברשימת הנמענים של מספר הבדיקה.";
+    if (/no usable phone/.test(msg)) return "אין בתיק מספר טלפון שאפשר לשלוח אליו.";
+    return msg;
+  }
+  function waResult(o, box) {
+    box.textContent = "";
+    if (o.blocked && o.blocked.length) { box.textContent = "נחסם, יש בהודעה מילה קלינית: " + o.blocked.join(", "); return o; }
+    if (o.sent) {
+      box.textContent = "נשלח בוואטסאפ דרך Meta." + (o.test_mode ? " במספר הבדיקה, ההודעה מגיעה רק אם הנמען כתב למספר הבדיקה ב־24 השעות האחרונות. אם לא הגיעה תוך דקה, שלחו מהטלפון שלו הודעה כלשהי למספר הבדיקה ונסו שוב." : "");
+      return o;
+    }
+    if (o.sent === false) {
+      box.appendChild(document.createTextNode("לא נשלח: " + waReason(o.error) + " "));
+      if (o.link) box.appendChild(el("button", { class: "mini", type: "button", text: "שליחה ידנית בוואטסאפ", onclick: function () { openLink(o.link); } }));
+      return o;
+    }
+    if (o.link) { openLink(o.link); box.textContent = "נפתח בוואטסאפ (המערכת לא מחוברת ל־Cloud API)."; }
+    return o;
+  }
+  // The patient page next to this one: /app/patient.html on the clinic server; on GitHub Pages the
+  // demo hands back a full address under the site's own folder (patient_url).
+  function patientUrl(res) { return res.patient_url || (location.origin + res.patient_path); }
+
   function linkBox(res) {
-    var url = location.origin + res.patient_path;
+    var url = patientUrl(res);
     var copy = el("button", { class: "btn ghost", type: "button", text: "העתקת הקישור" });
     copy.addEventListener("click", function () {
       try { navigator.clipboard.writeText(url).then(function () { copy.textContent = "הועתק"; }); } catch (e) { /* select by hand */ }
     });
     var wa = el("button", { class: "btn ghost", type: "button", text: "שליחה בוואטסאפ" });
-    var waMsg = el("span", { class: "hint" });
+    var waMsg = el("span", { class: "hint", role: "status" });
     wa.addEventListener("click", function () {
       call("POST", "/pm/records/" + res.record_id + "/whatsapp", { template: "intake_link", link: url }).then(function (o) {
-        if (o.link) { var a = el("a", { href: o.link, target: "_blank", rel: "noopener noreferrer" }); document.body.appendChild(a); a.click(); a.remove(); waMsg.textContent = " נפתח בוואטסאפ."; }
-        else waMsg.textContent = " נחסם: " + (o.blocked || []).join(", ");
-      }, function (e) { waMsg.textContent = " " + (e.status === 422 ? "אין מספר טלפון בתיק." : e.message); });
+        waResult(o, waMsg);
+      }, function (e) { waMsg.textContent = e.status === 422 ? "אין מספר טלפון בתיק." : waReason(e.message); });
     });
     return el("div", { class: "flag info" }, [
       el("b", { text: "קישור למטופל לתיק " + res.record_id + " " }),
@@ -250,6 +281,7 @@
   }
 
   window.TCMRecords = {
+    waResult: waResult, waReason: waReason, patientUrl: patientUrl,
     open: openRecord,
     active: function () { return !!active && window.TCMInterviewUI.recordId() === active.record_id; },
     savePlan: function (plan) {

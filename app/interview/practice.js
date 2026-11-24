@@ -130,7 +130,7 @@
       if (t.intake_before_first.length) todo.push(section("ביקור ראשון בקרוב, והשאלון עוד לא מולא", t.intake_before_first.map(function (r) {
         var box = el("span", {});
         return el("li", {}, [(r.name || r.record_id) + " · " + local(r.start) + " ", el("button", { class: "mini", type: "button", text: "קישור חדש בוואטסאפ", onclick: function () {
-          call("POST", "/records/" + r.record_id + "/link").then(function (res) { return sendWa(r.record_id, "intake_link", { link_path: res.patient_path }, box); }, fail(box));
+          call("POST", "/records/" + r.record_id + "/link").then(function (res) { return sendWa(r.record_id, "intake_link", res.patient_url ? { link: res.patient_url } : { link_path: res.patient_path }, box); }, fail(box));
         } }), box]);
       })));
       if (t.series_ended.length) todo.push(section("סיימו סדרה ואין מפגש המשך", t.series_ended.map(function (r) {
@@ -148,8 +148,8 @@
   function templateLabel(id) { var t = (cfg.whatsapp.templates || []).filter(function (x) { return x.id === id; })[0]; return t ? t.label : id; }
   function sendWa(rid, template, extra, box) {
     return call("POST", "/pm/records/" + rid + "/whatsapp", Object.assign({ template: template }, extra || {})).then(function (o) {
-      if (o.link) { openLink(o.link); if (box) box.textContent = "נפתח בוואטסאפ."; }
-      else if (box) box.textContent = "נחסם, יש בהודעה מילה קלינית: " + o.blocked.join(", ");
+      if (box) return window.TCMRecords.waResult(o, box);
+      if (o.link && !o.sent && o.sent !== false) openLink(o.link);
       return o;
     }, box ? fail(box) : null);
   }
@@ -432,11 +432,11 @@
     var box = el("div", {});
     return el("div", {}, [el("div", { class: "answers" }, [
       el("button", { class: "btn ghost", type: "button", text: label + " · וואטסאפ", onclick: function () {
-        call("POST", "/pm/records/" + c.record_id + "/form-link", { tasks: tasks }).then(function (l) { return sendWa(c.record_id, "forms_link", { link_path: l.path }, box); }, fail(box));
+        call("POST", "/pm/records/" + c.record_id + "/form-link", { tasks: tasks }).then(function (l) { return sendWa(c.record_id, "forms_link", l.url ? { link: l.url } : { link_path: l.path }, box); }, fail(box));
       } }),
       el("button", { class: "btn ghost", type: "button", text: "העתקת קישור", onclick: function () {
         call("POST", "/pm/records/" + c.record_id + "/form-link", { tasks: tasks }).then(function (l) {
-          var url = location.origin + l.path; box.textContent = "";
+          var url = l.url || location.origin + l.path; box.textContent = "";
           box.appendChild(el("div", { class: "reclink", text: url }));
           try { navigator.clipboard.writeText(url); box.appendChild(el("span", { class: "hint", text: " הועתק." })); } catch (e) { /* select by hand */ }
         }, fail(box));

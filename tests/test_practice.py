@@ -407,6 +407,17 @@ def test_cloud_api_over_http(tmp_path):
         assert seen[-1][2]["type"] == "text" and seen[-1][2]["text"]["body"].startswith("שלום דנה, תזכורת לתור ביום שלישי 08.12")
         assert wa.send_template("050-0000007", "reminder", {"name": "דנה", "weekday": "שלישי", "date": "08.12", "time": "16:00"}) == "wamid.1"
         assert seen[-2][2]["type"] == "text" and seen[-1][2]["template"]["name"] == "hello_world"
+        # the clinician's "send in WhatsApp" goes through the API; a refusal comes back with the manual link
+        rid = c.post("/api/records", json={"identity": {"name": "דנה כהן", "phone": "050-0000001"}}, headers=H).json()["record_id"]
+        out = c.post(f"/api/pm/records/{rid}/whatsapp", json={"template": "intake_link", "link": "https://x.example/app/patient.html#t"}, headers=H).json()
+        assert out["sent"] is True and out["id"] == "wamid.1" and out["test_mode"] is True
+        assert seen[-1][2]["type"] == "text" and "https://x.example/app/patient.html#t" in seen[-1][2]["text"]["body"]
+        rid7 = c.post("/api/records", json={"identity": {"name": "רון", "phone": "050-0000007"}}, headers=H).json()["record_id"]
+        out = c.post(f"/api/pm/records/{rid7}/whatsapp", json={"template": "intake_link", "link": "https://x.example/p"}, headers=H).json()
+        assert out["sent"] is False and "131047" in out["error"] and out["link"].startswith("https://wa.me/972500000007")
+        assert seen[-1][2]["type"] == "text"   # no hello_world stand-in for a link
+        manual = c.post(f"/api/pm/records/{rid}/whatsapp", json={"template": "intake_link", "link": "https://x.example/p", "manual": True}, headers=H).json()
+        assert manual["link"].startswith("https://wa.me/") and "sent" not in manual
         s.wa_test_mode = False
         # a wrong token: Meta's reason reaches the screen
         s.wa_token = "wrong"

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>טפסים לפני הטיפול</title>
+<style>
+/* Patient side: consent forms and the MYMOP questionnaire from a one-time link. No web fonts or other third-party requests. */
+/* Layout: one calm reading column in the earth and moss colours of the clinic app; it follows the device's light or dark setting. */
+:root {
+  color-scheme: dark;
+  --paper: #1a1812; --surface: #26221a; --surface-2: #2e2a20; --ink: #f0eadc; --muted: #b9ae97; --line: #3d372a;
+  --jade: #b9cf9c; --jade-ink: #1d2216; --jade-soft: #303624; --patient: #343a26;
+  --cinnabar: #f0957f; --cinnabar-soft: #3d2620; --amber: #e6c27a; --amber-soft: #3a301b;
+  --edge: rgba(255, 246, 224, .12); --glow-1: #3b3626; --glow-2: #263020;
+  --font-display: "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+  --font-body: "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --paper: #f3efe6; --surface: #fffdf8; --surface-2: #f8f4ea; --ink: #2a2619; --muted: #6b6352; --line: #ddd5c4;
+    --jade: #4f6b3a; --jade-ink: #fffdf8; --jade-soft: #e6ebd9; --patient: #ebe7d6;
+    --cinnabar: #b5432c; --cinnabar-soft: #f6e3dc; --amber: #8a5a00; --amber-soft: #f4ead2;
+    --edge: rgba(80, 70, 40, .14); --glow-1: #e6e2cf; --glow-2: #e9eedd;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .92rem; margin: 2px 0 0; }
+.draft { display: inline-block; font-size: .75rem; letter-spacing: .04em; color: var(--amber); background: var(--amber-soft); border-radius: 4px; padding: 1px 8px; font-weight: 600; }
+nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+nav.tabs button { font: inherit; font-weight: 600; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 8px 14px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { color: var(--jade); border-bottom-color: var(--jade); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+
+/* chat */
+.chat { display: grid; gap: 10px; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
+.msg.sys { background: var(--surface); border: 1px solid var(--line); justify-self: start; border-start-start-radius: 4px; }
+.msg.pt { background: var(--patient); justify-self: end; border-start-end-radius: 4px; }
+.msg.alert { background: var(--cinnabar-soft); color: var(--cinnabar); border: 1px solid var(--cinnabar); font-weight: 600; justify-self: stretch; max-width: none; }
+.msg .meta { display: block; font-size: .78rem; color: var(--muted); margin-top: 4px; }
+.understood { display: flex; flex-wrap: wrap; gap: 6px; justify-self: end; max-width: 88%; }
+.chip { font-size: .8rem; border-radius: 999px; padding: 2px 10px; background: var(--jade-soft); color: var(--jade); }
+.chip.neg { background: var(--surface); color: var(--muted); border: 1px dashed var(--line); text-decoration: line-through; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+label.opt { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+label.opt:has(input:checked) { border-color: var(--jade); background: var(--jade-soft); }
+input[type="number"], textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea { width: 100%; min-height: 72px; resize: vertical; }
+.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 8px 16px; border: 1px solid var(--jade); background: var(--jade); color: var(--surface); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--jade); }
+.btn.no { border-color: var(--muted); background: transparent; color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.answers { display: flex; flex-wrap: wrap; gap: 8px; }
+.progress { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.composer { display: grid; gap: 8px; }
+@media (prefers-reduced-motion: no-preference) { .msg { animation: in .18s ease-out; } @keyframes in { from { transform: translateY(4px); opacity: .4; } } }
+.closed { text-align: center; padding: 32px 14px; }
+/* earth and moss */
+body { background-image: radial-gradient(90% 60% at 80% -10%, var(--glow-1), transparent 70%), radial-gradient(70% 50% at 10% 0%, var(--glow-2), transparent 70%); background-attachment: fixed; line-height: 1.6; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand svg { flex: none; width: 40px; height: 40px; color: var(--jade); }
+h1 { font-weight: 300; font-size: clamp(1.6rem, 5vw, 2.1rem); line-height: 1.15; }
+.msg { border-radius: 20px; padding: 11px 16px; }
+.msg.sys { background: var(--surface); border-color: var(--edge); }
+.panel { border-radius: 22px; border-color: var(--edge); padding: 18px; }
+.btn { border-radius: 999px; min-height: 44px; padding: 9px 20px; font-weight: 500; color: var(--jade-ink); }
+.btn.ghost { color: var(--jade); }
+label.opt { border-radius: 999px; padding: 8px 14px; min-height: 44px; background: var(--surface-2); }
+input[type="number"], textarea { background: var(--surface-2); border-radius: 12px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: var(--jade); }
+
+.form { display: grid; gap: 14px; }
+.form h2 { font-weight: 400; font-size: 1.3rem; margin: 0; }
+.form ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.field { display: grid; gap: 6px; }
+input[type="text"] { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
+.scale { display: flex; flex-wrap: wrap; gap: 6px; }
+.scale label.opt { min-width: 44px; justify-content: center; }
+.ends { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); }
+canvas.pad { width: 100%; height: 170px; background: #fffdf8; border-radius: 14px; border: 1px solid var(--line); touch-action: none; }
+.note { font-size: .88rem; color: var(--muted); margin: 0; }
+.error { color: var(--cinnabar); }
+</style>
+</head>
+<body>
+<div class="wrap" dir="rtl" lang="he">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><path d="M24 6c-5 6-5 12 0 18s5 12 0 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="15" r="2.2" fill="currentColor"/><circle cx="24" cy="33" r="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+      <div>
+        <h1>טפסים לפני הטיפול</h1>
+        <p class="sub">התשובות נשלחות רק למטפל/ת שלך בקליניקה, ונשמרות מוצפנות.</p>
+      </div>
+    </div>
+  </header>
+  <main id="forms" class="form" aria-live="polite"></main>
+</div>
+<script>window.TCM_DEMO_FORMS = {"forms": {"treatment": {"version": "2026-11-draft1", "title": "הסכמה לטיפול", "text": ["אני מבקש/ת לקבל טיפול ברפואה סינית, שעשוי לכלול דיקור במחטים חד-פעמיות, כוסות רוח, מוקסה (חימום), עיסוי ומרשם צמחי מרפא.", "הוסבר לי שהטיפול אינו מחליף אבחון וטיפול רפואי, ושעליי להמשיך במעקב אצל הרופא/ה שלי ולא להפסיק תרופות בלי להתייעץ איתו/ה.", "הוסבר לי שייתכנו תופעות לוואי חולפות, כגון כאב קל או שטף דם קטן במקום הדיקור, עייפות או סחרחורת, ושצמחי מרפא עלולים להשפיע על תרופות.", "אדווח למטפל/ת על היריון או אפשרות להיריון, על תרופות שאני נוטל/ת, על מחלות רקע ועל מכשיר מושתל כמו קוצב לב.", "אני רשאי/ת להפסיק את הטיפול בכל שלב."]}, "privacy": {"version": "2026-11-draft1", "title": "שמירת מידע ופרטיות", "text": ["המידע שאמסור, כולל השאלון, הערות הטיפול ומדדי ההתקדמות, נשמר בשרת של הקליניקה, מוצפן, ומשמש לטיפול בי בלבד.", "השם ומספר הטלפון שלי נשמרים בנפרד מהמידע הקליני, במפתח הצפנה נפרד.", "מידע קליני לא נמסר לשום גורם חיצוני. לצורך מחקר ושיפור המערכת ייתכן שימוש בנתונים בלי שם, בלי טלפון ובלי טקסט חופשי.", "אני רשאי/ת לבקש לעיין במידע שלי, לתקן אותו או למחוק אותו."]}, "whatsapp": {"version": "2026-11-draft1", "title": "הודעות וואטסאפ", "text": ["אני מסכים/ה לקבל מהקליניקה הודעות וואטסאפ לוגיסטיות: אישור תור, תזכורת לפני תור, קישורים לשאלונים וטפסים, ומועדי מפגשים.", "ההודעות נשלחות דרך שירות WhatsApp של חברת Meta, ולכן Meta רואה את מספר הטלפון שלי ואת תוכן ההודעה. ההודעות לא יכללו שום מידע רפואי: לא תלונה, לא אבחנה ולא טיפול.", "כדאי לא לכתוב פרטים רפואיים בתשובה בוואטסאפ. אפשר לספר אותם בפגישה.", "אפשר לבטל את ההסכמה בכל עת, בפנייה לקליניקה, ואז לא יישלחו עוד הודעות אוטומטיות."]}}, "mymop": {"version": "MYMOP2 (Paterson 1996), Hebrew draft", "scale": "0 = טוב ככל האפשר · 6 = גרוע ככל האפשר", "s1": "בחר/י את הבעיה (תסמין) שהכי מטריד/ה אותך. כמה היא הייתה קשה בשבוע האחרון?", "s2": "בעיה שנייה שמטרידה אותך (לא חובה). כמה היא הייתה קשה בשבוע האחרון?", "activity": "פעילות אחת שחשובה לך (גופנית, חברתית או נפשית) שהבעיה מקשה עליה. כמה קשה היה לבצע אותה בשבוע האחרון?", "wellbeing": "איך היית מתאר/ת את ההרגשה הכללית שלך בשבוע האחרון?"}};</script>
+<script>
+// Patient pages on GitHub Pages, for the demo: there is no clinic server there, so a demo link (token
+// "demo-…", made by demo_server.js) is answered here, in the browser. Nothing is sent or kept anywhere,
+// and the page says so. A real token is never touched: it goes to the clinic server as usual.
+(function () {
+  "use strict";
+  var API = window.TCM_API || "/api";
+  var FLAG = "tcm-patient-demo";
+  var hash = (location.hash || "").replace(/^#/, "");
+  var demo = hash ? hash.indexOf("demo-") === 0 : (function () { try { return sessionStorage.getItem(FLAG) === "1"; } catch (e) { return false; } })();
+  try { if (hash) sessionStorage.setItem(FLAG, demo ? "1" : "0"); } catch (e) { /* ignore */ }
+  if (!demo) return;
+  var realFetch = window.fetch.bind(window);
+  var D = window.TCM_DEMO_FORMS || null;
+  function reply(status, body) { return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: { "Content-Type": "application/json" } })); }
+  window.fetch = function (input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    var rel = url.indexOf(location.origin) === 0 ? url.slice(location.origin.length) : url;
+    var method = ((init && init.method) || "GET").toUpperCase();
+    if (rel === API + "/patient/intake") return reply(200, method === "GET" ? { open: true } : { received: true });
+    if (rel === API + "/forms") {
+      if (method !== "GET") return reply(200, { received: true });
+      if (!D) return reply(503, { detail: "no demo forms" });
+      return reply(200, { tasks: ["consent:treatment", "consent:privacy", "consent:whatsapp", "mymop"], expires_at: Math.floor(Date.now() / 1000) + 7 * 86400,
+                          forms: D.forms, mymop: D.mymop, mymop_labels: {} });
+    }
+    return realFetch(input, init);
+  };
+  document.addEventListener("DOMContentLoaded", function () {
+    var wrap = document.querySelector(".wrap") || document.body;
+    var b = document.createElement("div");
+    b.setAttribute("role", "note");
+    b.style.cssText = "padding:10px 14px;border-radius:12px;border:1px dashed var(--amber,#b80);background:var(--amber-soft,#fff4d6);font-size:.9rem";
+    b.textContent = "הדגמה: זה דף המטופל/ת כפי שייראה בקליניקה. התשובות לא נשלחות לשום מקום ולא נשמרות.";
+    wrap.insertBefore(b, wrap.firstChild);
+  });
+})();
+
+</script>
+<script>
+// Patient side of the practice forms: the clinician's link carries a one-time token in the URL fragment
+// (never in the request line, so it stays out of access logs). It opens the consent forms and the MYMOP
+// questionnaire the clinician chose, and sends them once. Nothing clinical comes back to this page except
+// the patient's own MYMOP problem names from last time, so the follow-up form keeps them.
+(function () {
+  "use strict";
+  var API = window.TCM_API || "/api";
+  var KEY = "tcm_forms_token";
+  var token = (location.hash || "").replace(/^#/, "");
+  if (token) {
+    try { sessionStorage.setItem(KEY, token); } catch (e) { /* keep it in memory */ }
+    history.replaceState(null, "", location.pathname);
+  } else {
+    try { token = sessionStorage.getItem(KEY) || ""; } catch (e) { token = ""; }
+  }
+  var root = document.getElementById("forms");
+
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "class") n.className = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== null && attrs[k] !== undefined && attrs[k] !== false) n.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c !== null && c !== undefined) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function closed(text) { root.textContent = ""; root.appendChild(el("div", { class: "panel closed", text: text })); }
+  var NOT_OPEN = "הקישור הזה כבר לא פעיל: הטפסים כבר נשלחו, או שתוקף הקישור פג. אם צריך, בקשו מהמטפל/ת קישור חדש.";
+
+  function pad() {
+    var c = el("canvas", { class: "pad", width: 600, height: 200, "aria-label": "מקום לחתימה" });
+    var ctx = c.getContext("2d"), down = false;
+    c.inked = false;
+    ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.strokeStyle = "#1d2216";
+    function p(e) { var r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; }
+    c.addEventListener("pointerdown", function (e) { down = true; c.setPointerCapture(e.pointerId); var q = p(e); ctx.beginPath(); ctx.moveTo(q[0], q[1]); });
+    c.addEventListener("pointermove", function (e) { if (!down) return; var q = p(e); ctx.lineTo(q[0], q[1]); ctx.stroke(); c.inked = true; });
+    c.addEventListener("pointerup", function () { down = false; });
+    c.clear = function () { ctx.clearRect(0, 0, c.width, c.height); c.inked = false; };
+    return c;
+  }
+
+  function scale(name, label) {
+    var opts = [0, 1, 2, 3, 4, 5, 6].map(function (i) {
+      return el("label", { class: "opt" }, [el("input", { type: "radio", name: name, value: String(i) }), String(i)]);
+    });
+    return el("fieldset", { class: "field", style: "border:0;padding:0;margin:0" }, [el("legend", { text: label }), el("div", { class: "scale" }, opts),
+      el("div", { class: "ends" }, [el("span", { text: "0 · טוב ככל האפשר" }), el("span", { text: "6 · גרוע ככל האפשר" })])]);
+  }
+  function val(name) { var x = root.querySelector('input[name="' + name + '"]:checked'); return x ? +x.value : null; }
+
+  function render(info) {
+    root.textContent = "";
+    var signers = {}, pads = {}, agree = {};
+    Object.keys(info.forms).forEach(function (k) {
+      var f = info.forms[k];
+      agree[k] = el("input", { type: "checkbox" });
+      signers[k] = el("input", { type: "text", autocomplete: "name", "aria-label": "שם מלא" });
+      pads[k] = pad();
+      root.appendChild(el("section", { class: "panel" }, [el("h2", { text: f.title }), el("ul", {}, f.text.map(function (t) { return el("li", { text: t }); })),
+        el("label", { class: "opt" }, [agree[k], "קראתי ואני מסכים/ה"]),
+        el("label", { class: "field" }, ["שם מלא", signers[k]]),
+        el("div", { class: "field" }, [el("span", { text: "חתימה (באצבע או בעכבר)" }), pads[k],
+          el("div", {}, [el("button", { class: "btn no", type: "button", text: "ניקוי החתימה", onclick: function () { pads[k].clear(); } })])])]));
+    });
+    var names = {};
+    if (info.mymop) {
+      var m = info.mymop, l = info.mymop_labels || {};
+      names.symptom1 = el("input", { type: "text", value: l.symptom1 || "", "aria-label": "הבעיה הראשונה" });
+      names.symptom2 = el("input", { type: "text", value: l.symptom2 || "", "aria-label": "הבעיה השנייה" });
+      names.activity_name = el("input", { type: "text", value: l.activity_name || "", "aria-label": "הפעילות" });
+      root.appendChild(el("section", { class: "panel" }, [el("h2", { text: "איך היה השבוע האחרון" }), el("p", { class: "note", text: "שאלון MYMOP קצר. התשובות עוזרות למטפל/ת לראות מה משתנה לאורך הטיפול." }),
+        el("label", { class: "field" }, [m.s1, names.symptom1]), scale("s1", "כמה קשה הייתה הבעיה הראשונה?"),
+        el("label", { class: "field" }, [m.s2, names.symptom2]), scale("s2", "כמה קשה הייתה הבעיה השנייה?"),
+        el("label", { class: "field" }, [m.activity, names.activity_name]), scale("activity", "כמה קשה היה לבצע אותה?"),
+        scale("wellbeing", m.wellbeing)]));
+    }
+    var msg = el("p", { class: "note", role: "status" });
+    var send = el("button", { class: "btn", type: "button", text: "שליחה למטפל/ת" });
+    send.addEventListener("click", function () {
+      var body = { consents: {} };
+      var missing = [];
+      Object.keys(info.forms).forEach(function (k) {
+        if (!agree[k].checked) return;
+        if (!pads[k].inked || !signers[k].value.trim()) { missing.push(info.forms[k].title); return; }
+        body.consents[k] = { agree: true, signer: signers[k].value.trim(), signature: pads[k].toDataURL("image/png") };
+      });
+      if (missing.length) { msg.className = "note error"; msg.textContent = "חסרים שם או חתימה ב: " + missing.join(", "); return; }
+      if (info.mymop) {
+        var d = {};
+        ["s1", "s2", "activity", "wellbeing"].forEach(function (k) { var v = val(k); if (v !== null) d[k] = v; });
+        Object.keys(names).forEach(function (k) { if (names[k].value.trim()) d[k] = names[k].value.trim(); });
+        if (d.s1 === undefined || d.wellbeing === undefined) { msg.className = "note error"; msg.textContent = "בשאלון צריך לסמן לפחות את הבעיה הראשונה ואת ההרגשה הכללית."; return; }
+        body.mymop = d;
+      }
+      send.disabled = true;
+      msg.className = "note"; msg.textContent = "שולח…";
+      fetch(API + "/forms", { method: "POST", headers: { "Content-Type": "application/json", "X-TCM": "1", Authorization: "Bearer " + token }, body: JSON.stringify(body) })
+        .then(function (r) {
+          if (r.status === 410) return closed(NOT_OPEN);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+          closed("הטפסים נשלחו. תודה! אפשר לסגור את הדף.");
+        }).catch(function () { send.disabled = false; msg.className = "note error"; msg.textContent = "השליחה לא הצליחה. הטפסים עדיין כאן, אפשר לנסות שוב."; });
+    });
+    root.appendChild(el("div", { class: "panel" }, [el("p", { class: "note", text: "טופס שלא סימנת בו \"מסכים/ה\" לא יישלח, ואפשר לחתום עליו בקליניקה." }), el("div", {}, [send]), msg]));
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!token) return closed("כדי למלא את הטפסים צריך את הקישור האישי שקיבלת מהמטפל/ת.");
+    fetch(API + "/forms", { headers: { Authorization: "Bearer " + token } }).then(function (r) {
+      if (!r.ok) return closed(r.status === 410 || r.status === 401 ? NOT_OPEN : "השרת של הקליניקה לא זמין כרגע. נסו שוב מאוחר יותר.");
+      return r.json().then(render);
+    }, function () { closed("השרת של הקליניקה לא זמין כרגע. נסו שוב מאוחר יותר."); });
+  });
+})();
+
+</script>
+</body>
+</html>

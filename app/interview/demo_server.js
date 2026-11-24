@@ -228,8 +228,9 @@
   function waOut(id, r, a, extra) {
     var text = render(id, r, a, extra || {});
     db.messages.push({ id: rid("M"), record_id: r.record_id, template: id, channel: "wa.me", status: "opened", at: now() });
-    // wa.me without a number: WhatsApp asks whom to send it to, so a made-up number is never dialled.
-    return { blocked: [], text: text, link: "https://wa.me/?text=" + encodeURIComponent(text), demo: true };
+    // An invented patient's wa.me link has no number (WhatsApp asks whom to send it to); a number the clinician typed in is used.
+    var num = r.identity && !invented(r.identity.phone) ? waNumber(r.identity.phone) : null;
+    return { blocked: [], text: text, link: "https://wa.me/" + (num || "") + "?text=" + encodeURIComponent(text), demo: true };
   }
 
   // ---- routes ----
@@ -426,7 +427,7 @@
     ["POST", /^\/pm\/records\/([^/]+)\/form-link$/, function (m) {
       need(m[1]);
       var t = "demo-" + Math.random().toString(36).slice(2, 12);
-      return { token: t, path: "/app/forms.html#" + t, expires_at: now() + 7 * 86400 };
+      return { token: t, path: "/app/forms.html#" + t, url: pageUrl("forms.html", t), expires_at: now() + 7 * 86400 };
     }],
     ["POST", /^\/pm\/records\/([^/]+)\/whatsapp$/, function (m, b) {
       var r = need(m[1]);
@@ -438,7 +439,22 @@
         var s = b.series_id || (db.series.filter(function (x) { return x.record_id === r.record_id; }).pop() || {}).id;
         extra.dates = sortAppts(db.appts.filter(function (x) { return x.series_id === s && x.series_no > 0; })).map(function (x) { var d = parse(x.start); return DAYS_SUN[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + " " + x.start.slice(11, 16); }).join(" · ");
       }
-      return waOut(b.template, r, a, extra);
+      var L = live(), to = !b.manual && L && r.identity && !invented(r.identity.phone) && waNumber(r.identity.phone);
+      if (!L || b.manual) return waOut(b.template, r, a, extra);
+      var text = render(b.template, r, a, extra);
+      if (!to) {
+        var o = waOut(b.template, r, a, extra);
+        o.sent = false; o.error = invented(r.identity.phone) ? "invented: מספר של מטופל/ת בדוי/ה, לא שולחים אליו." : "no usable phone number";
+        return o;
+      }
+      // Meta's test number: the Hebrew goes as plain text, with no hello_world stand-in, so a link arrives whole or not at all.
+      return graph("POST", "/" + L.phone_id + "/messages", { messaging_product: "whatsapp", to: to, type: "text", text: { body: text, preview_url: false } }).then(function (res) {
+        db.messages.push({ id: rid("M"), record_id: r.record_id, template: b.template, channel: "cloud_api", status: "sent", at: now() });
+        return { blocked: [], sent: true, test_mode: true, id: ((res.messages || [])[0] || {}).id, text: text };
+      }, function (e) {
+        var o = waOut(b.template, r, a, extra);
+        o.sent = false; o.error = e.message; return o;
+      });
     }],
     ["POST", /^\/pm\/queue\/([^/]+)\/(manual|retry|dismiss)$/, function (m) {
       var q = db.queue.filter(function (x) { return x.id === m[1]; })[0];
@@ -562,7 +578,17 @@
     ["GET", /^\/kb\/log$/, function () { return { rows: db.kb.slice().reverse(), total_rows: db.kb.length }; }]
   ];
   function need(id) { var r = rec(id); if (!r) throw E(404, "no such record"); return r; }
-  function link(r) { var t = "demo-" + Math.random().toString(36).slice(2, 14); return { record_id: r.record_id, patient_token: t, patient_path: "/app/patient.html#" + t, expires_at: r.link_expires_at }; }
+  // Patient pages sit next to this page: app/interview/patient.html beside app/interview/index.html in the
+  // repository, docs/app/patient.html beside docs/index.html on GitHub Pages (https://<user>.github.io/<repo>/).
+  function pageUrl(name, token) {
+    var dir = location.pathname.replace(/[^/]*$/, "");
+    var rel = /\/app\/interview\/$/.test(dir) ? name : "app/" + name;
+    return location.origin + dir + rel + "#" + token;
+  }
+  function link(r) {
+    var t = "demo-" + Math.random().toString(36).slice(2, 14);
+    return { record_id: r.record_id, patient_token: t, patient_path: "/app/patient.html#" + t, patient_url: pageUrl("patient.html", t), expires_at: r.link_expires_at };
+  }
   function gcal() { return { configured: false, connected: false, read_calendars: ["primary"], clinic_calendar: null, title: db.gcal_title, last_sync: null, last_error: null }; }
 
   function answer(method, path, body) {
@@ -611,6 +637,7 @@
           if (r.ok) return j;
           var er = j.error || {}, e = new Error("Meta " + r.status + (er.code ? " (code " + er.code + ")" : "") + ": " + (((er.error_data || {}).details) || er.message || "error"));
           if (er.code === 100) e.message = "Meta לא מכירה את ה־Phone Number ID שהוזן. כנראה הוזן מספר הטלפון במקום ה־ID: ב־API Setup ה־ID מופיע מתחת למספר הטלפון, ליד הכיתוב Phone number ID. (" + e.message + ")";
+          if (er.code === 131047 || er.code === 131030) e.message = "(code " + er.code + ") " + e.message;
           if (er.code === 190) e.message = "האסימון פג או שגוי. צריך להפיק אסימון זמני חדש ב־API Setup ולחבר מחדש. (" + e.message + ")";
           e.status = 502; throw e;
         });
@@ -653,7 +680,7 @@
     b.className = "demo-banner";
     b.setAttribute("role", "note");
     b.innerHTML = "<b>מצב הדגמה</b><span>אין כאן שרת קליניקה. כל המטופלים בדויים, ושום דבר לא נשלח או נשמר מחוץ ללשונית הזאת. " +
-      "וואטסאפ נפתח בלי מספר, ויומן גוגל לא מחובר.</span>";
+      "וואטסאפ נשלח באמת רק אם חיברת את מספר הבדיקה של Meta בלשונית ניהול הקליניקה, ורק למספר שהזנת בעצמך. יומן גוגל לא מחובר.</span>";
     var reset = document.createElement("button");
     reset.type = "button"; reset.className = "mini"; reset.textContent = "איפוס נתוני ההדגמה";
     reset.addEventListener("click", function () { try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ } location.hash = ""; location.reload(); });
