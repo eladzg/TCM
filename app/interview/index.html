@@ -301,6 +301,14 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
   border: 1.5px solid var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 14%, transparent), 0 0 10px color-mix(in srgb, var(--jade) 45%, transparent); }
 .panel > h3:first-child, .panel > .txhead h3 { font-weight: 400; font-size: 1.12rem; letter-spacing: -.005em; }
 .hint, .msg .meta { font-size: .82rem; }
+.h3d { position: relative; }
+.h3d-tip { position: absolute; left: 0; top: 0; z-index: 4; max-width: 300px; display: grid; gap: 3px; padding: 9px 13px; border-radius: 14px; pointer-events: none;
+  background: var(--glass); border: 1px solid var(--edge); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
+  color: var(--ink); font-size: .85rem; line-height: 1.45; }
+.h3d-tip[hidden] { display: none; }
+.h3d-tip b { font-weight: 500; }
+.h3d-tip .loc { direction: ltr; text-align: left; font-size: .76rem; color: var(--muted); }
+.h3d-tip .ch { font-size: .78rem; color: var(--jade); }
 /* ---- the companion: the figure stays beside the work (a column on wide screens, a faint backdrop on narrow) ---- */
 .companion { position: fixed; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--comp-w, 100%); pointer-events: none; }
 .companion[hidden], body.intro-on .companion { display: none; }
