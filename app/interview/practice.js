@@ -681,7 +681,7 @@
     });
     var css = document.createElement("style");
     css.textContent = [
-      ".pm-view[hidden]{display:none}.pm-view{display:grid;gap:16px}.wrap:has(.pm-view:not([hidden])){max-width:1180px}",
+      ".pm-view[hidden]{display:none}.pm-view{display:grid;gap:16px}",
       ".pm-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.pm-list li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pm-list li.off{opacity:.6}",
       ".pm-appts{list-style:none;margin:0;padding:0;display:grid;gap:8px}.pm-appt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:10px 14px;border-radius:18px;background:var(--glass);border:1px solid var(--edge)}",
       ".pm-appt.st-cancelled{opacity:.55;text-decoration:line-through}.pm-appt.st-done{border-color:var(--jade)}.pm-appt.st-change_requested{border-color:var(--amber)}",

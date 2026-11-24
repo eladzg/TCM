@@ -47,7 +47,7 @@ body {
   padding-block: 0 56px;
 }
 .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 18px; transition: max-width .3s ease; }
-.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])) { max-width: 1180px; }
+.wrap:has(#view-clin:not([hidden])), .wrap:has(#view-records:not([hidden])), .wrap:has(.pm-view:not([hidden])) { max-width: 1180px; }
 header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 22px; }
 .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand svg { flex: none; width: 44px; height: 44px; color: var(--jade); }
@@ -327,7 +327,7 @@ nav.tabs button[aria-selected="true"] { box-shadow: 0 0 0 4px color-mix(in srgb,
 .comp-cap a { color: inherit; pointer-events: auto; }
 @media (min-width: 1100px) {
   body:not(.intro-on) .wrap { margin-left: auto; margin-right: clamp(16px, 3vw, 72px); }
-  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
+  body:not(.intro-on) .wrap:has(#view-clin:not([hidden])), body:not(.intro-on) .wrap:has(#view-records:not([hidden])), body:not(.intro-on) .wrap:has(.pm-view:not([hidden])) { max-width: min(1180px, calc(100vw - 440px)); }
   .companion { pointer-events: auto;
     background: radial-gradient(28% 55% at var(--fig-x) 50%, color-mix(in srgb, var(--b3d-halo) 9%, transparent), transparent 85%); }
   .comp-fig { -webkit-mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); mask-image: radial-gradient(40% 80% at var(--fig-x) 50%, #000 60%, transparent 100%); }
